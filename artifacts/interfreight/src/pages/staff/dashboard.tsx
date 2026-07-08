@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   useGetDashboardStats,
   useGetStatusBreakdown,
@@ -28,6 +28,18 @@ type Shipment = {
   invoiceNo?: string; pod?: string; finalPortDestination?: string;
   status: string; companyName: string; extraFields?: Record<string, unknown>;
   entry?: string; lastUpdated?: string;
+};
+
+type OperationalAlert = {
+  id: number;
+  identifier: string;
+  consignee: string;
+  shipper: string;
+  cargoDescription: string;
+  invoiceNo: string;
+  eta?: string;
+  status?: string;
+  mraRef?: string;
 };
 
 const CARD_COLS = [
@@ -160,6 +172,57 @@ function renderShipmentSections(shipments: Shipment[]) {
   );
 }
 
+function renderOperationalAlertTable(
+  items: OperationalAlert[],
+  primaryLabel: "ETA" | "MRA Ref",
+  emptyText: string,
+  loading: boolean,
+) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-10 text-muted-foreground">
+        <Loader2 className="w-5 h-5 animate-spin text-primary mr-2" />
+        Loading...
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return <p className="text-center text-muted-foreground py-10 text-sm">{emptyText}</p>;
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-xs">
+        <thead className="bg-muted/40 text-muted-foreground uppercase tracking-wider border-b border-border">
+          <tr>
+            <th className="px-4 py-3">{primaryLabel}</th>
+            <th className="px-4 py-3">Reference</th>
+            <th className="px-4 py-3">Consignee</th>
+            <th className="px-4 py-3">Shipper</th>
+            <th className="px-4 py-3">Cargo Description</th>
+            <th className="px-4 py-3">Invoice No.</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {items.map((item) => (
+            <tr key={`${primaryLabel}-${item.id}`} className="hover:bg-muted/20 transition-colors">
+              <td className="px-4 py-3 font-bold text-secondary whitespace-nowrap">
+                {primaryLabel === "ETA" && item.eta ? formatDate(item.eta) : item.mraRef}
+              </td>
+              <td className="px-4 py-3 font-semibold text-secondary whitespace-nowrap">{item.identifier}</td>
+              <td className="px-4 py-3 text-muted-foreground">{item.consignee}</td>
+              <td className="px-4 py-3 text-muted-foreground">{item.shipper}</td>
+              <td className="px-4 py-3 text-muted-foreground min-w-[180px]">{item.cargoDescription}</td>
+              <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{item.invoiceNo}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -194,6 +257,11 @@ export default function Dashboard() {
   const [feedback, setFeedback] = useState<any[]>([]);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackLoaded, setFeedbackLoaded] = useState(false);
+  const [operationalAlerts, setOperationalAlerts] = useState<{
+    nearbyConsignments: OperationalAlert[];
+    needsChecking: OperationalAlert[];
+  } | null>(null);
+  const [operationalAlertsLoading, setOperationalAlertsLoading] = useState(false);
 
   // ── Company Cards state ───────────────────────────────────────────────────
   const [companiesList, setCompaniesList] = useState<CompanyItem[]>([]);
@@ -209,6 +277,27 @@ export default function Dashboard() {
 
   const typedUser = user as any;
   const isAdmin = typedUser?.role === "admin";
+
+  const loadOperationalAlerts = async () => {
+    setOperationalAlertsLoading(true);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/stats/operational-alerts`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to load operational alerts");
+      setOperationalAlerts(await res.json());
+    } catch {
+      setOperationalAlerts({ nearbyConsignments: [], needsChecking: [] });
+    } finally {
+      setOperationalAlertsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOperationalAlerts();
+  }, []);
 
   // ── Company Cards functions ───────────────────────────────────────────────
   const loadCompanies = async () => {
@@ -409,6 +498,7 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/stats/status-breakdown"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats/recent-activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/staff/uploads"] });
+      loadOperationalAlerts();
       setCompaniesLoaded(false); // force reload of company list
     } catch (err: any) {
       toast({ variant: "destructive", title: "Upload Failed", description: err.message || "An error occurred" });
@@ -486,6 +576,7 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/stats/status-breakdown"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats/recent-activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/staff/uploads"] });
+      loadOperationalAlerts();
     } catch (err: any) {
       toast({ variant: "destructive", title: "Upload Failed", description: err.message || "An error occurred during upload" });
     } finally {
@@ -513,6 +604,7 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/stats/status-breakdown"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats/recent-activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/staff/uploads"] });
+      loadOperationalAlerts();
     } catch (err: any) {
       toast({ variant: "destructive", title: "Delete failed", description: err.message });
     } finally {
@@ -536,6 +628,7 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/stats/status-breakdown"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats/recent-activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/staff/uploads"] });
+      loadOperationalAlerts();
     } catch (err: any) {
       toast({ variant: "destructive", title: "Failed to clear data", description: err.message });
     } finally {
@@ -769,6 +862,34 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground">{card.note}</p>
                   </div>
                 ))}
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                  <div className="p-5 border-b border-border flex items-center gap-2 bg-muted/20">
+                    <Clock size={18} className="text-primary" />
+                    <h3 className="font-bold text-secondary">Nearby Consignments</h3>
+                  </div>
+                  {renderOperationalAlertTable(
+                    operationalAlerts?.nearbyConsignments ?? [],
+                    "ETA",
+                    "No ETA consignments within the next 15 days",
+                    operationalAlertsLoading,
+                  )}
+                </div>
+
+                <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                  <div className="p-5 border-b border-border flex items-center gap-2 bg-muted/20">
+                    <AlertTriangle size={18} className="text-primary" />
+                    <h3 className="font-bold text-secondary">Needs Checking</h3>
+                  </div>
+                  {renderOperationalAlertTable(
+                    operationalAlerts?.needsChecking ?? [],
+                    "MRA Ref",
+                    "No consignments currently need entry checking",
+                    operationalAlertsLoading,
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

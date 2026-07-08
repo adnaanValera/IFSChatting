@@ -32,6 +32,65 @@ function sectionLabelForShipment(shipment: { status: string; extraFields: unknow
   ))?.label ?? "OTHER SHIPMENTS";
 }
 
+function extraValue(extraFields: unknown, ...keys: string[]): string {
+  const extra = (extraFields as Record<string, unknown>) ?? {};
+  for (const key of keys) {
+    const value = extra[key];
+    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
+  }
+  return "";
+}
+
+function parseEtaDate(status: string, now = new Date()): Date | null {
+  const etaMatch = status.match(/\bETA\b[:\s-]*(.+)$/i);
+  if (!etaMatch?.[1]) return null;
+  const raw = etaMatch[1].replace(/\b(ETA|on|at)\b/gi, " ").replace(/[,.]/g, " ").trim();
+  const monthNames: Record<string, number> = {
+    jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3,
+    may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7, sep: 8, sept: 8,
+    september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
+  };
+
+  const wordDate = raw.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)(?:\s+(\d{2,4}))?\b/);
+  if (wordDate?.[1] && wordDate[2]) {
+    const month = monthNames[wordDate[2].toLowerCase()];
+    if (month !== undefined) {
+      const hasYear = Boolean(wordDate[3]);
+      const year = hasYear ? normalizeYear(wordDate[3]!) : now.getFullYear();
+      const parsed = new Date(year, month, Number(wordDate[1]));
+      if (!hasYear && parsed < startOfDay(now)) parsed.setFullYear(parsed.getFullYear() + 1);
+      return parsed;
+    }
+  }
+
+  const slashDate = raw.match(/\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/);
+  if (slashDate?.[1] && slashDate[2]) {
+    const hasYear = Boolean(slashDate[3]);
+    const year = hasYear ? normalizeYear(slashDate[3]!) : now.getFullYear();
+    const parsed = new Date(year, Number(slashDate[2]) - 1, Number(slashDate[1]));
+    if (!hasYear && parsed < startOfDay(now)) parsed.setFullYear(parsed.getFullYear() + 1);
+    return parsed;
+  }
+
+  return null;
+}
+
+function normalizeYear(value: string): number {
+  const year = Number(value);
+  return year < 100 ? 2000 + year : year;
+}
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function shipmentIdentifier(shipment: { containerNo: string | null; extraFields: unknown }): string {
+  const type = extraValue(shipment.extraFields, "Type", "type").toUpperCase();
+  const blManifest = extraValue(shipment.extraFields, "BL / Manifest No.", "BL/Manifest No.", "BL", "bl");
+  if (type === "FTL" || type === "LCL") return blManifest || "N/A";
+  return shipment.containerNo || blManifest || "N/A";
+}
+
 router.get("/stats/dashboard", requireAuth, async (_req, res) => {
   const [companiesCount] = await db.select({ count: sql<number>`count(*)::int` }).from(companiesTable);
   const [shipmentsCount] = await db.select({ count: sql<number>`count(*)::int` }).from(shipmentsTable);
@@ -72,6 +131,55 @@ router.get("/stats/dashboard", requireAuth, async (_req, res) => {
     })),
     latestUpload: latestUpload?.uploadedAt?.toISOString() ?? null,
   });
+});
+
+router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
+  const today = startOfDay(new Date());
+  const maxDate = new Date(today);
+  maxDate.setDate(maxDate.getDate() + 15);
+
+  const shipments = await db
+    .select({
+      id: shipmentsTable.id,
+      status: shipmentsTable.status,
+      containerNo: shipmentsTable.containerNo,
+      shipper: shipmentsTable.shipper,
+      consignee: shipmentsTable.consignee,
+      cargoDescription: shipmentsTable.cargoDescription,
+      invoiceNo: shipmentsTable.invoiceNo,
+      mraRef: shipmentsTable.mraRef,
+      entry: shipmentsTable.entry,
+      extraFields: shipmentsTable.extraFields,
+    })
+    .from(shipmentsTable);
+
+  const mapBase = (shipment: typeof shipments[number]) => ({
+    id: shipment.id,
+    identifier: shipmentIdentifier(shipment),
+    consignee: shipment.consignee || "N/A",
+    shipper: shipment.shipper || "N/A",
+    cargoDescription: shipment.cargoDescription || "N/A",
+    invoiceNo: shipment.invoiceNo || "N/A",
+  });
+
+  const nearbyConsignments = shipments
+    .map((shipment) => ({ shipment, etaDate: parseEtaDate(shipment.status, today) }))
+    .filter(({ etaDate }) => etaDate && etaDate >= today && etaDate <= maxDate)
+    .sort((a, b) => a.etaDate!.getTime() - b.etaDate!.getTime())
+    .map(({ shipment, etaDate }) => ({
+      ...mapBase(shipment),
+      eta: etaDate!.toISOString(),
+      status: shipment.status,
+    }));
+
+  const needsChecking = shipments
+    .filter((shipment) => Boolean(shipment.mraRef?.trim()) && !shipment.entry?.trim())
+    .map((shipment) => ({
+      ...mapBase(shipment),
+      mraRef: shipment.mraRef || "N/A",
+    }));
+
+  res.json({ nearbyConsignments, needsChecking });
 });
 
 router.get("/stats/status-breakdown", requireAuth, async (_req, res) => {
