@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useListStaffUsers, useStaffLogout } from "@workspace/api-client-react";
-import { Loader2, Users, Shield, LogOut, ArrowLeft, Trash2 } from "lucide-react";
+import { Loader2, Users, Shield, LogOut, ArrowLeft, Trash2, KeyRound } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -10,6 +10,7 @@ export default function UsersList() {
   const logoutMutation = useStaffLogout();
   const { data: users, isLoading } = useListStaffUsers();
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [changingPasswordId, setChangingPasswordId] = useState<number | null>(null);
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -46,6 +47,41 @@ export default function UsersList() {
       alert(err.message || "Failed to delete user");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleChangePassword = async (user: any) => {
+    const adminPassword = window.prompt(`Enter your admin password to change ${user.email}'s password`);
+    if (!adminPassword) return;
+
+    const newPassword = window.prompt(`Enter the new password for ${user.email}`);
+    if (!newPassword) return;
+    if (newPassword.length < 6) {
+      alert("New password must be at least 6 characters");
+      return;
+    }
+
+    setChangingPasswordId(user.id);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/users/${user.id}/password`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ adminPassword, newPassword }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Failed to change password");
+      }
+      alert(`Password changed for ${user.email}`);
+    } catch (err: any) {
+      alert(err.message || "Failed to change password");
+    } finally {
+      setChangingPasswordId(null);
     }
   };
 
@@ -125,6 +161,15 @@ export default function UsersList() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleChangePassword(user)}
+                        disabled={changingPasswordId === user.id}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-secondary hover:text-primary border border-border hover:bg-primary/5 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 mr-2"
+                        title="Change password"
+                      >
+                        {changingPasswordId === user.id ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                        Password
+                      </button>
                       <button
                         onClick={() => handleDeleteUser(user)}
                         disabled={deletingId === user.id}

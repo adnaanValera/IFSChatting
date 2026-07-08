@@ -1230,4 +1230,31 @@ router.delete("/staff/users/:id", requireAuth, requireAdmin, async (req, res) =>
   res.status(204).send();
 });
 
+router.patch("/staff/users/:id/password", requireAuth, requireAdmin, async (req, res) => {
+  const authReq = req as typeof req & { user: { userId: number } };
+  const id = parseInt(req.params["id"] as string);
+  const { adminPassword, newPassword } = req.body as { adminPassword?: string; newPassword?: string };
+
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid user id" }); return; }
+  if (!adminPassword) { res.status(400).json({ error: "Admin password is required" }); return; }
+  if (!newPassword || newPassword.length < 6) { res.status(400).json({ error: "New password must be at least 6 characters" }); return; }
+
+  const [admin] = await db.select().from(usersTable).where(eq(usersTable.id, authReq.user.userId)).limit(1);
+  if (!admin || admin.role !== "admin") { res.status(403).json({ error: "Admin access required" }); return; }
+
+  const validPassword = await bcrypt.compare(adminPassword, admin.passwordHash);
+  if (!validPassword) { res.status(401).json({ error: "Incorrect admin password" }); return; }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const updated = await db
+    .update(usersTable)
+    .set({ passwordHash })
+    .where(eq(usersTable.id, id))
+    .returning({ id: usersTable.id });
+
+  if (updated.length === 0) { res.status(404).json({ error: "User not found" }); return; }
+
+  res.status(204).send();
+});
+
 export default router;
