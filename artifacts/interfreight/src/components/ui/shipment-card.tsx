@@ -147,7 +147,7 @@ function FieldCell({
   value?: string | null;
   theme: typeof T[Variant];
 }) {
-  if (!value) return null;
+  const displayValue = value?.toString().trim() || "N/A";
   return (
     <div className="flex flex-col gap-1 py-4">
       <span
@@ -156,9 +156,17 @@ function FieldCell({
         <span className={theme.fieldIconColor}>{icon}</span>
         {label}
       </span>
-      <span className="text-white font-semibold text-sm leading-snug">{value}</span>
+      <span className="text-white font-semibold text-sm leading-snug">{displayValue}</span>
     </div>
   );
+}
+
+function extraText(extraFields: Record<string, unknown> | null | undefined, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = extraFields?.[key];
+    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
+  }
+  return "";
 }
 
 /* ── Main component ───────────────────────────────────────────────────────── */
@@ -193,6 +201,8 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
   // Extra fields helpers
   const ef = s.extraFields ?? {};
   const typeLabel = String(ef["Type"] ?? ef["type"] ?? "").toUpperCase() || null;
+  const blManifestNo = extraText(s.extraFields, "BL / Manifest No.", "BL/Manifest No.", "BL", "bl", "Manifest No.", "manifestNo");
+  const collapsedIdentifier = variant === "container" ? (s.containerNo || "N/A") : (blManifestNo || "N/A");
 
   return (
     <motion.div
@@ -226,7 +236,7 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
                 {typeLabel ? ` · ${typeLabel}` : ""}
               </p>
               <p className="text-white font-bold text-base leading-tight truncate">
-                {s.ifsRef || s.containerNo || "—"}
+                {collapsedIdentifier}
               </p>
               {s.companyName && (
                 <p className="text-xs text-zinc-500 truncate mt-0.5">{s.companyName}</p>
@@ -326,25 +336,22 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
             <div className={`divide-y ${theme.fieldBorder}`}>
 
               {/* MRA Ref | Container/Pallet No. */}
-              {(s.mraRef || s.containerNo) && (
-                <div className={`grid grid-cols-2 divide-x ${theme.fieldBorder} px-5`}>
+              <div className={`grid grid-cols-2 divide-x ${theme.fieldBorder} px-5`}>
                   <div className="pr-5">
                     <FieldCell icon={<FileText size={11} />} label="MRA Ref" value={s.mraRef} theme={theme} />
                   </div>
                   <div className="pl-5">
                     <FieldCell
-                      icon={variant === "pallet" ? <Boxes size={11} /> : <Box size={11} />}
-                      label={variant === "pallet" ? "Pallets No." : "Container No."}
-                      value={s.containerNo}
+                      icon={variant === "container" ? <Box size={11} /> : <FileText size={11} />}
+                      label={variant === "container" ? "Container No." : "BL / Manifest No."}
+                      value={variant === "container" ? s.containerNo : blManifestNo}
                       theme={theme}
                     />
                   </div>
                 </div>
-              )}
 
               {/* Shipper | Consignee */}
-              {(s.shipper || s.consignee) && (
-                <div className={`grid grid-cols-2 divide-x ${theme.fieldBorder} px-5`}>
+              <div className={`grid grid-cols-2 divide-x ${theme.fieldBorder} px-5`}>
                   <div className="pr-5">
                     <FieldCell icon={<User size={11} />} label="Shipper" value={s.shipper} theme={theme} />
                   </div>
@@ -352,11 +359,9 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
                     <FieldCell icon={<User size={11} />} label="Consignee" value={s.consignee || s.companyName} theme={theme} />
                   </div>
                 </div>
-              )}
 
               {/* Cargo Description — full width with decorative icon */}
-              {s.cargoDescription && (
-                <div
+              <div
                   className={`px-5 flex items-center justify-between gap-4 relative overflow-hidden`}
                   style={{ background: theme.cargoBg }}
                 >
@@ -379,38 +384,22 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
                       : <Box size={56} strokeWidth={0.9} />}
                   </div>
                 </div>
-              )}
 
               {/* Invoice No. | POD | Entry */}
-              {(s.invoiceNo || s.pod || s.entry) && (() => {
-                const cols = [s.invoiceNo, s.pod, s.entry].filter(Boolean);
-                return (
-                  <div
-                    className={`grid divide-x ${theme.fieldBorder} px-5`}
-                    style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))` }}
-                  >
-                    {s.invoiceNo && (
-                      <div className="pr-5 first:pl-0 last:pr-0">
-                        <FieldCell icon={<FileText size={11} />} label="Invoice No." value={s.invoiceNo} theme={theme} />
-                      </div>
-                    )}
-                    {s.pod && (
-                      <div className="px-5 first:pl-0 last:pr-0">
-                        <FieldCell icon={<Anchor size={11} />} label="POD" value={s.pod} theme={theme} />
-                      </div>
-                    )}
-                    {s.entry && (
-                      <div className="pl-5 first:pl-0 last:pr-0">
-                        <FieldCell icon={<MapPin size={11} />} label="Entry" value={s.entry} theme={theme} />
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+              <div className={`grid grid-cols-3 divide-x ${theme.fieldBorder} px-5`}>
+                <div className="pr-5">
+                  <FieldCell icon={<FileText size={11} />} label="Invoice No." value={s.invoiceNo} theme={theme} />
+                </div>
+                <div className="px-5">
+                  <FieldCell icon={<Anchor size={11} />} label="POD" value={s.pod} theme={theme} />
+                </div>
+                <div className="pl-5">
+                  <FieldCell icon={<MapPin size={11} />} label="Entry" value={s.entry} theme={theme} />
+                </div>
+              </div>
 
               {/* Final Port Destination */}
-              {s.finalPortDestination && (
-                <div className="px-5">
+              <div className="px-5">
                   <FieldCell
                     icon={<Flag size={11} />}
                     label="Final Port Destination (FPD)"
@@ -418,7 +407,6 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
                     theme={theme}
                   />
                 </div>
-              )}
 
               {/* STATUS footer */}
               <div
@@ -442,3 +430,4 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
     </motion.div>
   );
 }
+
