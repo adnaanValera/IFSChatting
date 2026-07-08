@@ -2,10 +2,11 @@ import { Router } from "express";
 import multer from "multer";
 import ExcelJS from "exceljs";
 import { ZipArchive } from "archiver";
+import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs";
 import { db, pool, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable } from "@workspace/db";
-import { eq, asc, and, or, isNull } from "drizzle-orm";
+import { eq, asc, and, or, isNull, sql } from "drizzle-orm";
 import { requireAuth, requireStaff, requireAdmin } from "../middlewares/auth";
 import { logger } from "../lib/logger";
 
@@ -464,7 +465,7 @@ router.post("/staff/upload", requireAuth, requireStaff, upload.array("files"), a
         const customers = await db
           .select({ id: usersTable.id })
           .from(usersTable)
-          .where(eq(usersTable.companyName, companyName));
+          .where(sql`lower(${usersTable.companyName}) = lower(${companyName})`);
 
         for (const { id: userId } of customers) {
           const parts: string[] = [];
@@ -1061,7 +1062,7 @@ async function generateCompanyReportWorkbook(
 
 router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, async (req, res) => {
   const companyName = decodeURIComponent(req.params["company"] as string);
-  const shipments = await db.select().from(shipmentsTable).where(eq(shipmentsTable.companyName, companyName)).orderBy(asc(shipmentsTable.ifsRef));
+  const shipments = await db.select().from(shipmentsTable).where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`).orderBy(asc(shipmentsTable.ifsRef));
   const template = await getReportTemplate();
   const wb = await generateCompanyReportWorkbook(companyName, shipments, template?.buffer ?? null);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -1085,15 +1086,18 @@ router.get("/staff/company-report/:company/consignee/:consignee/excel", requireA
     .where(
       isUnspecified
         ? and(
-            eq(shipmentsTable.companyName, companyName),
+            sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`,
             or(eq(shipmentsTable.consignee, ""), isNull(shipmentsTable.consignee)),
           )
-        : and(eq(shipmentsTable.companyName, companyName), eq(shipmentsTable.consignee, consigneeName)),
+        : and(
+            sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`,
+            sql`lower(${shipmentsTable.consignee}) = lower(${consigneeName})`,
+          ),
     )
     .orderBy(asc(shipmentsTable.ifsRef));
 
   const template = await getReportTemplate();
-  const reportLabel = isUnspecified ? companyName : consigneeName;
+  const reportLabel = isUnspecified ? companyName : (shipments[0]?.consignee ?? consigneeName);
   const wb = await generateCompanyReportWorkbook(reportLabel, shipments, template?.buffer ?? null);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName} - ${reportLabel}.xlsx"`);
@@ -1106,9 +1110,10 @@ router.get("/staff/company-report/:company/consignee/:consignee/excel", requireA
 
 router.get("/staff/all-reports-zip", requireAuth, requireStaff, async (_req, res) => {
   const companies = await db
-    .selectDistinct({ companyName: shipmentsTable.companyName })
+    .select({ companyName: sql<string>`min(${shipmentsTable.companyName})` })
     .from(shipmentsTable)
-    .orderBy(asc(shipmentsTable.companyName));
+    .groupBy(sql`lower(${shipmentsTable.companyName})`)
+    .orderBy(sql`min(${shipmentsTable.companyName})`);
 
   if (companies.length === 0) {
     res.status(404).json({ error: "No company data found. Upload a tracking master first." });
@@ -1129,7 +1134,7 @@ router.get("/staff/all-reports-zip", requireAuth, requireStaff, async (_req, res
     const shipments = await db
       .select()
       .from(shipmentsTable)
-      .where(eq(shipmentsTable.companyName, companyName))
+      .where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`)
       .orderBy(asc(shipmentsTable.ifsRef));
 
     const wb = await generateCompanyReportWorkbook(companyName, shipments, template?.buffer ?? null);
@@ -1148,6 +1153,28 @@ router.get("/staff/users", requireAuth, requireAdmin, async (_req, res) => {
     .select({ id: usersTable.id, fullName: usersTable.fullName, companyName: usersTable.companyName, email: usersTable.email, role: usersTable.role })
     .from(usersTable);
   res.json(users);
+});
+
+router.delete("/staff/users/:id", requireAuth, requireAdmin, async (req, res) => {
+  const authReq = req as typeof req & { user: { userId: number } };
+  const id = parseInt(req.params["id"] as string);
+  const { password } = req.body as { password?: string };
+
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid user id" }); return; }
+  if (!password) { res.status(400).json({ error: "Admin password is required" }); return; }
+  if (id === authReq.user.userId) { res.status(400).json({ error: "You cannot delete your own admin account while logged in." }); return; }
+
+  const [admin] = await db.select().from(usersTable).where(eq(usersTable.id, authReq.user.userId)).limit(1);
+  if (!admin || admin.role !== "admin") { res.status(403).json({ error: "Admin access required" }); return; }
+
+  const validPassword = await bcrypt.compare(password, admin.passwordHash);
+  if (!validPassword) { res.status(401).json({ error: "Incorrect admin password" }); return; }
+
+  await db.delete(notificationsTable).where(eq(notificationsTable.userId, id));
+  const deleted = await db.delete(usersTable).where(eq(usersTable.id, id)).returning({ id: usersTable.id });
+  if (deleted.length === 0) { res.status(404).json({ error: "User not found" }); return; }
+
+  res.status(204).send();
 });
 
 export default router;

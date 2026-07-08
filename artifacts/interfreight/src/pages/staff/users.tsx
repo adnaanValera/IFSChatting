@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useListStaffUsers, useStaffLogout } from "@workspace/api-client-react";
-import { Loader2, Users, Shield, LogOut, ArrowLeft } from "lucide-react";
+import { Loader2, Users, Shield, LogOut, ArrowLeft, Trash2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -8,6 +9,7 @@ export default function UsersList() {
   const queryClient = useQueryClient();
   const logoutMutation = useStaffLogout();
   const { data: users, isLoading } = useListStaffUsers();
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -17,6 +19,34 @@ export default function UsersList() {
         setLocation("/auth");
       }
     });
+  };
+
+  const handleDeleteUser = async (user: any) => {
+    const password = window.prompt(`Enter your admin password to delete ${user.email}`);
+    if (!password) return;
+
+    setDeletingId(user.id);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/users/${user.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Failed to delete user");
+      }
+      queryClient.invalidateQueries();
+    } catch (err: any) {
+      alert(err.message || "Failed to delete user");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   if (isLoading) {
@@ -68,6 +98,7 @@ export default function UsersList() {
                   <th className="px-6 py-4">Company</th>
                   <th className="px-6 py-4">Email</th>
                   <th className="px-6 py-4">Role</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -93,11 +124,22 @@ export default function UsersList() {
                         {user.role}
                       </span>
                     </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleDeleteUser(user)}
+                        disabled={deletingId === user.id}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 border border-red-200 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        title="Delete user"
+                      >
+                        {deletingId === user.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {!users?.length && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">No users found</td>
+                    <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No users found</td>
                   </tr>
                 )}
               </tbody>

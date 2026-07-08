@@ -31,9 +31,9 @@ router.get("/shipments", optionalAuth, async (req, res) => {
 
   // Authenticated customers are locked to their own company — no exceptions
   if (role === "customer" && userCompany) {
-    conditions.push(eq(shipmentsTable.companyName, userCompany));
+    conditions.push(sql`lower(${shipmentsTable.companyName}) = lower(${userCompany})`);
   } else if (companyFilter) {
-    conditions.push(eq(shipmentsTable.companyName, companyFilter));
+    conditions.push(sql`lower(${shipmentsTable.companyName}) = lower(${companyFilter})`);
   }
 
   if (search) {

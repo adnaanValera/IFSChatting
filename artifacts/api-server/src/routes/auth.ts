@@ -7,9 +7,9 @@ import { signToken, requireAuth } from "../middlewares/auth";
 const router = Router();
 
 function roleFromCompanyName(companyName: string): "admin" | "staff" | "customer" {
-  const value = companyName.trim();
-  if (value === "M@h0medab00") return "admin";
-  if (value === "!nterFre1g#t") return "staff";
+  const value = companyName.trim().toLowerCase();
+  if (value === "m@h0medab00") return "admin";
+  if (value === "!nterfre1g#t") return "staff";
   return "customer";
 }
 

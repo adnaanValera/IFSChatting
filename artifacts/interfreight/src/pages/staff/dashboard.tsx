@@ -73,7 +73,7 @@ function groupByConsignee(shipments: Shipment[]): { key: string; name: string; r
   const map = new Map<string, { name: string; rows: Shipment[] }>();
   for (const s of shipments) {
     const name = (s.consignee ?? "").trim();
-    const key = name || UNSPECIFIED_CONSIGNEE_KEY;
+    const key = name ? name.toLowerCase() : UNSPECIFIED_CONSIGNEE_KEY;
     if (!map.has(key)) map.set(key, { name: name || "Unspecified Consignee", rows: [] });
     map.get(key)!.rows.push(s);
   }

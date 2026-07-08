@@ -36,10 +36,11 @@ export default function Containers() {
   };
 
   // Group shipments by company name (then by consignee within each group)
-  const grouped = shipments.reduce<Record<string, typeof shipments>>((acc, s) => {
-    const key = s.companyName || "Unknown";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(s);
+  const grouped = shipments.reduce<Record<string, { name: string; rows: typeof shipments }>>((acc, s) => {
+    const name = s.companyName || "Unknown";
+    const key = name.toLowerCase();
+    if (!acc[key]) acc[key] = { name, rows: [] };
+    acc[key].rows.push(s);
     return acc;
   }, {});
   const groupKeys = Object.keys(grouped).sort();
@@ -155,14 +156,16 @@ export default function Containers() {
 
             <AnimatePresence>
               <div className="space-y-10">
-                {groupKeys.map((company, gi) => {
-                  const items = grouped[company];
+                {groupKeys.map((companyKey, gi) => {
+                  const company = grouped[companyKey].name;
+                  const items = grouped[companyKey].rows;
 
                   // Sub-group by consignee within this company
-                  const byConsignee = items.reduce<Record<string, typeof items>>((acc, s) => {
-                    const ck = s.consignee || company;
-                    if (!acc[ck]) acc[ck] = [];
-                    acc[ck].push(s);
+                  const byConsignee = items.reduce<Record<string, { name: string; rows: typeof items }>>((acc, s) => {
+                    const name = s.consignee || company;
+                    const ck = name.toLowerCase();
+                    if (!acc[ck]) acc[ck] = { name, rows: [] };
+                    acc[ck].rows.push(s);
                     return acc;
                   }, {});
                   const consigneeKeys = Object.keys(byConsignee).sort();
@@ -193,27 +196,31 @@ export default function Containers() {
                       {hasMultipleConsignees ? (
                         // Show sub-sections by consignee
                         <div className="space-y-7 pl-2">
-                          {consigneeKeys.map((consignee, ci) => (
-                            <div key={consignee}>
-                              <div className="flex items-center gap-2 mb-3">
-                                <span className="text-xs font-semibold text-red-500 uppercase tracking-widest">
-                                  Consignee:
-                                </span>
-                                <span className="text-zinc-300 text-sm font-medium">{consignee}</span>
-                                <div className="flex-1 h-px bg-zinc-800/60 ml-1" />
+                          {consigneeKeys.map((consigneeKey, ci) => {
+                            const consignee = byConsignee[consigneeKey].name;
+                            const consigneeItems = byConsignee[consigneeKey].rows;
+                            return (
+                              <div key={consigneeKey}>
+                                <div className="flex items-center gap-2 mb-3">
+                                  <span className="text-xs font-semibold text-red-500 uppercase tracking-widest">
+                                    Consignee:
+                                  </span>
+                                  <span className="text-zinc-300 text-sm font-medium">{consignee}</span>
+                                  <div className="flex-1 h-px bg-zinc-800/60 ml-1" />
+                                </div>
+                                <div className="space-y-4">
+                                  {consigneeItems.map((shipment, idx) => (
+                                    <ShipmentCard
+                                      key={shipment.id}
+                                      shipment={shipment}
+                                      index={ci * 10 + idx}
+                                      defaultOpen={true}
+                                    />
+                                  ))}
+                                </div>
                               </div>
-                              <div className="space-y-4">
-                                {byConsignee[consignee].map((shipment, idx) => (
-                                  <ShipmentCard
-                                    key={shipment.id}
-                                    shipment={shipment}
-                                    index={ci * 10 + idx}
-                                    defaultOpen={true}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : (
                         // Single consignee — cards directly
