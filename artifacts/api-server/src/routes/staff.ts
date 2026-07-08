@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import ExcelJS from "exceljs";
 import { ZipArchive } from "archiver";
+import PDFDocument from "pdfkit";
 import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs";
@@ -1168,6 +1169,124 @@ async function generateCompanyReportWorkbook(
 
 // ── Company Status Report Excel download (staff only) ────────────────────────
 
+function drawPdfText(
+  doc: PDFKit.PDFDocument,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  options: PDFKit.Mixins.TextOptions = {},
+): void {
+  doc.text(text || "", x + 3, y + 4, { width: Math.max(1, width - 6), ellipsis: true, ...options });
+}
+
+function drawPdfReport(
+  doc: PDFKit.PDFDocument,
+  companyName: string,
+  shipments: (typeof shipmentsTable.$inferSelect)[],
+): void {
+  const RED = "#C00000";
+  const DARK_BLUE = "#1F3864";
+  const HEADER_BG = "#D6DCE4";
+  const ROW_ALT = "#F2F2F2";
+  const BORDER = "#808080";
+  const dateStr = todayString();
+  const left = 24;
+  const right = 24;
+  const top = 26;
+  const pageWidth = doc.page.width - left - right;
+  const bottom = doc.page.height - 28;
+  const colWidths = [62, 34, 82, 72, 76, 84, 112, 66, 38, 38, 54, 68, 56, 70];
+  const labels = ["IFS Ref", "Type", "BL / Manifest No.", "Container No.", "Shipper", "Consignee", "Cargo Desc", "Invoice No.", "POD", "FPD", "Agent", "MRA Ref", "Entry", "Status"];
+
+  let y = top;
+  const drawTitle = () => {
+    doc.font("Helvetica-Bold").fontSize(16).fillColor(RED).text("InterFreight Solutions", left, y, { width: pageWidth * 0.66 });
+    doc.font("Helvetica-Bold").fontSize(13).fillColor(DARK_BLUE).text("Status Report", left + pageWidth * 0.66, y + 2, { width: pageWidth * 0.34, align: "right" });
+    y += 24;
+    doc.font("Helvetica-Bold").fontSize(10).fillColor("#000000").text(companyName, left, y, { width: pageWidth * 0.66 });
+    doc.font("Helvetica").fontSize(9).fillColor("#000000").text(`Date: ${dateStr}`, left + pageWidth * 0.66, y, { width: pageWidth * 0.34, align: "right" });
+    y += 24;
+  };
+  const ensureSpace = (height: number) => {
+    if (y + height <= bottom) return;
+    doc.addPage();
+    y = top;
+    drawTitle();
+  };
+  const drawSectionHeader = (title: string) => {
+    ensureSpace(40);
+    doc.rect(left, y, pageWidth, 20).fill(DARK_BLUE);
+    doc.font("Helvetica-Bold").fontSize(9).fillColor("#FFFFFF").text(title, left, y + 6, { width: pageWidth, align: "center" });
+    y += 20;
+  };
+  const drawColumnHeaders = () => {
+    let x = left;
+    doc.font("Helvetica-Bold").fontSize(6.6).fillColor("#000000");
+    for (let i = 0; i < labels.length; i++) {
+      const width = colWidths[i] ?? 40;
+      doc.rect(x, y, width, 18).fillAndStroke(HEADER_BG, BORDER);
+      drawPdfText(doc, labels[i] ?? "", x, y, width, { align: "center" });
+      x += width;
+    }
+    y += 18;
+  };
+  const drawShipmentRow = (shipment: typeof shipments[number], rowIndex: number) => {
+    ensureSpace(23);
+    const values = shipmentReportValues(shipment);
+    let x = left;
+    doc.font("Helvetica").fontSize(6.8).fillColor("#000000");
+    for (let i = 0; i < values.length; i++) {
+      const width = colWidths[i] ?? 40;
+      doc.rect(x, y, width, 22).fillAndStroke(rowIndex % 2 === 1 ? ROW_ALT : "#FFFFFF", BORDER);
+      drawPdfText(doc, values[i] || "", x, y, width, { align: i <= 3 || i >= 7 ? "center" : "left" });
+      x += width;
+    }
+    y += 22;
+  };
+
+  drawTitle();
+  const usedStatuses = new Set<string>();
+  for (const section of SECTION_MAP) {
+    const rows = sortRowsForSection(section.label, shipments.filter((s) => section.statuses.some(
+      (st) => s.status.toLowerCase().includes(st.toLowerCase()) || st.toLowerCase().includes(s.status.toLowerCase())
+    )));
+    rows.forEach((s) => usedStatuses.add(s.status));
+    drawSectionHeader(section.label);
+    drawColumnHeaders();
+    if (rows.length === 0) {
+      ensureSpace(20);
+      doc.rect(left, y, pageWidth, 20).fillAndStroke("#FFFFFF", BORDER);
+      doc.font("Helvetica-Oblique").fontSize(8).fillColor("#888888").text("-", left, y + 6, { width: pageWidth, align: "center" });
+      y += 20;
+    } else {
+      rows.forEach((shipment, index) => drawShipmentRow(shipment, index));
+    }
+    y += 8;
+  }
+
+  const other = shipments.filter((s) => !usedStatuses.has(s.status));
+  if (other.length > 0) {
+    drawSectionHeader("OTHER SHIPMENTS");
+    drawColumnHeaders();
+    other.forEach((shipment, index) => drawShipmentRow(shipment, index));
+  }
+}
+
+function streamCompanyReportPdf(
+  res: any,
+  reportLabel: string,
+  fileName: string,
+  shipments: (typeof shipmentsTable.$inferSelect)[],
+): void {
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, bufferPages: false });
+  doc.pipe(res);
+  drawPdfReport(doc, reportLabel, shipments);
+  doc.end();
+}
+
 router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, async (req, res) => {
   const companyName = decodeURIComponent(req.params["company"] as string);
   const shipments = await db.select().from(shipmentsTable).where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`).orderBy(asc(shipmentsTable.ifsRef));
@@ -1177,6 +1296,12 @@ router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, as
   res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName}.xlsx"`);
   await wb.xlsx.write(res);
   res.end();
+});
+
+router.get("/staff/company-report/:company/pdf", requireAuth, requireStaff, async (req, res) => {
+  const companyName = decodeURIComponent(req.params["company"] as string);
+  const shipments = await db.select().from(shipmentsTable).where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`).orderBy(asc(shipmentsTable.ifsRef));
+  streamCompanyReportPdf(res, companyName, `Status Report - ${companyName}.pdf`, shipments);
 });
 
 // ── Consignee-scoped Status Report Excel download (staff only) ───────────────
@@ -1211,6 +1336,31 @@ router.get("/staff/company-report/:company/consignee/:consignee/excel", requireA
   res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName} - ${reportLabel}.xlsx"`);
   await wb.xlsx.write(res);
   res.end();
+});
+
+router.get("/staff/company-report/:company/consignee/:consignee/pdf", requireAuth, requireStaff, async (req, res) => {
+  const companyName = decodeURIComponent(req.params["company"] as string);
+  const consigneeName = decodeURIComponent(req.params["consignee"] as string);
+  const isUnspecified = consigneeName === "__unspecified__";
+
+  const shipments = await db
+    .select()
+    .from(shipmentsTable)
+    .where(
+      isUnspecified
+        ? and(
+            sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`,
+            or(eq(shipmentsTable.consignee, ""), isNull(shipmentsTable.consignee)),
+          )
+        : and(
+            sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`,
+            sql`lower(${shipmentsTable.consignee}) = lower(${consigneeName})`,
+          ),
+    )
+    .orderBy(asc(shipmentsTable.ifsRef));
+
+  const reportLabel = isUnspecified ? companyName : (shipments[0]?.consignee ?? consigneeName);
+  streamCompanyReportPdf(res, reportLabel, `Status Report - ${companyName} - ${reportLabel}.pdf`, shipments);
 });
 
 // ── All-company ZIP download (staff only) ────────────────────────────────────

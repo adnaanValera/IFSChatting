@@ -392,21 +392,21 @@ export default function Dashboard() {
     setExpandedConsignee(prev => (prev === key ? null : key));
   };
 
-  const downloadConsigneeExcel = async (companyName: string, consigneeKey: string, consigneeName: string) => {
-    const key = `${companyName}::${consigneeKey}`;
+  const downloadConsigneeReport = async (companyName: string, consigneeKey: string, consigneeName: string, format: "excel" | "pdf") => {
+    const key = `${companyName}::${consigneeKey}::${format}`;
     setDownloadingConsignee(key);
     try {
       const token = localStorage.getItem("intf_token");
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
       const res = await fetch(
-        `${base}/api/staff/company-report/${encodeURIComponent(companyName)}/consignee/${encodeURIComponent(consigneeKey)}/excel`,
+        `${base}/api/staff/company-report/${encodeURIComponent(companyName)}/consignee/${encodeURIComponent(consigneeKey)}/${format}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!res.ok) throw new Error("Download failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `Status Report - ${safeReportName(companyName)} - ${safeReportName(consigneeName)}.xlsx`;
+      a.href = url; a.download = `Status Report - ${safeReportName(companyName)} - ${safeReportName(consigneeName)}.${format === "pdf" ? "pdf" : "xlsx"}`;
       document.body.appendChild(a); a.click();
       document.body.removeChild(a); URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -416,17 +416,17 @@ export default function Dashboard() {
     }
   };
 
-  const downloadCompanyExcel = async (name: string) => {
-    setDownloadingCompany(name);
+  const downloadCompanyReport = async (name: string, format: "excel" | "pdf") => {
+    setDownloadingCompany(`${name}::${format}`);
     try {
       const token = localStorage.getItem("intf_token");
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const res = await fetch(`${base}/api/staff/company-report/${encodeURIComponent(name)}/excel`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${base}/api/staff/company-report/${encodeURIComponent(name)}/${format}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error("Download failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `Status Report - ${safeReportName(name)}.xlsx`;
+      a.href = url; a.download = `Status Report - ${safeReportName(name)}.${format === "pdf" ? "pdf" : "xlsx"}`;
       document.body.appendChild(a); a.click();
       document.body.removeChild(a); URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -1447,7 +1447,9 @@ export default function Dashboard() {
                     .map(company => {
                       const isExpanded = expandedCompany === company.companyName;
                       const isLoadingThis = loadingCompany === company.companyName;
-                      const isDownloading = downloadingCompany === company.companyName;
+                      const isDownloadingExcel = downloadingCompany === `${company.companyName}::excel`;
+                      const isDownloadingPdf = downloadingCompany === `${company.companyName}::pdf`;
+                      const isDownloading = isDownloadingExcel;
                       const shipments = companyShipments[company.companyName] ?? [];
 
                       return (
@@ -1463,13 +1465,22 @@ export default function Dashboard() {
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <button
-                                onClick={() => downloadCompanyExcel(company.companyName)}
-                                disabled={isDownloading}
+                                onClick={() => downloadCompanyReport(company.companyName, "excel")}
+                                disabled={isDownloadingExcel || isDownloadingPdf}
                                 className="flex items-center gap-1.5 text-sm font-semibold bg-secondary hover:bg-secondary/90 text-white px-3 py-2 rounded-lg transition-all disabled:opacity-60"
                                 title="Download Excel report"
                               >
-                                {isDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                                {isDownloadingExcel ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                                 {isDownloading ? "Generating…" : "Download"}
+                              </button>
+                              <button
+                                onClick={() => downloadCompanyReport(company.companyName, "pdf")}
+                                disabled={isDownloadingExcel || isDownloadingPdf}
+                                className="flex items-center gap-1.5 text-sm font-semibold bg-primary hover:bg-primary/90 text-white px-3 py-2 rounded-lg transition-all disabled:opacity-60"
+                                title="Download PDF report"
+                              >
+                                {isDownloadingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                                PDF
                               </button>
                               <button
                                 onClick={() => toggleCompanyCard(company.companyName)}
@@ -1495,7 +1506,9 @@ export default function Dashboard() {
                                   {groupByConsignee(shipments).map(group => {
                                     const consKey = `${company.companyName}::${group.key}`;
                                     const isConsExpanded = expandedConsignee === consKey;
-                                    const isConsDownloading = downloadingConsignee === consKey;
+                                    const isConsDownloadingExcel = downloadingConsignee === `${consKey}::excel`;
+                                    const isConsDownloadingPdf = downloadingConsignee === `${consKey}::pdf`;
+                                    const isConsDownloading = isConsDownloadingExcel;
 
                                     return (
                                       <div key={group.key} className="bg-muted/10">
@@ -1512,13 +1525,22 @@ export default function Dashboard() {
                                           </div>
                                           <div className="flex items-center gap-2 shrink-0">
                                             <button
-                                              onClick={() => downloadConsigneeExcel(company.companyName, group.key, group.name)}
-                                              disabled={isConsDownloading}
+                                              onClick={() => downloadConsigneeReport(company.companyName, group.key, group.name, "excel")}
+                                              disabled={isConsDownloadingExcel || isConsDownloadingPdf}
                                               className="flex items-center gap-1.5 text-xs font-semibold bg-secondary hover:bg-secondary/90 text-white px-2.5 py-1.5 rounded-lg transition-all disabled:opacity-60"
                                               title="Download Excel report for this consignee"
                                             >
-                                              {isConsDownloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                                              {isConsDownloadingExcel ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
                                               {isConsDownloading ? "Generating…" : "Download"}
+                                            </button>
+                                            <button
+                                              onClick={() => downloadConsigneeReport(company.companyName, group.key, group.name, "pdf")}
+                                              disabled={isConsDownloadingExcel || isConsDownloadingPdf}
+                                              className="flex items-center gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-white px-2.5 py-1.5 rounded-lg transition-all disabled:opacity-60"
+                                              title="Download PDF report for this consignee"
+                                            >
+                                              {isConsDownloadingPdf ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                                              PDF
                                             </button>
                                             <button
                                               onClick={() => toggleConsigneeCard(company.companyName, group.key)}
