@@ -1,0 +1,553 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: InterFreight Solutions API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: shipments
+    description: Shipment/container tracking
+  - name: companies
+    description: Company management
+  - name: auth
+    description: Staff authentication
+  - name: staff
+    description: Staff portal operations
+  - name: stats
+    description: Dashboard statistics
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Shipments ────────────────────────────────────────────────
+  /shipments:
+    get:
+      operationId: listShipments
+      tags: [shipments]
+      summary: List/search shipments
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by company name, IFS ref, MRA ref, container number, or invoice number
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: Filter by status
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Shipment list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentPage"
+    post:
+      operationId: createShipment
+      tags: [shipments]
+      summary: Create a shipment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShipmentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+
+  /shipments/{id}:
+    get:
+      operationId: getShipment
+      tags: [shipments]
+      summary: Get shipment by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Shipment details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateShipment
+      tags: [shipments]
+      summary: Update a shipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShipmentUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+    delete:
+      operationId: deleteShipment
+      tags: [shipments]
+      summary: Delete a shipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Companies ────────────────────────────────────────────────
+  /companies:
+    get:
+      operationId: listCompanies
+      tags: [companies]
+      summary: List all companies
+      responses:
+        "200":
+          description: Company list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Company"
+
+  /companies/search:
+    get:
+      operationId: searchCompanies
+      tags: [companies]
+      summary: Search companies by name
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Company"
+
+  # ─── Auth ─────────────────────────────────────────────────────
+  /auth/login:
+    post:
+      operationId: staffLogin
+      tags: [auth]
+      summary: Staff login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      operationId: staffLogout
+      tags: [auth]
+      summary: Staff logout
+      responses:
+        "204":
+          description: Logged out
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffUser"
+        "401":
+          description: Unauthorized
+
+  # ─── Staff Portal ─────────────────────────────────────────────
+  /staff/uploads:
+    get:
+      operationId: listUploads
+      tags: [staff]
+      summary: List upload history
+      responses:
+        "200":
+          description: Upload history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UploadRecord"
+
+  /staff/users:
+    get:
+      operationId: listStaffUsers
+      tags: [staff]
+      summary: List staff users
+      responses:
+        "200":
+          description: Staff user list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StaffUser"
+
+  # ─── Stats ────────────────────────────────────────────────────
+  /stats/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [stats]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /stats/status-breakdown:
+    get:
+      operationId: getStatusBreakdown
+      tags: [stats]
+      summary: Shipment counts grouped by status
+      responses:
+        "200":
+          description: Status breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StatusCount"
+
+  /stats/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [stats]
+      summary: Recent shipment activity feed
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    Shipment:
+      type: object
+      required: [id, ifsRef, companyName, status, uploadDate]
+      properties:
+        id:
+          type: integer
+        ifsRef:
+          type: string
+        mraRef:
+          type: ["string", "null"]
+        containerNo:
+          type: ["string", "null"]
+        shipper:
+          type: ["string", "null"]
+        consignee:
+          type: ["string", "null"]
+        cargoDescription:
+          type: ["string", "null"]
+        invoiceNo:
+          type: ["string", "null"]
+        pod:
+          type: ["string", "null"]
+        entry:
+          type: ["string", "null"]
+        finalPortDestination:
+          type: ["string", "null"]
+        status:
+          type: string
+        companyName:
+          type: string
+        uploadDate:
+          type: string
+          format: date-time
+        lastUpdated:
+          type: string
+          format: date-time
+        extraFields:
+          type: ["object", "null"]
+          additionalProperties: true
+
+    ShipmentInput:
+      type: object
+      required: [ifsRef, companyName, status]
+      properties:
+        ifsRef:
+          type: string
+        mraRef:
+          type: string
+        containerNo:
+          type: string
+        shipper:
+          type: string
+        consignee:
+          type: string
+        cargoDescription:
+          type: string
+        invoiceNo:
+          type: string
+        pod:
+          type: string
+        entry:
+          type: string
+        finalPortDestination:
+          type: string
+        status:
+          type: string
+        companyName:
+          type: string
+        extraFields:
+          type: object
+          additionalProperties: true
+
+    ShipmentUpdate:
+      type: object
+      properties:
+        mraRef:
+          type: string
+        containerNo:
+          type: string
+        shipper:
+          type: string
+        consignee:
+          type: string
+        cargoDescription:
+          type: string
+        invoiceNo:
+          type: string
+        pod:
+          type: string
+        entry:
+          type: string
+        finalPortDestination:
+          type: string
+        status:
+          type: string
+        companyName:
+          type: string
+        extraFields:
+          type: object
+          additionalProperties: true
+
+    ShipmentPage:
+      type: object
+      required: [items, total, page, limit]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Shipment"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    Company:
+      type: object
+      required: [id, companyName]
+      properties:
+        id:
+          type: integer
+        companyName:
+          type: string
+        shipmentCount:
+          type: integer
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/StaffUser"
+
+    StaffUser:
+      type: object
+      required: [id, name, email, role]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+
+    UploadResult:
+      type: object
+      required: [totalRows, newRecords, updatedRecords, failedRows]
+      properties:
+        totalRows:
+          type: integer
+        newRecords:
+          type: integer
+        updatedRecords:
+          type: integer
+        failedRows:
+          type: integer
+        message:
+          type: string
+
+    UploadRecord:
+      type: object
+      required: [id, filename, uploadedAt, totalRows, newRecords, updatedRecords]
+      properties:
+        id:
+          type: integer
+        filename:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+        totalRows:
+          type: integer
+        newRecords:
+          type: integer
+        updatedRecords:
+          type: integer
+        uploadedBy:
+          type: ["string", "null"]
+
+    DashboardStats:
+      type: object
+      required: [totalCompanies, totalContainers, inTransit, delivered, awaitingClearance, atPort, delayed, latestUpload]
+      properties:
+        totalCompanies:
+          type: integer
+        totalContainers:
+          type: integer
+        inTransit:
+          type: integer
+        delivered:
+          type: integer
+        awaitingClearance:
+          type: integer
+        atPort:
+          type: integer
+        delayed:
+          type: integer
+        latestUpload:
+          type: ["string", "null"]
+
+    StatusCount:
+      type: object
+      required: [status, count]
+      properties:
+        status:
+          type: string
+        count:
+          type: integer
+
+    ActivityItem:
+      type: object
+      required: [id, ifsRef, companyName, status, lastUpdated]
+      properties:
+        id:
+          type: integer
+        ifsRef:
+          type: string
+        companyName:
+          type: string
+        status:
+          type: string
+        lastUpdated:
+          type: string
+          format: date-time
+        containerNo:
+          type: ["string", "null"]

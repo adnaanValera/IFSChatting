@@ -1,0 +1,444 @@
+InterFreight Solutions Website Prompt
+
+You are an expert full-stack developer, UI/UX designer, and frontend engineer.
+
+Build a modern, premium, responsive logistics company website for InterFreight Solutions.
+
+The website must look like it was designed by a professional agency and should be comparable in quality to the websites of DHL, Maersk, MSC, or DB Schenker.
+
+The design should be elegant, clean, fast, highly animated, and visually impressive.
+
+Technology Stack
+
+Use:
+
+React
+Next.js
+TypeScript
+Tailwind CSS
+Framer Motion for animations
+Lucide React icons
+Lottie React for animated logistics assets
+Responsive design for desktop, tablet, and mobile
+
+Use modern component architecture.
+
+Color Theme
+
+Primary
+
+Deep Red (#B71C1C)
+
+Secondary
+
+Charcoal Grey (#2E2E2E)
+
+Background
+
+Very Light Grey (#F7F7F7)
+
+Cards
+
+Pure White
+
+Accent
+
+Silver (#D9D9D9)
+
+Buttons
+
+Red with smooth hover animation
+
+Text
+
+Dark Grey
+
+Overall Feel
+
+The website should feel:
+
+Premium
+
+Corporate
+
+Modern
+
+Luxury
+
+Professional
+
+Fast
+
+Smooth
+
+Use large spacing.
+
+Rounded corners.
+
+Soft shadows.
+
+Subtle gradients.
+
+Glassmorphism where appropriate.
+
+Hero Section
+
+Create a full-screen hero section.
+
+Background:
+
+High-quality logistics port.
+
+Include:
+
+Cargo ship
+
+Shipping containers
+
+Port cranes
+
+Freight trucks
+
+Warehouse
+
+Overlay with dark transparent gradient.
+
+Headline
+
+Moving Africa Forward
+
+Subheading
+
+Reliable Logistics, Freight Forwarding, Customs Clearance and Transportation Solutions Across Malawi and Beyond.
+
+Large CTA buttons
+
+Explore Services
+
+Container Reports
+
+Animate hero text.
+
+Fade in.
+
+Slide up.
+
+Buttons scale slightly on hover.
+
+Background slowly zooms.
+
+Animated Background
+
+Include subtle moving animations.
+
+Truck slowly driving.
+
+Cargo ship gently moving.
+
+Floating shipping containers.
+
+Moving clouds.
+
+Glowing logistics routes.
+
+Use Framer Motion.
+
+Animations should be smooth and not distracting.
+
+About Section
+
+Title
+
+Who We Are
+
+Content describing InterFreight Solutions:
+
+Founded in Malawi in 2021.
+
+Headquartered in Blantyre.
+
+Presence at all major border posts.
+
+International logistics network covering more than 50 countries.
+
+Reliable customs clearance.
+
+Transportation.
+
+Warehousing.
+
+Freight forwarding.
+
+Add professional icons.
+
+Services Section
+
+Create beautiful cards.
+
+Road Freight
+
+Sea Freight
+
+Air Freight
+
+Customs Clearance
+
+Warehousing
+
+Special Cargo
+
+Each card includes:
+
+Icon
+
+Illustration
+
+Short description
+
+Hover animation
+
+Shadow animation
+
+Slight lift animation
+
+Statistics Section
+
+Animated counters.
+
+50+
+
+Countries Connected
+
+100%
+
+Cargo Insurance
+
+7+
+
+Border Offices
+
+24/7
+
+Customer Support
+
+Counters animate when section becomes visible.
+
+Global Network Section
+
+Display a dark world map.
+
+Animate glowing shipping routes.
+
+Connect Malawi with:
+
+South Africa
+
+Mozambique
+
+Zimbabwe
+
+Tanzania
+
+Zambia
+
+Show glowing dots.
+
+Why Choose Us
+
+Create elegant feature cards.
+
+Reliable
+
+Affordable
+
+Professional
+
+Secure
+
+Fast Customs Clearance
+
+Worldwide Network
+
+Hover animations.
+
+Container Reports
+
+Create a dedicated page.
+
+Professional logistics dashboard.
+
+Search bar.
+
+Filter dropdown.
+
+Container cards.
+
+Example:
+
+Container ID
+
+INTF-2026-0001
+
+Status
+
+In Transit
+
+Current Location
+
+Beira Port
+
+Destination
+
+Blantyre
+
+ETA
+
+3 Days
+
+Cargo
+
+Industrial Machinery
+
+Animated progress bar
+
+Repeat with multiple sample containers.
+
+Clicking a container opens a detail page.
+
+Include:
+
+Timeline
+
+Origin
+
+Destination
+
+Weight
+
+Driver
+
+Assigned Truck
+
+Shipping Method
+
+Estimated Arrival
+
+Current Status
+
+Notes
+
+Contact Section
+
+Professional contact card.
+
+Phone
+
+Email
+
+Website
+
+Office
+
+Google Maps placeholder.
+
+Footer
+
+Dark charcoal background.
+
+Logo.
+
+Quick Links.
+
+Services.
+
+Contact.
+
+Social Icons.
+
+Copyright.
+
+Animations
+
+Use Framer Motion throughout.
+
+Fade in.
+
+Slide up.
+
+Scale.
+
+Smooth page transitions.
+
+Hover effects.
+
+Animated counters.
+
+Progress bars.
+
+Hero zoom.
+
+Floating logistics icons.
+
+Images
+
+Use beautiful royalty-free logistics imagery.
+
+Include:
+
+Modern cargo ships
+
+Container ports
+
+Freight trucks
+
+Shipping containers
+
+Warehouses
+
+Port cranes
+
+Use optimized images.
+
+Navigation
+
+Sticky navigation bar.
+
+Transparent initially.
+
+Turns charcoal on scroll.
+
+Smooth scrolling.
+
+Mobile hamburger menu.
+
+Performance
+
+Use lazy loading.
+
+Responsive layout.
+
+Modern SEO.
+
+Fast loading.
+
+Accessible.
+
+Clean code.
+
+Branding
+
+Use the uploaded InterFreight Solutions logo in:
+
+Navigation bar
+
+Splash/loading screen
+
+Footer
+
+Favicon
+
+Maintain consistent branding across all pages.
+
+Deliverables
+
+Build a complete, production-ready website with clean folder structure, reusable components, polished animations, and sample container report data. The final result should look like a premium logistics company website that is ready to deploy.

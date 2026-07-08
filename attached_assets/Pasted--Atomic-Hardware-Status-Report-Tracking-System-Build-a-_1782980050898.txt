@@ -1,0 +1,282 @@
+# Atomic Hardware - Status Report Tracking System
+
+Build a modern, responsive web application for Atomic Hardware to track customer shipments and status reports.
+
+## Theme & Design
+
+Use a premium modern UI with a dark grey and red colour scheme.
+
+Primary colours:
+
+* Background: #1E1E1E
+* Cards: #2B2B2B
+* Accent Red: #D32F2F
+* Text: White
+* Secondary Text: #BDBDBD
+
+The design should feel similar to Tesla, Stripe or Linear with:
+
+* Rounded cards (20-24px)
+* Soft shadows
+* Smooth animations
+* Glassmorphism where appropriate
+* Clean spacing
+* Mobile responsive
+* Professional logistics dashboard appearance
+
+---
+
+# Landing Page
+
+The first page should NOT require login.
+
+At the top display:
+
+**Atomic Hardware Status Reports**
+
+Below that place a large search bar with placeholder text:
+
+"Search by Company Name..."
+
+Example:
+
+* Atomic Hardware
+* ABC Ltd
+* XYZ Trading
+
+Next to the search bar place a red Search button.
+
+When someone searches a company name, display every shipment/status report that belongs to that company.
+
+No login should be required for searching.
+
+---
+
+# Search Results
+
+Each shipment should appear as its own premium card.
+
+DO NOT display tables.
+
+Convert every row in the Excel sheet into a separate card.
+
+Each card must keep the exact field names from the Excel sheet including:
+
+* IFS Ref
+* MRA Ref
+* Container No.
+* Shipper
+* Consignee
+* Cargo Description
+* Invoice No.
+* POD
+* Entry
+* Final Port Destination (FPD)
+* Status
+* Any additional columns from the uploaded Excel sheet
+
+The card should have:
+
+* Large IFS Ref at the top
+* Status badge in the top-right
+* Two-column layout for information
+* Icons beside headings
+* Cargo Description spanning the full width
+* Red divider lines
+* Rounded corners
+* Hover animation
+* Smooth expand/collapse animation
+* Professional shipping appearance
+
+Each container must become its own card automatically.
+
+---
+
+# Staff Portal
+
+Create a Staff Login page.
+
+Only authenticated staff can:
+
+* Upload Excel files
+* Replace existing reports
+* Delete reports
+* Edit reports
+* Manage customers
+* View upload history
+* Manage users
+
+Staff authentication should use secure password hashing.
+
+---
+
+# Excel Upload System
+
+Allow staff to upload .xlsx files.
+
+When an Excel file is uploaded:
+
+* Read the spreadsheet automatically.
+* Detect the column headings.
+* Import every row.
+* Create one shipment record per row.
+* Generate one card for each container.
+* Update existing records if the IFS Ref already exists.
+* Add new records automatically if they do not exist.
+* Preserve all field names exactly as they appear in the spreadsheet.
+* Display a success message after import showing:
+
+  * Total rows processed
+  * New records added
+  * Existing records updated
+  * Failed rows (if any)
+
+---
+
+# Customer Login (Optional)
+
+Create a Customer Login page.
+
+Customers can:
+
+* Save favourite shipments
+* View previous searches
+* Receive notifications in future
+* Update their profile
+
+However, customer login is OPTIONAL.
+
+Searching must always remain available without logging in.
+
+---
+
+# Database
+
+Use PostgreSQL.
+
+Create tables for:
+
+Users
+
+* id
+* name
+* email
+* password
+* role (staff/customer)
+
+Companies
+
+* id
+* company_name
+
+Shipments
+
+* id
+* ifs_ref
+* mra_ref
+* container_no
+* shipper
+* consignee
+* cargo_description
+* invoice_no
+* pod
+* entry
+* final_port_destination
+* status
+* company_name
+* upload_date
+* last_updated
+
+---
+
+# Search Features
+
+Allow searching by:
+
+* Company Name (main search)
+* IFS Ref
+* MRA Ref
+* Container Number
+* Invoice Number
+
+Search results should appear instantly with pagination if necessary.
+
+---
+
+# Status Badges
+
+Use coloured badges:
+
+🟢 Delivered
+
+🔴 In Transit
+
+🟠 Awaiting Clearance
+
+🔵 At Port
+
+⚫ Delayed
+
+Status colours should be easy to change later.
+
+---
+
+# Future Ready
+
+Structure the project so additional fields can be added from future Excel sheets without changing the database manually.
+
+If a new column appears in the uploaded spreadsheet, make it available on the shipment card automatically.
+
+---
+
+# Technology
+
+Frontend:
+
+* React
+* TypeScript
+* Tailwind CSS
+* Framer Motion
+
+Backend:
+
+* Node.js
+* Express
+
+Database:
+
+* PostgreSQL
+
+Excel Processing:
+
+* ExcelJS
+
+Authentication:
+
+* JWT
+* bcrypt
+
+File Upload:
+
+* Multer
+
+---
+
+# Dashboard
+
+Staff dashboard should display:
+
+* Total Companies
+* Total Containers
+* Containers In Transit
+* Delivered Containers
+* Pending Containers
+* Latest Upload
+* Recent Searches
+* Upload History
+
+---
+
+# Overall Goal
+
+The application should feel like a premium logistics tracking system. It must be fast, modern, responsive, easy to use, and automatically convert uploaded Excel spreadsheets into beautiful shipment cards without requiring manual data entry.

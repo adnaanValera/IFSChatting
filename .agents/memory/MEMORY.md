@@ -1,0 +1,3 @@
+- [DB schema overhaul](db-schema-overhaul.md) — users now has full_name/company_name/role=customer; shipments has upload_batch_id; applied via migrate.mjs (no drizzle push — non-TTY blocks rename prompts)
+- [Auth overhaul](auth-overhaul.md) — register uses staff-codes (!nterFre!g#t / M@h0medab00) for role; JWT payload includes companyName; all shipment reads/writes locked down by role
+- [Proxy setup](proxy-setup.md) — Express on port 8080 proxies non-/api requests to Vite on 19055 in dev mode; preview pane uses port 8080

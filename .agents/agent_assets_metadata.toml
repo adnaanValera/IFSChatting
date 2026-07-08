@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "3U9fW0Cjs604qFNDQZsq0"
+uri = "file://artifacts/interfreight/public/assets/hero-port.png"
+type = "image"
+title = "Dramatic shipping port at twilight"

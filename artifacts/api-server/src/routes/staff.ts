@@ -1,0 +1,886 @@
+import { Router } from "express";
+import multer from "multer";
+import ExcelJS from "exceljs";
+import { ZipArchive } from "archiver";
+import path from "path";
+import fs from "fs";
+import { db, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable } from "@workspace/db";
+import { eq, asc, and, or, isNull } from "drizzle-orm";
+import { requireAuth, requireStaff, requireAdmin } from "../middlewares/auth";
+import { logger } from "../lib/logger";
+
+const workspaceRoot = process.cwd().endsWith(path.join("artifacts", "api-server"))
+  ? path.resolve(process.cwd(), "../..")
+  : process.cwd();
+
+const uploadsDir = process.env.VERCEL
+  ? path.resolve("/tmp", "ifs-uploads")
+  : path.resolve(workspaceRoot, "artifacts/api-server/uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+// Fixed path where the report template is stored (overwritten on each upload)
+const TEMPLATE_PATH = path.resolve(uploadsDir, "report-template.xlsx");
+
+const storage = multer.diskStorage({
+  destination: uploadsDir,
+  filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+});
+const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
+
+// Template upload uses memory storage so we can copy to the fixed path
+const templateStorage = multer.memoryStorage();
+const templateUpload = multer({ storage: templateStorage, limits: { fileSize: 10 * 1024 * 1024 } });
+
+const router = Router();
+
+// Expanded field map — covers many real-world Excel column name variations
+const FIELD_MAP: Record<string, string> = {
+  // IFS Ref
+  "ifs ref": "ifsRef", "ifs_ref": "ifsRef", "ifs reference": "ifsRef",
+  "ifs no": "ifsRef", "ifs no.": "ifsRef", "ifs number": "ifsRef",
+  "ifsref": "ifsRef", "reference": "ifsRef", "ref": "ifsRef",
+  "ref no": "ifsRef", "ref no.": "ifsRef", "ref number": "ifsRef",
+  "job ref": "ifsRef", "job no": "ifsRef", "job number": "ifsRef",
+  "shipment ref": "ifsRef", "shipment no": "ifsRef",
+  "file no": "ifsRef", "file ref": "ifsRef",
+  // MRA Ref
+  "mra ref": "mraRef", "mra_ref": "mraRef", "mra reference": "mraRef",
+  "mra no": "mraRef", "mra number": "mraRef", "mraref": "mraRef",
+  "customs ref": "mraRef", "entry no": "mraRef", "entry number": "mraRef",
+  "customs entry": "mraRef",
+  // Container No
+  "container no": "containerNo", "container no.": "containerNo",
+  "container_no": "containerNo", "container number": "containerNo",
+  "container": "containerNo", "cont no": "containerNo", "cont no.": "containerNo",
+  "cont number": "containerNo", "container id": "containerNo", "containerid": "containerNo",
+  "contr": "containerNo",
+  // Shipper
+  "shipper": "shipper", "supplier": "shipper", "exporter": "shipper",
+  "sender": "shipper", "origin": "shipper", "shipper name": "shipper", "from": "shipper",
+  // Consignee
+  "consignee": "consignee", "receiver": "consignee", "recipient": "consignee",
+  "importer": "consignee", "consignee name": "consignee", "to": "consignee",
+  // Cargo Description
+  "cargo description": "cargoDescription", "cargo_description": "cargoDescription",
+  "cargo desc": "cargoDescription", "goods": "cargoDescription",
+  "goods description": "cargoDescription", "description": "cargoDescription",
+  "description of goods": "cargoDescription", "commodity": "cargoDescription",
+  "item description": "cargoDescription",
+  // Invoice No
+  "invoice no": "invoiceNo", "invoice no.": "invoiceNo", "invoice_no": "invoiceNo",
+  "invoice number": "invoiceNo", "invoice": "invoiceNo",
+  "inv no": "invoiceNo", "inv no.": "invoiceNo", "inv number": "invoiceNo",
+  // POD
+  "pod": "pod", "port of discharge": "pod", "discharge port": "pod",
+  "destination port": "pod", "port": "pod",
+  // Entry
+  "entry": "entry", "entry ref": "entry", "customs entry no": "entry",
+  "declaration": "entry", "declaration no": "entry",
+  // Final Port Destination
+  "final port destination": "finalPortDestination", "fpd": "finalPortDestination",
+  "final destination": "finalPortDestination", "destination": "finalPortDestination",
+  "final port": "finalPortDestination", "delivery destination": "finalPortDestination",
+  // Status
+  "status": "status", "shipment status": "status", "container status": "status",
+  "current status": "status", "state": "status",
+  // Company Name
+  "company": "companyName", "company name": "companyName", "company_name": "companyName",
+  "client": "companyName", "client name": "companyName",
+  "customer": "companyName", "customer name": "companyName",
+  "account": "companyName", "account name": "companyName",
+  "owner": "companyName", "importer name": "companyName",
+};
+
+export function companyFromFilename(filename: string): string | null {
+  const match = filename.match(/Status Report\s*-\s*(.+?)\.xlsx?$/i);
+  return match?.[1]?.trim() ?? null;
+}
+
+function cellStr(val: unknown): string | undefined {
+  if (val === null || val === undefined) return undefined;
+  if (typeof val === "object" && "richText" in (val as object)) {
+    return (val as { richText: { text: string }[] }).richText.map((rt) => rt.text).join("").trim() || undefined;
+  }
+  if (val instanceof Date) return val.toISOString().split("T")[0];
+  const s = String(val).trim();
+  return s || undefined;
+}
+
+function detectColOffset(vals: unknown[]): number | null {
+  for (let i = 1; i <= 3; i++) {
+    if (cellStr(vals[i])?.toLowerCase() === "ifs ref") return i;
+  }
+  return null;
+}
+
+function isSectionTitle(vals: unknown[]): boolean {
+  const cells = vals.slice(1).map((v) => cellStr(v)).filter(Boolean) as string[];
+  if (cells.length < 2) return false;
+  return cells.every((c) => c === cells[0]);
+}
+
+function autoIfsRef(companyName: string, rowKey: string): string {
+  let h = 0;
+  const s = `${companyName}|${rowKey}`;
+  for (let i = 0; i < s.length; i++) { h = (Math.imul(31, h) + s.charCodeAt(i)) | 0; }
+  return `AUTO-${companyName.replace(/\s+/g, "-").toUpperCase()}-${(h >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+async function upsertShipment(record: {
+  ifsRef: string; mraRef?: string; shipper?: string; consignee?: string;
+  containerNo?: string; cargoDescription?: string; invoiceNo?: string;
+  pod?: string; entry?: string; finalPortDestination?: string;
+  status: string; companyName: string; uploadBatchId?: number;
+  extraFields?: Record<string, unknown>;
+  matchByContainer?: boolean; // when true, match by (ifsRef, containerNo) pair
+}): Promise<"new" | "updated"> {
+  // Build where clause: for master uploads with a container no, use composite key
+  // so multiple containers under the same IFS ref are distinct DB rows.
+  const whereClause = (record.matchByContainer && record.containerNo)
+    ? and(eq(shipmentsTable.ifsRef, record.ifsRef), eq(shipmentsTable.containerNo, record.containerNo))
+    : eq(shipmentsTable.ifsRef, record.ifsRef);
+
+  const existing = await db
+    .select({ id: shipmentsTable.id })
+    .from(shipmentsTable)
+    .where(whereClause)
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db.update(shipmentsTable).set({
+      mraRef: record.mraRef, containerNo: record.containerNo,
+      shipper: record.shipper, consignee: record.consignee,
+      cargoDescription: record.cargoDescription, invoiceNo: record.invoiceNo,
+      pod: record.pod, entry: record.entry,
+      finalPortDestination: record.finalPortDestination,
+      status: record.status, companyName: record.companyName,
+      uploadBatchId: record.uploadBatchId,
+      ...(record.extraFields !== undefined ? { extraFields: record.extraFields } : {}),
+      lastUpdated: new Date(),
+    }).where(eq(shipmentsTable.id, existing[0].id));
+    return "updated";
+  }
+
+  await db.insert(shipmentsTable).values(record);
+  return "new";
+}
+
+// ── Status-report worksheet parser (for files named "Status Report - Company.xlsx") ──
+
+export async function processStatusReportWorksheet(
+  worksheet: ExcelJS.Worksheet,
+  companyName: string,
+  uploadBatchId?: number,
+): Promise<{ totalRows: number; newRecords: number; updatedRecords: number; failedRows: number; failureReasons: string[] }> {
+  let newRecords = 0, updatedRecords = 0, failedRows = 0, totalRows = 0;
+  const failureReasons: string[] = [];
+  let colOffset: number | null = null;
+
+  for (let r = 1; r <= worksheet.rowCount; r++) {
+    const vals = worksheet.getRow(r).values as unknown[];
+    if (!vals || vals.length <= 1) continue;
+    if (isSectionTitle(vals)) { colOffset = null; continue; }
+    const detected = detectColOffset(vals);
+    if (detected !== null) { colOffset = detected; continue; }
+    if (colOffset === null) continue;
+
+    const o = colOffset;
+    const ifsRef      = cellStr(vals[o]);
+    const typeField   = cellStr(vals[o + 1]);
+    const blManifest  = cellStr(vals[o + 2]);
+    const containerNo = cellStr(vals[o + 3]);
+    const shipper     = cellStr(vals[o + 4]);
+    const consignee   = cellStr(vals[o + 5]);
+    const cargoDesc   = cellStr(vals[o + 6]);
+    const invoiceNo   = cellStr(vals[o + 7]);
+    const pod         = cellStr(vals[o + 8]);
+    const fpd         = cellStr(vals[o + 9]);
+    const agent       = cellStr(vals[o + 10]);
+    const mraRef      = cellStr(vals[o + 11]);
+    const entry       = cellStr(vals[o + 12]);
+    const status      = cellStr(vals[o + 13]);
+
+    if (![ifsRef, mraRef, shipper, consignee, containerNo, cargoDesc].some(Boolean)) continue;
+
+    const rowKey = [mraRef, containerNo, invoiceNo, `r${r}`].filter(Boolean).join("|");
+    const finalIfsRef = ifsRef ?? autoIfsRef(companyName, rowKey);
+    const extraFields: Record<string, unknown> = {};
+    if (typeField) extraFields["Type"] = typeField;
+    if (blManifest) extraFields["BL / Manifest No."] = blManifest;
+    if (agent) extraFields["Agent"] = agent;
+    totalRows++;
+    try {
+      const result = await upsertShipment({
+        ifsRef: finalIfsRef, mraRef, shipper, consignee, containerNo,
+        cargoDescription: cargoDesc, invoiceNo, pod, entry,
+        finalPortDestination: fpd, status: status ?? "In Transit",
+        companyName, uploadBatchId,
+        extraFields: Object.keys(extraFields).length > 0 ? extraFields : undefined,
+      });
+      await db.insert(companiesTable).values({ companyName }).onConflictDoNothing();
+      if (result === "new") newRecords++; else updatedRecords++;
+    } catch (err) {
+      failedRows++;
+      failureReasons.push(`Row ${r}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return { totalRows, newRecords, updatedRecords, failedRows, failureReasons };
+}
+
+// ── Tracking Master worksheet parser ─────────────────────────────────────────
+// Parses the daily TRACKING_MASTER format: section headers (same value across all cells),
+// then a header row (IFS Ref, Type, BL, Contr, Shipper, Consignee, ...), then data rows.
+// Uses Consignee as company_name. Matches by (ifsRef, containerNo) so multiple containers
+// under the same IFS ref are stored as distinct DB rows.
+
+export async function parseMasterWorksheet(
+  worksheet: ExcelJS.Worksheet,
+  uploadBatchId?: number,
+): Promise<{
+  totalRows: number; newRecords: number; updatedRecords: number;
+  failedRows: number; failureReasons: string[]; consignees: string[];
+}> {
+  let newRecords = 0, updatedRecords = 0, failedRows = 0, totalRows = 0;
+  const failureReasons: string[] = [];
+  let colOffset: number | null = null;
+  const consigneeSet = new Set<string>();
+
+  for (let r = 1; r <= worksheet.rowCount; r++) {
+    const vals = worksheet.getRow(r).values as unknown[];
+    if (!vals || vals.length <= 1) continue;
+    if (isSectionTitle(vals)) { colOffset = null; continue; }
+    const detected = detectColOffset(vals);
+    if (detected !== null) { colOffset = detected; continue; }
+    if (colOffset === null) continue;
+
+    const o = colOffset;
+    // Tracking master columns: IFS Ref, Type, BL/Manifest No., Contr(ainer), Shipper,
+    // Consignee, Cargo Desc, Invoice No., POD, FPD, Agent, MRA Ref, Entry, Status, Docs
+    const ifsRef      = cellStr(vals[o]);
+    const typeField   = cellStr(vals[o + 1]);
+    const blManifest  = cellStr(vals[o + 2]);
+    const containerNo = cellStr(vals[o + 3]);
+    const shipper     = cellStr(vals[o + 4]);
+    const consignee   = cellStr(vals[o + 5]);
+    const cargoDesc   = cellStr(vals[o + 6]);
+    const invoiceNo   = cellStr(vals[o + 7]);
+    const pod         = cellStr(vals[o + 8]);
+    const fpd         = cellStr(vals[o + 9]);
+    const agent       = cellStr(vals[o + 10]);
+    const mraRef      = cellStr(vals[o + 11]);
+    const entry       = cellStr(vals[o + 12]);
+    const status      = cellStr(vals[o + 13]);
+    // o + 14 = Docs (informational, not stored)
+
+    if (![ifsRef, shipper, consignee, containerNo, cargoDesc].some(Boolean)) continue;
+
+    // Use consignee as the company (this is the tracking master — one company per row)
+    const companyName = (consignee ?? shipper ?? "Unknown").trim();
+    consigneeSet.add(companyName);
+
+    const rowKey = [mraRef, containerNo, invoiceNo, `r${r}`].filter(Boolean).join("|");
+    const finalIfsRef = ifsRef ?? autoIfsRef(companyName, rowKey);
+
+    const extraFields: Record<string, unknown> = {};
+    if (typeField) extraFields["Type"] = typeField;
+    if (blManifest) extraFields["BL / Manifest No."] = blManifest;
+    if (agent) extraFields["Agent"] = agent;
+
+    totalRows++;
+    try {
+      const result = await upsertShipment({
+        ifsRef: finalIfsRef, mraRef, shipper, consignee, containerNo,
+        cargoDescription: cargoDesc, invoiceNo, pod, entry,
+        finalPortDestination: fpd, status: status ?? "In Transit",
+        companyName, uploadBatchId,
+        extraFields: Object.keys(extraFields).length > 0 ? extraFields : undefined,
+        matchByContainer: true, // distinguish multiple containers per IFS ref
+      });
+      await db.insert(companiesTable).values({ companyName }).onConflictDoNothing();
+      if (result === "new") newRecords++; else updatedRecords++;
+    } catch (err) {
+      failedRows++;
+      failureReasons.push(`Row ${r}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return { totalRows, newRecords, updatedRecords, failedRows, failureReasons, consignees: [...consigneeSet].sort() };
+}
+
+function normaliseHeader(h: string): string {
+  return h.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+}
+function mapHeader(raw: string): string | null {
+  return FIELD_MAP[normaliseHeader(raw)] ?? null;
+}
+
+async function processGenericWorksheet(
+  worksheet: ExcelJS.Worksheet,
+  fileIndex: number,
+  filenameCompany: string | null,
+  uploadBatchId?: number,
+): Promise<{ totalRows: number; newRecords: number; updatedRecords: number; failedRows: number; failureReasons: string[]; detectedHeaders: string[] }> {
+  const headerRow = worksheet.getRow(1).values as (string | undefined)[];
+  const rawHeaders = headerRow.slice(1).map((h) => (h ?? "").toString().trim());
+  const mappedHeaders = rawHeaders.map((h) => ({ raw: h, mapped: mapHeader(h) }));
+  logger.info({ mappedHeaders }, "Excel upload: detected headers");
+
+  let newRecords = 0, updatedRecords = 0, failedRows = 0, totalRows = 0;
+  const failureReasons: string[] = [];
+
+  for (let r = 2; r <= worksheet.rowCount; r++) {
+    const vals = worksheet.getRow(r).values as unknown[];
+    if (!vals || vals.length <= 1) continue;
+    if (!vals.slice(1).some((v) => v !== null && v !== undefined && String(v).trim() !== "")) continue;
+    totalRows++;
+    try {
+      const record: Record<string, unknown> = {};
+      const extra: Record<string, unknown> = {};
+      mappedHeaders.forEach(({ raw, mapped }, i) => {
+        const strVal = cellStr(vals[i + 1]);
+        if (mapped) { if (strVal) record[mapped] = strVal; }
+        else if (raw && strVal) extra[raw] = strVal;
+      });
+      if (!record["ifsRef"]) {
+        const company = filenameCompany ?? (record["companyName"] as string) ?? "UNKNOWN";
+        const rowKey = [record["containerNo"], record["invoiceNo"], record["mraRef"], `r${r}f${fileIndex}`].filter(Boolean).join("|");
+        record["ifsRef"] = autoIfsRef(company, rowKey);
+      }
+      if (!record["companyName"]) {
+        record["companyName"] = filenameCompany ?? (record["consignee"] as string) ?? (record["shipper"] as string) ?? "Unknown";
+      }
+      if (!record["status"]) record["status"] = "In Transit";
+      const result = await upsertShipment({
+        ifsRef: record["ifsRef"] as string,
+        mraRef: record["mraRef"] as string | undefined,
+        containerNo: record["containerNo"] as string | undefined,
+        shipper: record["shipper"] as string | undefined,
+        consignee: record["consignee"] as string | undefined,
+        cargoDescription: record["cargoDescription"] as string | undefined,
+        invoiceNo: record["invoiceNo"] as string | undefined,
+        pod: record["pod"] as string | undefined,
+        entry: record["entry"] as string | undefined,
+        finalPortDestination: record["finalPortDestination"] as string | undefined,
+        status: record["status"] as string,
+        companyName: record["companyName"] as string,
+        uploadBatchId,
+        extraFields: Object.keys(extra).length > 0 ? extra : undefined,
+      });
+      await db.insert(companiesTable).values({ companyName: record["companyName"] as string }).onConflictDoNothing();
+      if (result === "new") newRecords++; else updatedRecords++;
+    } catch (err) {
+      failedRows++;
+      failureReasons.push(`Row ${r}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  return { totalRows, newRecords, updatedRecords, failedRows, failureReasons, detectedHeaders: mappedHeaders.map((h) => `${h.raw} → ${h.mapped ?? "(extra field)"}`) };
+}
+
+// ── Upload Excel files (staff only) ──────────────────────────────────────────
+
+router.post("/staff/upload", requireAuth, requireStaff, upload.array("files"), async (req, res) => {
+  const authReq = req as typeof req & { user: { email: string } };
+  const files = req.files as Express.Multer.File[] | undefined;
+  if (!files || files.length === 0) { res.status(400).json({ error: "No files provided" }); return; }
+
+  let totalRows = 0, newRecords = 0, updatedRecords = 0, failedRows = 0;
+  const allFailureReasons: string[] = [];
+  const allDetectedHeaders: Set<string> = new Set();
+
+  for (let fi = 0; fi < files.length; fi++) {
+    const file = files[fi];
+    let worksheet: ExcelJS.Worksheet | undefined;
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (ext === ".csv") {
+        await workbook.csv.readFile(file.path);
+      } else {
+        await workbook.xlsx.readFile(file.path);
+      }
+      worksheet = workbook.worksheets[0];
+    } catch (parseErr) {
+      const reason = parseErr instanceof Error ? parseErr.message : String(parseErr);
+      allFailureReasons.push(`${file.originalname}: Failed to parse — ${reason}`);
+      logger.warn({ file: file.originalname, parseErr }, "Excel upload: file parse failed");
+      continue;
+    }
+
+    if (!worksheet) {
+      allFailureReasons.push(`${file.originalname}: Empty workbook — skipped`);
+      continue;
+    }
+
+    const [uploadRecord] = await db.insert(uploadsTable).values({
+      filename: file.originalname,
+      totalRows: 0,
+      newRecords: 0,
+      updatedRecords: 0,
+      uploadedBy: authReq.user.email,
+    }).returning();
+
+    const filenameCompany = companyFromFilename(file.originalname);
+    let result: { totalRows: number; newRecords: number; updatedRecords: number; failedRows: number; failureReasons: string[] };
+
+    if (filenameCompany) {
+      result = await processStatusReportWorksheet(worksheet, filenameCompany, uploadRecord.id);
+    } else {
+      result = await processGenericWorksheet(worksheet, fi, null, uploadRecord.id);
+    }
+
+    await db.update(uploadsTable).set({
+      totalRows: result.totalRows,
+      newRecords: result.newRecords,
+      updatedRecords: result.updatedRecords,
+    }).where(eq(uploadsTable.id, uploadRecord.id));
+
+    // Notify affected customers
+    try {
+      const processed = await db
+        .selectDistinct({ companyName: shipmentsTable.companyName })
+        .from(shipmentsTable)
+        .where(eq(shipmentsTable.uploadBatchId, uploadRecord.id));
+
+      for (const { companyName } of processed) {
+        const customers = await db
+          .select({ id: usersTable.id })
+          .from(usersTable)
+          .where(eq(usersTable.companyName, companyName));
+
+        for (const { id: userId } of customers) {
+          const parts: string[] = [];
+          if (result.newRecords > 0) parts.push(`${result.newRecords} new`);
+          if (result.updatedRecords > 0) parts.push(`${result.updatedRecords} updated`);
+          const summary = parts.length > 0 ? parts.join(" and ") + " shipment" + (result.newRecords + result.updatedRecords !== 1 ? "s" : "") : "shipments";
+          await db.insert(notificationsTable).values({
+            userId,
+            title: "Shipment Status Updated",
+            message: `A new status report has been uploaded for ${companyName}: ${summary}. Tap to view your dashboard.`,
+            companyName,
+          });
+        }
+      }
+    } catch (notifErr) {
+      logger.warn({ notifErr }, "Failed to create customer notifications after upload");
+    }
+
+    totalRows += result.totalRows;
+    newRecords += result.newRecords;
+    updatedRecords += result.updatedRecords;
+    failedRows += result.failedRows;
+    result.failureReasons.forEach((r) => allFailureReasons.push(`[${file.originalname}] ${r}`));
+    allDetectedHeaders.add(filenameCompany ? `Company: ${filenameCompany}` : "Generic format");
+  }
+
+  res.json({
+    totalRows, newRecords, updatedRecords, failedRows,
+    message: `Processed ${totalRows} rows across ${files.length} file(s): ${newRecords} new, ${updatedRecords} updated${failedRows > 0 ? `, ${failedRows} failed` : ""}`,
+    detectedHeaders: [...allDetectedHeaders],
+    failureReasons: allFailureReasons.slice(0, 10),
+  });
+});
+
+// ── Upload Tracking Master (staff only) ──────────────────────────────────────
+// Parses the daily TRACKING_MASTER_*.xlsx file. Groups all rows by Consignee and
+// upserts them as separate company records. Returns the list of unique consignees
+// so the client can prompt a ZIP download of all generated reports.
+
+router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("file"), async (req, res) => {
+  const authReq = req as typeof req & { user: { email: string } };
+  const file = (req as any).file as Express.Multer.File | undefined;
+  if (!file) { res.status(400).json({ error: "No file provided" }); return; }
+
+  let workbook: ExcelJS.Workbook;
+  try {
+    workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(file.path);
+  } catch (parseErr) {
+    res.status(400).json({ error: `Failed to parse file: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}` });
+    return;
+  }
+
+  const ws = workbook.worksheets[0]; // Sheet1 — the live shipments sheet
+  if (!ws) { res.status(400).json({ error: "No worksheet found in file" }); return; }
+
+  const [uploadRecord] = await db.insert(uploadsTable).values({
+    filename: file.originalname,
+    totalRows: 0,
+    newRecords: 0,
+    updatedRecords: 0,
+    uploadedBy: authReq.user.email,
+  }).returning();
+
+  const result = await parseMasterWorksheet(ws, uploadRecord.id);
+
+  await db.update(uploadsTable).set({
+    totalRows: result.totalRows,
+    newRecords: result.newRecords,
+    updatedRecords: result.updatedRecords,
+  }).where(eq(uploadsTable.id, uploadRecord.id));
+
+  res.json({
+    totalRows: result.totalRows,
+    newRecords: result.newRecords,
+    updatedRecords: result.updatedRecords,
+    failedRows: result.failedRows,
+    failureReasons: result.failureReasons.slice(0, 10),
+    consignees: result.consignees,
+    message: `Tracking master processed: ${result.totalRows} rows, ${result.consignees.length} companies (${result.newRecords} new, ${result.updatedRecords} updated${result.failedRows > 0 ? `, ${result.failedRows} failed` : ""})`,
+  });
+});
+
+// ── List uploads (staff only) ─────────────────────────────────────────────────
+
+router.get("/staff/uploads", requireAuth, requireStaff, async (_req, res) => {
+  const uploads = await db.select().from(uploadsTable).orderBy(uploadsTable.uploadedAt);
+  res.json(uploads);
+});
+
+// ── Delete ALL uploads + all shipments (staff only) ──────────────────────────
+
+router.delete("/staff/uploads", requireAuth, requireStaff, async (_req, res) => {
+  await db.delete(shipmentsTable);
+  await db.delete(uploadsTable);
+  await db.delete(companiesTable);
+  res.status(204).send();
+});
+
+// ── Delete upload + its shipments (staff only) ────────────────────────────────
+
+router.delete("/staff/uploads/:id", requireAuth, requireStaff, async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  await db.delete(shipmentsTable).where(eq(shipmentsTable.uploadBatchId, id));
+  await db.delete(uploadsTable).where(eq(uploadsTable.id, id));
+  res.status(204).send();
+});
+
+// ── Report template upload / status ─────────────────────────────────────────
+
+router.get("/staff/template-status", requireAuth, requireStaff, (_req, res) => {
+  if (fs.existsSync(TEMPLATE_PATH)) {
+    const stat = fs.statSync(TEMPLATE_PATH);
+    res.json({ hasTemplate: true, uploadedAt: stat.mtime.toISOString(), sizeBytes: stat.size });
+  } else {
+    res.json({ hasTemplate: false });
+  }
+});
+
+router.post("/staff/upload-template", requireAuth, requireStaff, templateUpload.single("file"), (req, res) => {
+  if (!req.file) { res.status(400).json({ error: "No file provided" }); return; }
+  fs.writeFileSync(TEMPLATE_PATH, req.file.buffer);
+  res.json({ message: "Template saved", sizeBytes: req.file.buffer.length });
+});
+
+// ── Excel report generation helper ───────────────────────────────────────────
+
+// Auto-fit every column (except A & B spacers) to its widest cell content.
+function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
+  const maxLen: Record<number, number> = {};
+  ws.eachRow((row) => {
+    row.eachCell({ includeEmpty: false }, (cell, colIdx) => {
+      if (colIdx <= 2) return; // keep spacer cols narrow
+      let len = 0;
+      const v = cell.value;
+      if (v == null) return;
+      if (typeof v === "string") len = v.length;
+      else if (typeof v === "number") len = String(v).length;
+      else if (v instanceof Date) len = 10;
+      else if (typeof v === "object" && (v as any).richText)
+        len = ((v as any).richText as any[]).map((r: any) => r.text ?? "").join("").length;
+      else len = String(v).length;
+      maxLen[colIdx] = Math.max(maxLen[colIdx] ?? 0, len);
+    });
+  });
+  ws.columns.forEach((col, idx) => {
+    const colIdx = idx + 1;
+    if (colIdx <= 2) { col.width = 3; return; }
+    const best = maxLen[colIdx] ?? 0;
+    if (best > 0) col.width = Math.min(Math.max(best + 2, 10), 50);
+  });
+}
+
+const SECTION_MAP: { label: string; statuses: string[] }[] = [
+  { label: "SHIPMENTS IN MALAWI",  statuses: ["Delivered", "Awaiting Clearance"] },
+  { label: "SHIPMENTS ENROUTE",    statuses: ["In Transit", "Enroute LLW", "Enroute BLZ", "Enroute"] },
+  { label: "SHIPMENTS AT POD",     statuses: ["At Port", "Offloading", "Offloaded"] },
+  { label: "SHIPMENTS ON SEA",     statuses: ["Delayed", "On Sea", "At Sea"] },
+];
+
+function extraVal(extra: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = extra[k];
+    if (v !== undefined && v !== null && String(v).trim()) return String(v).trim();
+  }
+  return "";
+}
+
+function todayString(): string {
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, "0");
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const yy = String(today.getFullYear()).slice(2);
+  return `${dd}.${mm}.${yy}`;
+}
+
+async function generateCompanyReportWorkbook(
+  companyName: string,
+  shipments: (typeof shipmentsTable.$inferSelect)[],
+  templateBuf?: Buffer | null,
+): Promise<ExcelJS.Workbook> {
+  const dateStr = todayString();
+
+  const wb = new ExcelJS.Workbook();
+  let ws: ExcelJS.Worksheet;
+
+  if (templateBuf) {
+    // ── Template-based path ───────────────────────────────────────────────
+    await wb.xlsx.load(templateBuf);
+    ws = wb.worksheets[0];
+
+    // Update company name (C5) and date (M5) in the fixed header section
+    ws.getCell("C5").value = companyName;
+    ws.getCell("M5").value = `Date: ${dateStr}`;
+
+    // Remove all data rows (row 7 onwards), keeping rows 1-6 (branding header)
+    const lastRowNum = ws.lastRow?.number ?? 6;
+    if (lastRowNum >= 7) {
+      ws.spliceRows(7, lastRowNum - 6);
+    }
+  } else {
+    // ── Scratch path (no template) ────────────────────────────────────────
+    ws = wb.addWorksheet("Status Report");
+
+    ws.columns = [
+      { width: 3 },   // A spacer
+      { width: 3 },   // B spacer
+      { width: 15 },  // C IFS Ref
+      { width: 10 },  // D Type
+      { width: 20 },  // E BL / Manifest No.
+      { width: 16 },  // F Container No.
+      { width: 20 },  // G Shipper
+      { width: 22 },  // H Consignee
+      { width: 24 },  // I Cargo Desc
+      { width: 16 },  // J Invoice No.
+      { width: 10 },  // K POD
+      { width: 10 },  // L FPD
+      { width: 18 },  // M Agent
+      { width: 16 },  // N MRA Ref
+      { width: 16 },  // O Entry
+      { width: 18 },  // P Status
+    ];
+  }
+
+  const RED = "FFC00000";
+  const DARK_BLUE = "FF1F3864";
+  const HEADER_BG = "FFD6DCE4";
+  const ROW_ALT = "FFF2F2F2";
+  const WHITE = "FFFFFFFF";
+
+  const addSectionHeader = (title: string) => {
+    const r = ws.addRow(["", "", title]);
+    const rn = r.number;
+    ws.mergeCells(`C${rn}:P${rn}`);
+    const cell = ws.getCell(`C${rn}`);
+    cell.value = title;
+    cell.font = { bold: true, color: { argb: WHITE }, size: 11 };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DARK_BLUE } };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    r.height = 22;
+  };
+
+  const addColHeaders = () => {
+    const labels = ["", "", "IFS Ref", "Type", "BL / Manifest No.", "Container No.", "Shipper", "Consignee", "Cargo Desc", "Invoice No.", "POD", "FPD", "Agent", "MRA Ref", "Entry", "Status"];
+    const r = ws.addRow(labels);
+    r.height = 16;
+    r.font = { bold: true, size: 9 };
+    r.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_BG } };
+    for (let c = 3; c <= 16; c++) {
+      const cell = r.getCell(c);
+      cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+    }
+  };
+
+  const addShipmentRow = (s: typeof shipments[0], rowIdx: number) => {
+    const extra = (s.extraFields as Record<string, unknown>) ?? {};
+    const r = ws.addRow([
+      "", "",
+      s.ifsRef,
+      extraVal(extra, "Type", "type"),
+      extraVal(extra, "BL / Manifest No.", "BL/Manifest No.", "BL", "bl"),
+      s.containerNo ?? "",
+      s.shipper ?? "",
+      s.consignee ?? "",
+      s.cargoDescription ?? "",
+      s.invoiceNo ?? "",
+      s.pod ?? "",
+      s.finalPortDestination ?? "",
+      extraVal(extra, "Agent", "agent"),
+      s.mraRef ?? "",
+      s.entry ?? "",
+      s.status,
+    ]);
+    r.height = 14;
+    r.font = { size: 9 };
+    const bg = rowIdx % 2 === 1 ? ROW_ALT : WHITE;
+    for (let c = 3; c <= 16; c++) {
+      const cell = r.getCell(c);
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
+      cell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+      cell.alignment = { vertical: "middle", wrapText: false };
+    }
+  };
+
+  if (!templateBuf) {
+    // Scratch path: build the branding header rows
+    ws.addRow([]); ws.addRow([]); ws.addRow([]);
+
+    const r4 = ws.addRow(["", "", "InterFreight Solutions", "", "", "", "", "", "", "", "", "", "Status Report", "", "", ""]);
+    ws.mergeCells("C4:L4"); ws.mergeCells("M4:P4");
+    ws.getCell("C4").font = { bold: true, size: 16, color: { argb: RED } };
+    ws.getCell("C4").alignment = { horizontal: "left", vertical: "middle" };
+    ws.getCell("M4").font = { bold: true, size: 13, color: { argb: DARK_BLUE } };
+    ws.getCell("M4").alignment = { horizontal: "right", vertical: "middle" };
+    r4.height = 28;
+
+    const r5 = ws.addRow(["", "", companyName, "", "", "", "", "", "", "", "", "", `Date: ${dateStr}`, "", "", ""]);
+    ws.mergeCells("C5:L5"); ws.mergeCells("M5:P5");
+    ws.getCell("C5").font = { bold: true, size: 11 };
+    ws.getCell("M5").font = { size: 10 };
+    ws.getCell("M5").alignment = { horizontal: "right" };
+    r5.height = 20;
+
+    ws.addRow([]);
+  }
+
+  // Sections (same logic for both paths)
+  const usedStatuses = new Set<string>();
+  for (const section of SECTION_MAP) {
+    const rows = shipments.filter((s) => section.statuses.some(
+      (st) => s.status.toLowerCase().includes(st.toLowerCase()) || st.toLowerCase().includes(s.status.toLowerCase())
+    ));
+    rows.forEach((s) => usedStatuses.add(s.status));
+    addSectionHeader(section.label);
+    addColHeaders();
+    if (rows.length === 0) {
+      const empty = ws.addRow(["", "", "—"]);
+      ws.mergeCells(`C${empty.number}:P${empty.number}`);
+      ws.getCell(`C${empty.number}`).alignment = { horizontal: "center" };
+      ws.getCell(`C${empty.number}`).font = { italic: true, color: { argb: "FF888888" }, size: 9 };
+    } else {
+      rows.forEach((s, i) => addShipmentRow(s, i));
+    }
+    ws.addRow([]);
+  }
+
+  const other = shipments.filter((s) => !usedStatuses.has(s.status));
+  if (other.length > 0) {
+    addSectionHeader("OTHER SHIPMENTS");
+    addColHeaders();
+    other.forEach((s, i) => addShipmentRow(s, i));
+    ws.addRow([]);
+  }
+
+  // Auto-fit column widths to content
+  autoFitWorksheet(ws);
+
+  return wb;
+}
+
+// ── Company Status Report Excel download (staff only) ────────────────────────
+
+router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, async (req, res) => {
+  const companyName = decodeURIComponent(req.params["company"] as string);
+  const shipments = await db.select().from(shipmentsTable).where(eq(shipmentsTable.companyName, companyName)).orderBy(asc(shipmentsTable.ifsRef));
+  const templateBuf = fs.existsSync(TEMPLATE_PATH) ? fs.readFileSync(TEMPLATE_PATH) : null;
+  const wb = await generateCompanyReportWorkbook(companyName, shipments, templateBuf);
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName}.xlsx"`);
+  await wb.xlsx.write(res);
+  res.end();
+});
+
+// ── Consignee-scoped Status Report Excel download (staff only) ───────────────
+// Same report format as the company-level download, but filtered to a single
+// consignee within that company.
+
+router.get("/staff/company-report/:company/consignee/:consignee/excel", requireAuth, requireStaff, async (req, res) => {
+  const companyName = decodeURIComponent(req.params["company"] as string);
+  const consigneeName = decodeURIComponent(req.params["consignee"] as string);
+  const isUnspecified = consigneeName === "__unspecified__";
+
+  const shipments = await db
+    .select()
+    .from(shipmentsTable)
+    .where(
+      isUnspecified
+        ? and(
+            eq(shipmentsTable.companyName, companyName),
+            or(eq(shipmentsTable.consignee, ""), isNull(shipmentsTable.consignee)),
+          )
+        : and(eq(shipmentsTable.companyName, companyName), eq(shipmentsTable.consignee, consigneeName)),
+    )
+    .orderBy(asc(shipmentsTable.ifsRef));
+
+  const templateBuf = fs.existsSync(TEMPLATE_PATH) ? fs.readFileSync(TEMPLATE_PATH) : null;
+  const reportLabel = isUnspecified ? companyName : consigneeName;
+  const wb = await generateCompanyReportWorkbook(reportLabel, shipments, templateBuf);
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName} - ${reportLabel}.xlsx"`);
+  await wb.xlsx.write(res);
+  res.end();
+});
+
+// ── All-company ZIP download (staff only) ────────────────────────────────────
+// Generates one Status Report Excel per company and bundles them into a ZIP.
+
+router.get("/staff/all-reports-zip", requireAuth, requireStaff, async (_req, res) => {
+  const companies = await db
+    .selectDistinct({ companyName: shipmentsTable.companyName })
+    .from(shipmentsTable)
+    .orderBy(asc(shipmentsTable.companyName));
+
+  if (companies.length === 0) {
+    res.status(404).json({ error: "No company data found. Upload a tracking master first." });
+    return;
+  }
+
+  // Load template once (null = fall back to built-in format)
+  const templateBuf = fs.existsSync(TEMPLATE_PATH) ? fs.readFileSync(TEMPLATE_PATH) : null;
+
+  const dateStr = todayString();
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", `attachment; filename="IFS-Status-Reports-${dateStr}.zip"`);
+
+  const arc = new ZipArchive({ zlib: { level: 6 } });
+  arc.pipe(res);
+
+  for (const { companyName } of companies) {
+    const shipments = await db
+      .select()
+      .from(shipmentsTable)
+      .where(eq(shipmentsTable.companyName, companyName))
+      .orderBy(asc(shipmentsTable.ifsRef));
+
+    const wb = await generateCompanyReportWorkbook(companyName, shipments, templateBuf);
+    const buf = await wb.xlsx.writeBuffer();
+    const safeName = companyName.replace(/[/\\?%*:|"<>]/g, "-").trim();
+    arc.append(Buffer.from(buf), { name: `Status Report - ${safeName}.xlsx` });
+  }
+
+  await arc.finalize();
+});
+
+// ── List all users (admin only) ───────────────────────────────────────────────
+
+router.get("/staff/users", requireAuth, requireAdmin, async (_req, res) => {
+  const users = await db
+    .select({ id: usersTable.id, fullName: usersTable.fullName, companyName: usersTable.companyName, email: usersTable.email, role: usersTable.role })
+    .from(usersTable);
+  res.json(users);
+});
+
+export default router;
