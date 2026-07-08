@@ -402,7 +402,10 @@ export default function Dashboard() {
         `${base}/api/staff/company-report/${encodeURIComponent(companyName)}/consignee/${encodeURIComponent(consigneeKey)}/${format}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      if (!res.ok) throw new Error("Download failed");
+      if (!res.ok) {
+        const message = await res.text().catch(() => "");
+        throw new Error(message || "Download failed");
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -422,7 +425,10 @@ export default function Dashboard() {
       const token = localStorage.getItem("intf_token");
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
       const res = await fetch(`${base}/api/staff/company-report/${encodeURIComponent(name)}/${format}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) throw new Error("Download failed");
+      if (!res.ok) {
+        const message = await res.text().catch(() => "");
+        throw new Error(message || "Download failed");
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

@@ -38,7 +38,10 @@ export default function CustomerDashboard() {
       const res = await fetch(`${base}/api/customer/company-report/pdf`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Download failed");
+      if (!res.ok) {
+        const message = await res.text().catch(() => "");
+        throw new Error(message || "Download failed");
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -49,6 +52,8 @@ export default function CustomerDashboard() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    } catch (err: any) {
+      window.alert(err?.message || "Download failed");
     } finally {
       setIsDownloadingPdf(false);
     }

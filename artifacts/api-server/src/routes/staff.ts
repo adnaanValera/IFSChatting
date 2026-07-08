@@ -2,10 +2,10 @@ import { Router } from "express";
 import multer from "multer";
 import ExcelJS from "exceljs";
 import { ZipArchive } from "archiver";
-import PDFDocument from "pdfkit";
 import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs";
+import { createRequire } from "module";
 import { db, pool, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable } from "@workspace/db";
 import { eq, asc, desc, and, or, isNull, sql } from "drizzle-orm";
 import { requireAuth, requireStaff, requireAdmin } from "../middlewares/auth";
@@ -19,6 +19,9 @@ const uploadsDir = process.env.VERCEL
   ? path.resolve("/tmp", "ifs-uploads")
   : path.resolve(workspaceRoot, "artifacts/api-server/uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const require = createRequire(import.meta.url);
+const PDFDocument = require("pdfkit") as typeof import("pdfkit");
 
 // Fixed path where the report template is stored (overwritten on each upload)
 const TEMPLATE_PATH = path.resolve(uploadsDir, "report-template.xlsx");
@@ -1299,26 +1302,34 @@ router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, as
 });
 
 router.get("/staff/company-report/:company/pdf", requireAuth, requireStaff, async (req, res) => {
-  const companyName = decodeURIComponent(req.params["company"] as string);
-  const shipments = await db.select().from(shipmentsTable).where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`).orderBy(asc(shipmentsTable.ifsRef));
-  streamCompanyReportPdf(res, companyName, `Status Report - ${companyName}.pdf`, shipments);
+  try {
+    const companyName = decodeURIComponent(req.params["company"] as string);
+    const shipments = await db.select().from(shipmentsTable).where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`).orderBy(asc(shipmentsTable.ifsRef));
+    streamCompanyReportPdf(res, companyName, `Status Report - ${companyName}.pdf`, shipments);
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : "PDF generation failed");
+  }
 });
 
 router.get("/customer/company-report/pdf", requireAuth, async (req, res) => {
-  const authReq = req as typeof req & { user: { role: string; companyName: string } };
-  if (authReq.user.role !== "customer") {
-    res.status(403).json({ error: "Customer access required" });
-    return;
+  try {
+    const authReq = req as typeof req & { user: { role: string; companyName: string } };
+    if (authReq.user.role !== "customer") {
+      res.status(403).send("Customer access required");
+      return;
+    }
+
+    const companyName = authReq.user.companyName;
+    const shipments = await db
+      .select()
+      .from(shipmentsTable)
+      .where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`)
+      .orderBy(asc(shipmentsTable.ifsRef));
+
+    streamCompanyReportPdf(res, companyName, `Status Report - ${companyName}.pdf`, shipments);
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : "PDF generation failed");
   }
-
-  const companyName = authReq.user.companyName;
-  const shipments = await db
-    .select()
-    .from(shipmentsTable)
-    .where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`)
-    .orderBy(asc(shipmentsTable.ifsRef));
-
-  streamCompanyReportPdf(res, companyName, `Status Report - ${companyName}.pdf`, shipments);
 });
 
 // ── Consignee-scoped Status Report Excel download (staff only) ───────────────
@@ -1356,28 +1367,32 @@ router.get("/staff/company-report/:company/consignee/:consignee/excel", requireA
 });
 
 router.get("/staff/company-report/:company/consignee/:consignee/pdf", requireAuth, requireStaff, async (req, res) => {
-  const companyName = decodeURIComponent(req.params["company"] as string);
-  const consigneeName = decodeURIComponent(req.params["consignee"] as string);
-  const isUnspecified = consigneeName === "__unspecified__";
+  try {
+    const companyName = decodeURIComponent(req.params["company"] as string);
+    const consigneeName = decodeURIComponent(req.params["consignee"] as string);
+    const isUnspecified = consigneeName === "__unspecified__";
 
-  const shipments = await db
-    .select()
-    .from(shipmentsTable)
-    .where(
-      isUnspecified
-        ? and(
-            sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`,
-            or(eq(shipmentsTable.consignee, ""), isNull(shipmentsTable.consignee)),
-          )
-        : and(
-            sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`,
-            sql`lower(${shipmentsTable.consignee}) = lower(${consigneeName})`,
-          ),
-    )
-    .orderBy(asc(shipmentsTable.ifsRef));
+    const shipments = await db
+      .select()
+      .from(shipmentsTable)
+      .where(
+        isUnspecified
+          ? and(
+              sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`,
+              or(eq(shipmentsTable.consignee, ""), isNull(shipmentsTable.consignee)),
+            )
+          : and(
+              sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`,
+              sql`lower(${shipmentsTable.consignee}) = lower(${consigneeName})`,
+            ),
+      )
+      .orderBy(asc(shipmentsTable.ifsRef));
 
-  const reportLabel = isUnspecified ? companyName : (shipments[0]?.consignee ?? consigneeName);
-  streamCompanyReportPdf(res, reportLabel, `Status Report - ${companyName} - ${reportLabel}.pdf`, shipments);
+    const reportLabel = isUnspecified ? companyName : (shipments[0]?.consignee ?? consigneeName);
+    streamCompanyReportPdf(res, reportLabel, `Status Report - ${companyName} - ${reportLabel}.pdf`, shipments);
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : "PDF generation failed");
+  }
 });
 
 // ── All-company ZIP download (staff only) ────────────────────────────────────
