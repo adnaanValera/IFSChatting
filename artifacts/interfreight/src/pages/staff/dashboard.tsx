@@ -10,7 +10,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard, Users, Package, FileSpreadsheet, LogOut,
-  UploadCloud, AlertCircle, Loader2, Clock, CheckCircle2, AlertTriangle, Ship,
+  UploadCloud, Loader2, Clock, CheckCircle2, AlertTriangle, Ship,
   Truck, Trash2, MessageSquare, ChevronDown, ChevronUp, Send, Mail, Home, History,
   Building2, Download, Search, ChevronRight,
 } from "lucide-react";
@@ -724,6 +724,7 @@ export default function Dashboard() {
     },
     {
       label: "Shipments In Malawi",
+      sectionLabel: "SHIPMENTS IN MALAWI",
       value: sectionCount("SHIPMENTS IN MALAWI"),
       note: "Delivered or clearance",
       icon: <CheckCircle2 size={22} />,
@@ -731,6 +732,7 @@ export default function Dashboard() {
     },
     {
       label: "Shipments Enroute",
+      sectionLabel: "SHIPMENTS ENROUTE",
       value: sectionCount("SHIPMENTS ENROUTE"),
       note: "Moving inland",
       icon: <Truck size={22} />,
@@ -738,6 +740,7 @@ export default function Dashboard() {
     },
     {
       label: "Shipments At POD",
+      sectionLabel: "SHIPMENTS AT POD",
       value: sectionCount("SHIPMENTS AT POD"),
       note: "At discharge port",
       icon: <Ship size={22} />,
@@ -745,6 +748,7 @@ export default function Dashboard() {
     },
     {
       label: "Shipments On Sea",
+      sectionLabel: "SHIPMENTS ON SEA",
       value: sectionCount("SHIPMENTS ON SEA"),
       note: "Sea freight stage",
       icon: <AlertTriangle size={22} />,
@@ -851,22 +855,53 @@ export default function Dashboard() {
 
               {/* Stats Row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {overviewCards.map((card) => (
-                  <div key={card.label} className="bg-white p-6 rounded-xl border border-border shadow-sm">
+                {overviewCards.map((card: any) => {
+                  const sectionDetails = card.sectionLabel
+                    ? (statusBreakdown as any[])?.find((item) => item.status === card.sectionLabel)
+                    : null;
+                  const isExpanded = expandedStatusSection === card.sectionLabel;
+
+                  return (
+                  <div key={card.label} className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                    <button
+                      type="button"
+                      disabled={!card.sectionLabel}
+                      onClick={() => card.sectionLabel && setExpandedStatusSection(prev => prev === card.sectionLabel ? null : card.sectionLabel)}
+                      className={`w-full p-6 text-left ${card.sectionLabel ? "hover:bg-muted/20 transition-colors" : "cursor-default"}`}
+                    >
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">{card.label}</p>
                         <h3 className="text-3xl font-extrabold text-secondary">{card.value}</h3>
                       </div>
-                      <div className={`p-2.5 rounded-xl ${card.tone}`}>{card.icon}</div>
+                      <div className="flex items-center gap-2">
+                        <div className={`p-2.5 rounded-xl ${card.tone}`}>{card.icon}</div>
+                        {card.sectionLabel && (
+                          <ChevronRight size={16} className={`text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground">{card.note}</p>
+                    </button>
+                    {card.sectionLabel && isExpanded && (
+                      <div className="px-6 pb-5 space-y-2 border-t border-border/60 bg-muted/10 pt-4">
+                        {sectionDetails?.details?.length ? sectionDetails.details.map((detail: { status: string; count: number }) => (
+                          <div key={detail.status} className="flex items-center justify-between gap-3">
+                            <StatusBadge status={detail.status} />
+                            <span className="font-semibold text-secondary text-sm">{detail.count}</span>
+                          </div>
+                        )) : (
+                          <p className="text-xs text-muted-foreground py-1">No statuses in this section</p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="xl:col-span-2 space-y-3">
+              <div className="space-y-3">
+                <div className="space-y-3">
                   <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
                     <button
                       type="button"
@@ -970,45 +1005,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Report Sections */}
-                <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                  <div className="p-5 border-b border-border flex items-center gap-2 bg-muted/20">
-                    <AlertCircle size={18} className="text-primary" />
-                    <h3 className="font-bold text-secondary">Report Sections</h3>
-                  </div>
-                  <div className="p-5 space-y-3">
-                    {statusBreakdown?.map((item: any) => (
-                      <div key={item.status} className="rounded-lg border border-border overflow-hidden">
-                        <button
-                          type="button"
-                          onClick={() => setExpandedStatusSection(prev => prev === item.status ? null : item.status)}
-                          className="w-full flex items-center justify-between gap-3 p-3 text-left hover:bg-muted/30 transition-colors"
-                        >
-                          <span className="flex items-center gap-2 min-w-0">
-                            <ChevronRight size={14} className={`text-muted-foreground transition-transform shrink-0 ${expandedStatusSection === item.status ? "rotate-90" : ""}`} />
-                            <span className="text-xs font-semibold text-secondary uppercase tracking-wider truncate">{item.status}</span>
-                          </span>
-                          <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm shrink-0">{item.count}</span>
-                        </button>
-                        {expandedStatusSection === item.status && (
-                          <div className="px-3 pb-3 space-y-2 bg-muted/10">
-                            {item.details?.length ? item.details.map((detail: { status: string; count: number }) => (
-                              <div key={detail.status} className="flex items-center justify-between gap-3">
-                                <StatusBadge status={detail.status} />
-                                <span className="font-semibold text-secondary text-sm">{detail.count}</span>
-                              </div>
-                            )) : (
-                              <p className="text-xs text-muted-foreground py-2">No statuses in this section</p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {!statusBreakdown?.length && (
-                      <p className="text-center text-muted-foreground py-6 text-sm">No data yet</p>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
           )}
