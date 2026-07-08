@@ -614,29 +614,73 @@ router.post("/staff/upload-template", requireAuth, requireStaff, templateUpload.
 
 // ── Excel report generation helper ───────────────────────────────────────────
 
-// Auto-fit every column (except A & B spacers) to its widest cell content.
+const REPORT_KEYS = [
+  "ifsRef", "type", "blNo", "containerNo", "shipper", "consignee", "cargoDescription",
+  "invoiceNo", "pod", "finalPortDestination", "agent", "mraRef", "entry", "status",
+] as const;
+
+const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }> = {
+  ifsRef: { min: 18, max: 28 },
+  type: { min: 8, max: 12 },
+  blNo: { min: 16, max: 24 },
+  containerNo: { min: 15, max: 22 },
+  shipper: { min: 16, max: 26, wrap: true },
+  consignee: { min: 18, max: 28, wrap: true },
+  cargoDescription: { min: 20, max: 34, wrap: true },
+  invoiceNo: { min: 13, max: 20 },
+  pod: { min: 9, max: 14 },
+  finalPortDestination: { min: 9, max: 14 },
+  agent: { min: 14, max: 22, wrap: true },
+  mraRef: { min: 14, max: 22 },
+  entry: { min: 14, max: 22 },
+  status: { min: 14, max: 20 },
+};
+
+function cellTextLength(value: unknown): number {
+  if (value == null) return 0;
+  if (typeof value === "string") return value.length;
+  if (typeof value === "number") return String(value).length;
+  if (value instanceof Date) return 10;
+  if (typeof value === "object" && (value as any).richText) {
+    return ((value as any).richText as any[]).map((r: any) => r.text ?? "").join("").length;
+  }
+  if (typeof value === "object" && (value as any).text) return String((value as any).text).length;
+  return String(value).length;
+}
+
+// Auto-fit every column to readable report widths without making the sheet sprawl.
 function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
   const maxLen: Record<number, number> = {};
+  const columnKeys: Record<number, typeof REPORT_KEYS[number]> = {};
+
   ws.eachRow((row) => {
     row.eachCell({ includeEmpty: false }, (cell, colIdx) => {
       if (colIdx <= 2) return; // keep spacer cols narrow
-      let len = 0;
-      const v = cell.value;
-      if (v == null) return;
-      if (typeof v === "string") len = v.length;
-      else if (typeof v === "number") len = String(v).length;
-      else if (v instanceof Date) len = 10;
-      else if (typeof v === "object" && (v as any).richText)
-        len = ((v as any).richText as any[]).map((r: any) => r.text ?? "").join("").length;
-      else len = String(v).length;
+      const headerKey = reportKeyFromHeader(cellStr(cell.value) ?? "");
+      if (headerKey) columnKeys[colIdx] = headerKey;
+      const len = cellTextLength(cell.value);
       maxLen[colIdx] = Math.max(maxLen[colIdx] ?? 0, len);
     });
   });
+
   ws.columns.forEach((col, idx) => {
     const colIdx = idx + 1;
     if (colIdx <= 2) { col.width = 3; return; }
     const best = maxLen[colIdx] ?? 0;
-    if (best > 0) col.width = Math.min(Math.max(best + 2, 10), 50);
+    const key = columnKeys[colIdx];
+    const sizing = key ? REPORT_WIDTHS[key] : undefined;
+    const min = sizing?.min ?? 10;
+    const max = sizing?.max ?? 26;
+    if (best > 0) col.width = Math.min(Math.max(best + 2, min), max);
+  });
+
+  ws.eachRow((row) => {
+    row.eachCell({ includeEmpty: false }, (cell, colIdx) => {
+      const key = columnKeys[colIdx];
+      if (key && REPORT_WIDTHS[key]?.wrap) {
+        cell.alignment = { ...(cell.alignment ?? {}), wrapText: true, vertical: "middle" };
+      }
+    });
   });
 }
 
@@ -646,11 +690,6 @@ const SECTION_MAP: { label: string; statuses: string[] }[] = [
   { label: "SHIPMENTS AT POD",     statuses: ["At Port", "Offloading", "Offloaded"] },
   { label: "SHIPMENTS ON SEA",     statuses: ["Delayed", "On Sea", "At Sea"] },
 ];
-
-const REPORT_KEYS = [
-  "ifsRef", "type", "blNo", "containerNo", "shipper", "consignee", "cargoDescription",
-  "invoiceNo", "pod", "finalPortDestination", "agent", "mraRef", "entry", "status",
-] as const;
 
 function extraVal(extra: Record<string, unknown>, ...keys: string[]): string {
   for (const k of keys) {
