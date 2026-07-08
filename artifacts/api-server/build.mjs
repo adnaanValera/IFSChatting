@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { cp, mkdir, rm } from "node:fs/promises";
+import { cp, mkdir, readFile, rm } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -11,12 +11,34 @@ globalThis.require = createRequire(import.meta.url);
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 
+const copiedRuntimePackages = new Set();
+
 async function copyRuntimePackage(packageName, distDir, resolvedFile, parentLevels = 0) {
+  if (copiedRuntimePackages.has(packageName)) return;
+  copiedRuntimePackages.add(packageName);
   let packageRoot = path.dirname(require.resolve(resolvedFile));
   for (let i = 0; i < parentLevels; i++) packageRoot = path.dirname(packageRoot);
   const target = path.join(distDir, "node_modules", ...packageName.split("/"));
   await mkdir(path.dirname(target), { recursive: true });
   await cp(packageRoot, target, { recursive: true });
+}
+
+async function copyRuntimePackageTree(packageName, distDir) {
+  const packageJsonPath = require.resolve(`${packageName}/package.json`);
+  const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
+  await copyRuntimePackage(packageName, distDir, `${packageName}/package.json`);
+
+  const deps = {
+    ...(packageJson.dependencies ?? {}),
+    ...(packageJson.optionalDependencies ?? {}),
+  };
+  for (const depName of Object.keys(deps)) {
+    try {
+      await copyRuntimePackageTree(depName, distDir);
+    } catch {
+      // Optional dependencies may not be installed for the current platform.
+    }
+  }
 }
 
 async function buildAll() {
@@ -132,6 +154,7 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
 
   await copyRuntimePackage("@swc/helpers", distDir, "@swc/helpers/cjs/_define_property.cjs", 1);
   await copyRuntimePackage("tslib", distDir, "tslib/tslib.js");
+  await copyRuntimePackageTree("pdfkit", distDir);
 }
 
 buildAll().catch((err) => {

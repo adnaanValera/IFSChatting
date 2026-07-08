@@ -12,6 +12,33 @@ import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
 import { Link } from "wouter";
 import { ShipmentCard } from "@/components/ui/shipment-card";
 
+const STATUS_SECTIONS = [
+  { label: "Shipments In Malawi", reportLabel: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
+  { label: "Shipments Enroute", reportLabel: "SHIPMENTS ENROUTE", statuses: ["In Transit", "Enroute LLW", "Enroute BLZ", "Enroute"] },
+  { label: "Shipments At POD", reportLabel: "SHIPMENTS AT POD", statuses: ["At Port", "Offloading", "Offloaded"] },
+  { label: "Shipments On Sea", reportLabel: "SHIPMENTS ON SEA", statuses: ["Delayed", "On Sea", "At Sea"] },
+];
+
+function normalizeSectionLabel(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function shipmentSectionLabel(shipment: any): string {
+  const extra = shipment.extraFields ?? {};
+  const sourceSection = String(extra["Source Section"] ?? extra["sourceSection"] ?? "").trim();
+  if (sourceSection) {
+    const matchingSection = STATUS_SECTIONS.find((section) =>
+      normalizeSectionLabel(section.reportLabel) === normalizeSectionLabel(sourceSection)
+    );
+    if (matchingSection) return matchingSection.reportLabel;
+  }
+
+  const status = String(shipment.status ?? "").toLowerCase();
+  return STATUS_SECTIONS.find((section) => section.statuses.some(
+    (st) => status.includes(st.toLowerCase()) || st.toLowerCase().includes(status),
+  ))?.reportLabel ?? "OTHER SHIPMENTS";
+}
+
 export default function CustomerDashboard() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -69,10 +96,17 @@ export default function CustomerDashboard() {
 
   const typedUser = user as any;
   const shipments = shipmentsPage?.items ?? [];
-
-  const inTransit = shipments.filter((s: any) => s.status === "In Transit").length;
-  const cleared = shipments.filter((s: any) => /cleared|delivered/i.test(s.status)).length;
-  const atPort = shipments.filter((s: any) => /port|clearance/i.test(s.status)).length;
+  const sectionRows = STATUS_SECTIONS.map((section) => ({
+    ...section,
+    rows: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === section.reportLabel),
+  }));
+  const statCards = [
+    { icon: Package, label: "Total Consignments", value: shipments.length, tone: "bg-blue-50 text-blue-600" },
+    { icon: CheckCircle, label: "Shipments In Malawi", value: sectionRows[0]?.rows.length ?? 0, tone: "bg-emerald-50 text-emerald-600" },
+    { icon: Ship, label: "Shipments Enroute", value: sectionRows[1]?.rows.length ?? 0, tone: "bg-amber-50 text-amber-600" },
+    { icon: MapPin, label: "Shipments At POD", value: sectionRows[2]?.rows.length ?? 0, tone: "bg-indigo-50 text-indigo-600" },
+    { icon: Building2, label: "Shipments On Sea", value: sectionRows[3]?.rows.length ?? 0, tone: "bg-red-50 text-red-600" },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -107,16 +141,11 @@ export default function CustomerDashboard() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 max-w-5xl">
 
         {/* Summary stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
-          {[
-            { icon: Package, label: "Total Consignments", value: shipments.length, color: "blue" },
-            { icon: Ship, label: "In Transit", value: inTransit, color: "amber" },
-            { icon: MapPin, label: "At Port / Clearance", value: atPort, color: "indigo" },
-            { icon: CheckCircle, label: "Delivered / Cleared", value: cleared, color: "green" },
-          ].map(({ icon: Icon, label, value, color }) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
+          {statCards.map(({ icon: Icon, label, value, tone }) => (
             <div key={label} className="bg-white rounded-xl border border-border p-5 shadow-sm flex items-center gap-3">
-              <div className={`p-2 bg-${color}-50 rounded-lg shrink-0`}>
-                <Icon className={`text-${color}-600`} size={20} />
+              <div className={`p-2 rounded-lg shrink-0 ${tone}`}>
+                <Icon size={20} />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide leading-tight">{label}</p>
@@ -159,9 +188,25 @@ export default function CustomerDashboard() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {shipments.map((s: any, index: number) => (
-              <ShipmentCard key={s.id} shipment={s} index={index} />
+          <div className="space-y-6">
+            {sectionRows.map((section) => (
+              <section key={section.reportLabel} className="space-y-3">
+                <div className="flex items-center justify-between gap-3 bg-secondary text-white rounded-xl px-4 py-3 shadow-sm">
+                  <h3 className="text-sm font-extrabold uppercase tracking-wide">{section.reportLabel}</h3>
+                  <span className="text-xs bg-white/15 px-2.5 py-1 rounded-full font-semibold">
+                    {section.rows.length}
+                  </span>
+                </div>
+                {section.rows.length === 0 ? (
+                  <div className="bg-white border border-border rounded-xl px-4 py-5 text-sm text-muted-foreground">
+                    No consignments in this section.
+                  </div>
+                ) : (
+                  section.rows.map((s: any, index: number) => (
+                    <ShipmentCard key={s.id} shipment={s} index={index} />
+                  ))
+                )}
+              </section>
             ))}
           </div>
         )}
