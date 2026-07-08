@@ -120,12 +120,12 @@ function shipmentDateSortKey(value: string): number | null {
     may: 5, jun: 6, june: 6, jul: 7, july: 7, aug: 8, august: 8, sep: 9, sept: 9,
     september: 9, oct: 10, october: 10, nov: 11, november: 11, dec: 12, december: 12,
   };
-  const wordDate = value.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\b/);
+  const wordDate = value.match(/\b(\d{1,2})(?:st|nd|rd|th)?[\s-]+([A-Za-z]+)\b/);
   if (wordDate?.[1] && wordDate[2]) {
     const month = monthNames[wordDate[2].toLowerCase()];
     if (month !== undefined) return month * 100 + Number(wordDate[1]);
   }
-  const monthFirstDate = value.match(/\b([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?\b/);
+  const monthFirstDate = value.match(/\b([A-Za-z]+)[\s-]+(\d{1,2})(?:st|nd|rd|th)?\b/);
   if (monthFirstDate?.[1] && monthFirstDate[2]) {
     const month = monthNames[monthFirstDate[1].toLowerCase()];
     if (month !== undefined) return month * 100 + Number(monthFirstDate[2]);
@@ -137,11 +137,21 @@ function shipmentDateSortKey(value: string): number | null {
   return null;
 }
 
+function shipmentSortText(shipment: Shipment): string {
+  return [
+    shipment.status,
+    shipment.pod ?? "",
+    shipment.finalPortDestination ?? "",
+    shipment.cargoDescription ?? "",
+    ...Object.values(shipment.extraFields ?? {}).map((value) => String(value ?? "")),
+  ].join(" ");
+}
+
 function sortRowsForSection(label: string, rows: Shipment[]): Shipment[] {
   if (label !== "SHIPMENTS ON SEA") return rows;
   return [...rows].sort((a, b) => {
-    const aKey = shipmentDateSortKey(a.status) ?? Number.MAX_SAFE_INTEGER;
-    const bKey = shipmentDateSortKey(b.status) ?? Number.MAX_SAFE_INTEGER;
+    const aKey = shipmentDateSortKey(shipmentSortText(a)) ?? Number.MAX_SAFE_INTEGER;
+    const bKey = shipmentDateSortKey(shipmentSortText(b)) ?? Number.MAX_SAFE_INTEGER;
     return aKey - bKey;
   });
 }
