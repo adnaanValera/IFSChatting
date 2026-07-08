@@ -3,7 +3,7 @@
   "buildCommand": "pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/interfreight run build && node scripts/copy-vercel-output.mjs",
   "outputDirectory": "public",
   "functions": {
-    "api/index.js": {
+    "api/index.mjs": {
       "maxDuration": 60,
       "includeFiles": "artifacts/api-server/dist/**"
     }
