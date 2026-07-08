@@ -5,7 +5,13 @@
   "functions": {
     "api/index.mjs": {
       "maxDuration": 60,
-      "includeFiles": "artifacts/api-server/dist/**"
+      "includeFiles": [
+        "artifacts/api-server/dist/**",
+        "node_modules/@swc/helpers/**",
+        "node_modules/.pnpm/@swc+helpers*/node_modules/@swc/helpers/**",
+        "artifacts/api-server/node_modules/@swc/helpers/**",
+        "artifacts/api-server/node_modules/.pnpm/@swc+helpers*/node_modules/@swc/helpers/**"
+      ]
     }
   },
   "rewrites": [
