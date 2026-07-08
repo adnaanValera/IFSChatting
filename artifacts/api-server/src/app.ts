@@ -4,6 +4,7 @@ import pinoHttp from "pino-http";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { ensureRuntimeData } from "./lib/bootstrap";
 
 const app: Express = express();
 
@@ -41,6 +42,16 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(async (_req, res, next) => {
+  try {
+    await ensureRuntimeData();
+    next();
+  } catch (err) {
+    logger.error({ err }, "Runtime database bootstrap failed");
+    res.status(500).json({ error: "Database is not ready" });
+  }
+});
 
 app.use("/api", router);
 
