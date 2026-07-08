@@ -76,18 +76,27 @@ router.get("/stats/dashboard", requireAuth, async (_req, res) => {
 
 router.get("/stats/status-breakdown", requireAuth, async (_req, res) => {
   const sectionCounts = Object.fromEntries(SECTION_MAP.map((section) => [section.label, 0]));
+  const statusCountsBySection = Object.fromEntries(
+    SECTION_MAP.map((section) => [section.label, {} as Record<string, number>])
+  );
   const shipments = await db
     .select({ status: shipmentsTable.status, extraFields: shipmentsTable.extraFields })
     .from(shipmentsTable);
 
   for (const shipment of shipments) {
     const label = sectionLabelForShipment(shipment);
-    if (label in sectionCounts) sectionCounts[label] += 1;
+    if (label in sectionCounts) {
+      sectionCounts[label] += 1;
+      statusCountsBySection[label][shipment.status] = (statusCountsBySection[label][shipment.status] ?? 0) + 1;
+    }
   }
 
   res.json(SECTION_MAP.map((section) => ({
     status: section.label,
     count: sectionCounts[section.label] ?? 0,
+    details: Object.entries(statusCountsBySection[section.label] ?? {})
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count),
   })));
 });
 

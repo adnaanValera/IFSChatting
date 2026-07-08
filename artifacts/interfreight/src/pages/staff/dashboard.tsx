@@ -179,6 +179,7 @@ export default function Dashboard() {
   const [deletingAll, setDeletingAll] = useState(false);
   const [deletingFeedbackId, setDeletingFeedbackId] = useState<number | null>(null);
   const [expandedFeedback, setExpandedFeedback] = useState<number | null>(null);
+  const [expandedStatusSection, setExpandedStatusSection] = useState<string | null>(null);
   const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
   const [sendingReply, setSendingReply] = useState<number | null>(null);
 
@@ -817,10 +818,31 @@ export default function Dashboard() {
                     <h3 className="font-bold text-secondary">Report Sections</h3>
                   </div>
                   <div className="p-5 space-y-3">
-                    {statusBreakdown?.map((item) => (
-                      <div key={item.status} className="flex items-center justify-between gap-3">
-                        <span className="text-xs font-semibold text-secondary uppercase tracking-wider">{item.status}</span>
-                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">{item.count}</span>
+                    {statusBreakdown?.map((item: any) => (
+                      <div key={item.status} className="rounded-lg border border-border overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedStatusSection(prev => prev === item.status ? null : item.status)}
+                          className="w-full flex items-center justify-between gap-3 p-3 text-left hover:bg-muted/30 transition-colors"
+                        >
+                          <span className="flex items-center gap-2 min-w-0">
+                            <ChevronRight size={14} className={`text-muted-foreground transition-transform shrink-0 ${expandedStatusSection === item.status ? "rotate-90" : ""}`} />
+                            <span className="text-xs font-semibold text-secondary uppercase tracking-wider truncate">{item.status}</span>
+                          </span>
+                          <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm shrink-0">{item.count}</span>
+                        </button>
+                        {expandedStatusSection === item.status && (
+                          <div className="px-3 pb-3 space-y-2 bg-muted/10">
+                            {item.details?.length ? item.details.map((detail: { status: string; count: number }) => (
+                              <div key={detail.status} className="flex items-center justify-between gap-3">
+                                <StatusBadge status={detail.status} />
+                                <span className="font-semibold text-secondary text-sm">{detail.count}</span>
+                              </div>
+                            )) : (
+                              <p className="text-xs text-muted-foreground py-2">No statuses in this section</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                     {!statusBreakdown?.length && (
