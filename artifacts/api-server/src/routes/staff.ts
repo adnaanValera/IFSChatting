@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs";
 import { db, pool, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable } from "@workspace/db";
-import { eq, asc, and, or, isNull, sql } from "drizzle-orm";
+import { eq, asc, desc, and, or, isNull, sql } from "drizzle-orm";
 import { requireAuth, requireStaff, requireAdmin } from "../middlewares/auth";
 import { logger } from "../lib/logger";
 
