@@ -209,17 +209,17 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04, duration: 0.28, ease: "easeOut" }}
-      className={`rounded-2xl overflow-hidden border ${theme.cardBorder} shadow-2xl`}
+      className={`rounded-xl sm:rounded-2xl overflow-hidden border ${theme.cardBorder} shadow-2xl`}
       style={{ background: theme.cardBg }}
     >
       {/* ── Collapsed header — always visible ─────────────────────────────── */}
       <button className="w-full text-left" onClick={() => setIsOpen((o) => !o)}>
         <div
-          className="flex items-center justify-between gap-3 px-5 py-4 hover:brightness-110 transition-all"
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-4 hover:brightness-110 transition-all"
           style={{ background: isOpen ? "transparent" : theme.headerBg }}
         >
           {/* Left: icon + ref */}
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 w-full">
             <div
               className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${theme.collapsedIconWrap}`}
             >
@@ -227,7 +227,7 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
                 {variant === "truck" ? <Truck size={18} /> : variant === "pallet" ? <Boxes size={18} /> : <Ship size={18} />}
               </span>
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p
                 className="text-[10px] font-bold uppercase tracking-widest"
                 style={{ color: theme.dotColor }}
@@ -248,7 +248,7 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
           </div>
 
           {/* Right: status + chevron */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 w-full sm:w-auto">
             <StatusPill status={s.status} theme={theme} />
             <div
               className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
@@ -271,7 +271,7 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
           >
             {/* ── Header section ── */}
             <div
-              className="px-5 pt-5 pb-5 relative overflow-hidden"
+              className="px-4 sm:px-5 pt-5 pb-5 relative overflow-hidden"
               style={{ background: theme.headerBg }}
             >
               {/* Dot-grid decoration */}
@@ -303,9 +303,9 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
               </p>
 
               {/* Icon + IFS Ref + Badge row */}
-              <div className="relative z-10 flex items-center gap-4">
+              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-4">
                 <div
-                  className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 ${theme.iconWrap}`}
+                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0 ${theme.iconWrap}`}
                 >
                   <span className={theme.iconColor}>{theme.headerIcon}</span>
                 </div>
@@ -314,7 +314,7 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
                   <p className="text-xs text-zinc-500 uppercase tracking-widest font-semibold mb-0.5">
                     IFS Ref
                   </p>
-                  <p className="text-2xl font-extrabold text-white leading-tight break-all">
+                  <p className="text-xl sm:text-2xl font-extrabold text-white leading-tight break-all">
                     {s.ifsRef || "—"}
                   </p>
                 </div>
@@ -339,11 +339,11 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
             <div className={`divide-y ${theme.fieldBorder}`}>
 
               {/* MRA Ref | Container/Pallet No. */}
-              <div className={`grid grid-cols-2 divide-x ${theme.fieldBorder} px-5`}>
-                  <div className="pr-5">
+              <div className={`grid grid-cols-1 sm:grid-cols-2 sm:divide-x ${theme.fieldBorder} px-4 sm:px-5`}>
+                  <div className="sm:pr-5">
                     <FieldCell icon={<FileText size={11} />} label="MRA Ref" value={s.mraRef} theme={theme} />
                   </div>
-                  <div className="pl-5">
+                  <div className="sm:pl-5">
                     <FieldCell
                       icon={variant === "container" ? <Box size={11} /> : <FileText size={11} />}
                       label={variant === "container" ? "Container No." : "BL / Manifest No."}
@@ -354,18 +354,18 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
                 </div>
 
               {/* Shipper | Consignee */}
-              <div className={`grid grid-cols-2 divide-x ${theme.fieldBorder} px-5`}>
-                  <div className="pr-5">
+              <div className={`grid grid-cols-1 sm:grid-cols-2 sm:divide-x ${theme.fieldBorder} px-4 sm:px-5`}>
+                  <div className="sm:pr-5">
                     <FieldCell icon={<User size={11} />} label="Shipper" value={s.shipper} theme={theme} />
                   </div>
-                  <div className="pl-5">
+                  <div className="sm:pl-5">
                     <FieldCell icon={<User size={11} />} label="Consignee" value={s.consignee || s.companyName} theme={theme} />
                   </div>
                 </div>
 
               {/* Cargo Description — full width with decorative icon */}
               <div
-                  className={`px-5 flex items-center justify-between gap-4 relative overflow-hidden`}
+                  className={`px-4 sm:px-5 flex items-center justify-between gap-4 relative overflow-hidden`}
                   style={{ background: theme.cargoBg }}
                 >
                   <div className="flex-1 py-4">
@@ -389,20 +389,20 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
                 </div>
 
               {/* Invoice No. | POD | Entry */}
-              <div className={`grid grid-cols-3 divide-x ${theme.fieldBorder} px-5`}>
-                <div className="pr-5">
+              <div className={`grid grid-cols-1 sm:grid-cols-3 sm:divide-x ${theme.fieldBorder} px-4 sm:px-5`}>
+                <div className="sm:pr-5">
                   <FieldCell icon={<FileText size={11} />} label="Invoice No." value={s.invoiceNo} theme={theme} />
                 </div>
-                <div className="px-5">
+                <div className="sm:px-5">
                   <FieldCell icon={<Anchor size={11} />} label="POD" value={s.pod} theme={theme} />
                 </div>
-                <div className="pl-5">
+                <div className="sm:pl-5">
                   <FieldCell icon={<MapPin size={11} />} label="Entry" value={s.entry} theme={theme} />
                 </div>
               </div>
 
               {/* Final Port Destination */}
-              <div className="px-5">
+              <div className="px-4 sm:px-5">
                   <FieldCell
                     icon={<Flag size={11} />}
                     label="Final Port Destination (FPD)"
@@ -413,7 +413,7 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
 
               {/* STATUS footer */}
               <div
-                className="px-5 pt-4 pb-5"
+                className="px-4 sm:px-5 pt-4 pb-5"
                 style={{ background: theme.statusFooterBg }}
               >
                 <p className="text-[10px] text-zinc-600 uppercase tracking-[0.22em] text-center mb-3 font-semibold">
