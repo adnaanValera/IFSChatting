@@ -41,6 +41,46 @@ function extraValue(extraFields: unknown, ...keys: string[]): string {
   return "";
 }
 
+function shipmentDateSortKey(value: string): number | null {
+  const monthNames: Record<string, number> = {
+    jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3, apr: 4, april: 4,
+    may: 5, jun: 6, june: 6, jul: 7, july: 7, aug: 8, august: 8, sep: 9, sept: 9,
+    september: 9, oct: 10, october: 10, nov: 11, november: 11, dec: 12, december: 12,
+  };
+  const wordDate = value.match(/\b(\d{1,2})(?:st|nd|rd|th)?[\s-]+([A-Za-z]+)\b/);
+  if (wordDate?.[1] && wordDate[2]) {
+    const month = monthNames[wordDate[2].toLowerCase()];
+    if (month !== undefined) return month * 100 + Number(wordDate[1]);
+  }
+  const monthFirstDate = value.match(/\b([A-Za-z]+)[\s-]+(\d{1,2})(?:st|nd|rd|th)?\b/);
+  if (monthFirstDate?.[1] && monthFirstDate[2]) {
+    const month = monthNames[monthFirstDate[1].toLowerCase()];
+    if (month !== undefined) return month * 100 + Number(monthFirstDate[2]);
+  }
+  const slashDate = value.match(/\b(\d{1,2})[/-](\d{1,2})(?:[/-]\d{2,4})?\b/);
+  if (slashDate?.[1] && slashDate[2]) {
+    return Number(slashDate[2]) * 100 + Number(slashDate[1]);
+  }
+  return null;
+}
+
+function shipmentSortText(shipment: {
+  status: string;
+  pod?: string | null;
+  finalPortDestination?: string | null;
+  cargoDescription?: string | null;
+  extraFields: unknown;
+}): string {
+  const extra = (shipment.extraFields as Record<string, unknown>) ?? {};
+  return [
+    shipment.status,
+    shipment.pod ?? "",
+    shipment.finalPortDestination ?? "",
+    shipment.cargoDescription ?? "",
+    ...Object.values(extra).map((value) => String(value ?? "")),
+  ].join(" ");
+}
+
 function parseEtaDate(status: string, now = new Date()): Date | null {
   const etaMatch = status.match(/\bETA\b[:\s-]*(.+)$/i);
   if (!etaMatch?.[1]) return null;
@@ -187,8 +227,17 @@ router.get("/stats/status-breakdown", requireAuth, async (_req, res) => {
   const statusCountsBySection = Object.fromEntries(
     SECTION_MAP.map((section) => [section.label, {} as Record<string, number>])
   );
+  const statusSortBySection = Object.fromEntries(
+    SECTION_MAP.map((section) => [section.label, {} as Record<string, number>])
+  );
   const shipments = await db
-    .select({ status: shipmentsTable.status, extraFields: shipmentsTable.extraFields })
+    .select({
+      status: shipmentsTable.status,
+      pod: shipmentsTable.pod,
+      finalPortDestination: shipmentsTable.finalPortDestination,
+      cargoDescription: shipmentsTable.cargoDescription,
+      extraFields: shipmentsTable.extraFields,
+    })
     .from(shipmentsTable);
 
   for (const shipment of shipments) {
@@ -196,6 +245,11 @@ router.get("/stats/status-breakdown", requireAuth, async (_req, res) => {
     if (label in sectionCounts) {
       sectionCounts[label] += 1;
       statusCountsBySection[label][shipment.status] = (statusCountsBySection[label][shipment.status] ?? 0) + 1;
+      const sortKey = shipmentDateSortKey(shipmentSortText(shipment));
+      if (sortKey !== null) {
+        const currentKey = statusSortBySection[label][shipment.status];
+        statusSortBySection[label][shipment.status] = currentKey === undefined ? sortKey : Math.min(currentKey, sortKey);
+      }
     }
   }
 
@@ -204,7 +258,14 @@ router.get("/stats/status-breakdown", requireAuth, async (_req, res) => {
     count: sectionCounts[section.label] ?? 0,
     details: Object.entries(statusCountsBySection[section.label] ?? {})
       .map(([status, count]) => ({ status, count }))
-      .sort((a, b) => b.count - a.count),
+      .sort((a, b) => {
+        if (section.label === "SHIPMENTS ON SEA") {
+          const aKey = statusSortBySection[section.label][a.status] ?? Number.MAX_SAFE_INTEGER;
+          const bKey = statusSortBySection[section.label][b.status] ?? Number.MAX_SAFE_INTEGER;
+          if (aKey !== bKey) return aKey - bKey;
+        }
+        return b.count - a.count;
+      }),
   })));
 });
 
