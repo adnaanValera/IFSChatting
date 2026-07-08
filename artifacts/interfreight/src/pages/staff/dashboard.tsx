@@ -114,6 +114,43 @@ function shipmentSectionLabel(shipment: Shipment): string {
   ))?.label ?? "OTHER SHIPMENTS";
 }
 
+function parseShipmentDate(value: string): Date | null {
+  const monthNames: Record<string, number> = {
+    jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3,
+    may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7, sep: 8, sept: 8,
+    september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
+  };
+  const now = new Date();
+  const wordDate = value.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)(?:\s+(\d{2,4}))?\b/);
+  if (wordDate?.[1] && wordDate[2]) {
+    const month = monthNames[wordDate[2].toLowerCase()];
+    if (month !== undefined) {
+      const year = wordDate[3] ? normalizeYear(wordDate[3]) : now.getFullYear();
+      return new Date(year, month, Number(wordDate[1]));
+    }
+  }
+  const slashDate = value.match(/\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/);
+  if (slashDate?.[1] && slashDate[2]) {
+    const year = slashDate[3] ? normalizeYear(slashDate[3]) : now.getFullYear();
+    return new Date(year, Number(slashDate[2]) - 1, Number(slashDate[1]));
+  }
+  return null;
+}
+
+function normalizeYear(value: string): number {
+  const year = Number(value);
+  return year < 100 ? 2000 + year : year;
+}
+
+function sortRowsForSection(label: string, rows: Shipment[]): Shipment[] {
+  if (label !== "SHIPMENTS ON SEA") return rows;
+  return [...rows].sort((a, b) => {
+    const aDate = parseShipmentDate(a.status)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const bDate = parseShipmentDate(b.status)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    return aDate - bDate;
+  });
+}
+
 function renderShipmentSections(shipments: Shipment[]) {
   const otherRows = shipments.filter(s => shipmentSectionLabel(s) === "OTHER SHIPMENTS");
 
@@ -165,7 +202,7 @@ function renderShipmentSections(shipments: Shipment[]) {
   return (
     <div>
       {STATUS_SECTIONS.map(sec =>
-        renderSection(sec.label, shipments.filter(s => shipmentSectionLabel(s) === sec.label))
+        renderSection(sec.label, sortRowsForSection(sec.label, shipments.filter(s => shipmentSectionLabel(s) === sec.label)))
       )}
       {otherRows.length > 0 && renderSection("OTHER SHIPMENTS", otherRows)}
     </div>

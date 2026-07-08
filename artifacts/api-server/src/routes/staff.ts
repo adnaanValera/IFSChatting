@@ -758,6 +758,43 @@ function extraVal(extra: Record<string, unknown>, ...keys: string[]): string {
   return "";
 }
 
+function parseShipmentDate(value: string): Date | null {
+  const monthNames: Record<string, number> = {
+    jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3,
+    may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7, sep: 8, sept: 8,
+    september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
+  };
+  const now = new Date();
+  const wordDate = value.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)(?:\s+(\d{2,4}))?\b/);
+  if (wordDate?.[1] && wordDate[2]) {
+    const month = monthNames[wordDate[2].toLowerCase()];
+    if (month !== undefined) {
+      const year = wordDate[3] ? normalizeYear(wordDate[3]) : now.getFullYear();
+      return new Date(year, month, Number(wordDate[1]));
+    }
+  }
+  const slashDate = value.match(/\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/);
+  if (slashDate?.[1] && slashDate[2]) {
+    const year = slashDate[3] ? normalizeYear(slashDate[3]) : now.getFullYear();
+    return new Date(year, Number(slashDate[2]) - 1, Number(slashDate[1]));
+  }
+  return null;
+}
+
+function normalizeYear(value: string): number {
+  const year = Number(value);
+  return year < 100 ? 2000 + year : year;
+}
+
+function sortRowsForSection<T extends { status: string }>(label: string, rows: T[]): T[] {
+  if (label !== "SHIPMENTS ON SEA") return rows;
+  return [...rows].sort((a, b) => {
+    const aDate = parseShipmentDate(a.status)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const bDate = parseShipmentDate(b.status)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    return aDate - bDate;
+  });
+}
+
 function todayString(): string {
   const today = new Date();
   const dd = String(today.getDate()).padStart(2, "0");
@@ -912,7 +949,7 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
   let rowOffset = 0;
   for (const label of orderedLabels) {
     const section = sections[label];
-    const rows = grouped.get(label) ?? [];
+    const rows = sortRowsForSection(label, grouped.get(label) ?? []);
     const dataStart = section.dataStart + rowOffset;
     const dataEnd = section.dataEnd + rowOffset;
     const columnMap = headerColumnMap(ws.getRow(section.headerRow + rowOffset));
@@ -1080,9 +1117,9 @@ async function generateCompanyReportWorkbook(
   // Sections (same logic for both paths)
   const usedStatuses = new Set<string>();
   for (const section of SECTION_MAP) {
-    const rows = shipments.filter((s) => section.statuses.some(
+    const rows = sortRowsForSection(section.label, shipments.filter((s) => section.statuses.some(
       (st) => s.status.toLowerCase().includes(st.toLowerCase()) || st.toLowerCase().includes(s.status.toLowerCase())
-    ));
+    )));
     rows.forEach((s) => usedStatuses.add(s.status));
     addSectionHeader(section.label);
     addColHeaders();
