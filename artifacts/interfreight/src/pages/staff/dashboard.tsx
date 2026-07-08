@@ -62,9 +62,9 @@ function safeReportName(value: string): string {
 
 const STATUS_SECTIONS = [
   { label: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
-  { label: "SHIPMENTS ENROUTE",   statuses: ["In Transit"] },
-  { label: "SHIPMENTS AT POD",    statuses: ["At Port"] },
-  { label: "SHIPMENTS ON SEA",    statuses: ["Delayed"] },
+  { label: "SHIPMENTS ENROUTE",   statuses: ["In Transit", "Enroute LLW", "Enroute BLZ", "Enroute"] },
+  { label: "SHIPMENTS AT POD",    statuses: ["At Port", "Offloading", "Offloaded"] },
+  { label: "SHIPMENTS ON SEA",    statuses: ["Delayed", "On Sea", "At Sea"] },
 ];
 
 const UNSPECIFIED_CONSIGNEE_KEY = "__unspecified__";
@@ -82,9 +82,28 @@ function groupByConsignee(shipments: Shipment[]): { key: string; name: string; r
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function normalizeSectionLabel(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function shipmentSectionLabel(shipment: Shipment): string {
+  const extra = shipment.extraFields ?? {};
+  const sourceSection = String(extra["Source Section"] ?? extra["sourceSection"] ?? "").trim();
+  if (sourceSection) {
+    const matchingSection = STATUS_SECTIONS.find((section) =>
+      normalizeSectionLabel(section.label) === normalizeSectionLabel(sourceSection)
+    );
+    if (matchingSection) return matchingSection.label;
+  }
+
+  const status = shipment.status.toLowerCase();
+  return STATUS_SECTIONS.find((section) => section.statuses.some(
+    (st) => status.includes(st.toLowerCase()) || st.toLowerCase().includes(status),
+  ))?.label ?? "OTHER SHIPMENTS";
+}
+
 function renderShipmentSections(shipments: Shipment[]) {
-  const allSectionStatuses = new Set(STATUS_SECTIONS.flatMap(sec => sec.statuses));
-  const otherRows = shipments.filter(s => !allSectionStatuses.has(s.status));
+  const otherRows = shipments.filter(s => shipmentSectionLabel(s) === "OTHER SHIPMENTS");
 
   const renderSection = (label: string, rows: Shipment[]) => (
     <div key={label}>
@@ -134,7 +153,7 @@ function renderShipmentSections(shipments: Shipment[]) {
   return (
     <div>
       {STATUS_SECTIONS.map(sec =>
-        renderSection(sec.label, shipments.filter(s => sec.statuses.includes(s.status)))
+        renderSection(sec.label, shipments.filter(s => shipmentSectionLabel(s) === sec.label))
       )}
       {otherRows.length > 0 && renderSection("OTHER SHIPMENTS", otherRows)}
     </div>
@@ -590,6 +609,53 @@ export default function Dashboard() {
   }
 
   const unreadCount = feedback.filter((f) => f.status === "unread").length;
+  const dashboardStats = stats as any;
+  const sectionCount = (label: string) =>
+    dashboardStats?.sectionCounts?.find((section: { label: string; count: number }) => section.label === label)?.count ?? 0;
+  const overviewCards = [
+    {
+      label: "Total Containers",
+      value: dashboardStats?.totalContainers ?? 0,
+      note: "Managed in the system",
+      icon: <Package size={22} />,
+      tone: "bg-blue-50 text-blue-600",
+    },
+    {
+      label: "Companies",
+      value: dashboardStats?.totalCompanies ?? 0,
+      note: "Active clients",
+      icon: <Users size={22} />,
+      tone: "bg-green-50 text-green-600",
+    },
+    {
+      label: "Shipments In Malawi",
+      value: sectionCount("SHIPMENTS IN MALAWI"),
+      note: "Delivered or clearance",
+      icon: <CheckCircle2 size={22} />,
+      tone: "bg-emerald-50 text-emerald-600",
+    },
+    {
+      label: "Shipments Enroute",
+      value: sectionCount("SHIPMENTS ENROUTE"),
+      note: "Moving inland",
+      icon: <Truck size={22} />,
+      tone: "bg-amber-50 text-amber-600",
+    },
+    {
+      label: "Shipments At POD",
+      value: sectionCount("SHIPMENTS AT POD"),
+      note: "At discharge port",
+      icon: <Ship size={22} />,
+      tone: "bg-indigo-50 text-indigo-600",
+    },
+    {
+      label: "Shipments On Sea",
+      value: sectionCount("SHIPMENTS ON SEA"),
+      note: "Sea freight stage",
+      icon: <AlertTriangle size={22} />,
+      tone: "bg-red-50 text-red-600",
+    },
+  ];
 
   const navItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: "overview", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
@@ -689,47 +755,19 @@ export default function Dashboard() {
               </div>
 
               {/* Stats Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-                <div className="bg-white p-6 rounded-xl border border-border shadow-sm">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total Containers</p>
-                      <h3 className="text-3xl font-extrabold text-secondary">{stats?.totalContainers || 0}</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                {overviewCards.map((card) => (
+                  <div key={card.label} className="bg-white p-6 rounded-xl border border-border shadow-sm">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">{card.label}</p>
+                        <h3 className="text-3xl font-extrabold text-secondary">{card.value}</h3>
+                      </div>
+                      <div className={`p-2.5 rounded-xl ${card.tone}`}>{card.icon}</div>
                     </div>
-                    <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600"><Package size={22} /></div>
+                    <p className="text-xs text-muted-foreground">{card.note}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">Managed in the system</p>
-                </div>
-                <div className="bg-white p-6 rounded-xl border border-border shadow-sm">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">In Transit</p>
-                      <h3 className="text-3xl font-extrabold text-secondary">{stats?.inTransit || 0}</h3>
-                    </div>
-                    <div className="p-2.5 bg-amber-50 rounded-xl text-amber-600"><Truck size={22} /></div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Currently moving</p>
-                </div>
-                <div className="bg-white p-6 rounded-xl border border-border shadow-sm">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">At Port</p>
-                      <h3 className="text-3xl font-extrabold text-secondary">{stats?.atPort || 0}</h3>
-                    </div>
-                    <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600"><Ship size={22} /></div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Awaiting processing</p>
-                </div>
-                <div className="bg-white p-6 rounded-xl border border-border shadow-sm">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Companies</p>
-                      <h3 className="text-3xl font-extrabold text-secondary">{stats?.totalCompanies || 0}</h3>
-                    </div>
-                    <div className="p-2.5 bg-green-50 rounded-xl text-green-600"><Users size={22} /></div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Active clients</p>
-                </div>
+                ))}
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
