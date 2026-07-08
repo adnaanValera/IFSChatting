@@ -2,19 +2,20 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronDown, FileText, Anchor, MapPin, Flag,
-  User, Box, Ship, Truck,
+  User, Box, Ship, Truck, Boxes,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 /* ── Variant ──────────────────────────────────────────────────────────────── */
 
-type Variant = "container" | "truck";
+type Variant = "container" | "truck" | "pallet";
 
 function resolveVariant(extraFields?: Record<string, unknown> | null): Variant {
   const t = String(
     extraFields?.["Type"] ?? extraFields?.["type"] ?? ""
   ).toUpperCase().trim();
-  if (t === "LCL" || t === "FTL" || t === "LTL") return "truck";
+  if (t === "LCL") return "pallet";
+  if (t === "FTL" || t === "LTL") return "truck";
   return "container"; // FCL or unknown → container/ship card
 }
 
@@ -70,6 +71,31 @@ const T = {
     cargoIcon: <Box size={48} strokeWidth={0.8} />,
     collapsedIconWrap: "bg-blue-700/25 border border-blue-600/40",
     collapsedIconColor: "text-blue-400",
+  },
+  pallet: {
+    label: "PALLETS",
+    cardBorder: "border-orange-700/40",
+    cardBg: "#081017",
+    headerBg: "linear-gradient(145deg, #111820 0%, #0b1218 52%, #1a0d04 100%)",
+    dotColor: "#f97316",
+    iconWrap: "bg-orange-800/35 border-2 border-orange-500/70",
+    iconColor: "text-orange-300",
+    accentLine: "from-orange-500/95 via-orange-400/45 to-transparent",
+    fieldIconColor: "text-orange-500",
+    fieldBorder: "border-orange-900/25",
+    cargoBg: "linear-gradient(105deg, #101820 0%, #081017 58%, #1c0d04 100%)",
+    cargoDecor: "text-orange-900/20",
+    dividerColor: "#f97316",
+    statusFooterBg: "linear-gradient(180deg, #081017 0%, #0b0806 100%)",
+    pillBg: "bg-orange-600",
+    pillDot: "bg-orange-200",
+    pillText: "text-white",
+    badgeBg: "bg-orange-600",
+    badgeIcon: <Boxes size={13} />,
+    headerIcon: <Boxes size={30} />,
+    cargoIcon: <Boxes size={48} strokeWidth={0.8} />,
+    collapsedIconWrap: "bg-orange-700/25 border border-orange-500/45",
+    collapsedIconColor: "text-orange-300",
   },
 } as const;
 
@@ -188,7 +214,7 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
               className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${theme.collapsedIconWrap}`}
             >
               <span className={theme.collapsedIconColor}>
-                {variant === "truck" ? <Truck size={18} /> : <Ship size={18} />}
+                {variant === "truck" ? <Truck size={18} /> : variant === "pallet" ? <Boxes size={18} /> : <Ship size={18} />}
               </span>
             </div>
             <div className="min-w-0">
@@ -250,6 +276,8 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
               >
                 {variant === "truck"
                   ? <Truck size={120} strokeWidth={0.7} />
+                  : variant === "pallet"
+                  ? <Boxes size={120} strokeWidth={0.7} />
                   : <Ship size={120} strokeWidth={0.7} />}
               </div>
 
@@ -297,14 +325,19 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
             {/* ── Field grid ── */}
             <div className={`divide-y ${theme.fieldBorder}`}>
 
-              {/* MRA Ref | Container No. */}
+              {/* MRA Ref | Container/Pallet No. */}
               {(s.mraRef || s.containerNo) && (
                 <div className={`grid grid-cols-2 divide-x ${theme.fieldBorder} px-5`}>
                   <div className="pr-5">
                     <FieldCell icon={<FileText size={11} />} label="MRA Ref" value={s.mraRef} theme={theme} />
                   </div>
                   <div className="pl-5">
-                    <FieldCell icon={<Box size={11} />} label="Container No." value={s.containerNo} theme={theme} />
+                    <FieldCell
+                      icon={variant === "pallet" ? <Boxes size={11} /> : <Box size={11} />}
+                      label={variant === "pallet" ? "Pallets No." : "Container No."}
+                      value={s.containerNo}
+                      theme={theme}
+                    />
                   </div>
                 </div>
               )}
@@ -341,6 +374,8 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
                   >
                     {variant === "truck"
                       ? <Truck size={56} strokeWidth={0.9} />
+                      : variant === "pallet"
+                      ? <Boxes size={56} strokeWidth={0.9} />
                       : <Box size={56} strokeWidth={0.9} />}
                   </div>
                 </div>
