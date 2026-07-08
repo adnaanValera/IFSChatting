@@ -243,6 +243,7 @@ export default function Dashboard() {
   const [deletingFeedbackId, setDeletingFeedbackId] = useState<number | null>(null);
   const [expandedFeedback, setExpandedFeedback] = useState<number | null>(null);
   const [expandedStatusSection, setExpandedStatusSection] = useState<string | null>(null);
+  const [expandedOverviewPanel, setExpandedOverviewPanel] = useState<"nearby" | "checking" | "activity" | null>(null);
   const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
   const [sendingReply, setSendingReply] = useState<number | null>(null);
 
@@ -864,71 +865,108 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                  <div className="p-5 border-b border-border flex items-center gap-2 bg-muted/20">
-                    <Clock size={18} className="text-primary" />
-                    <h3 className="font-bold text-secondary">Nearby Consignments</h3>
-                  </div>
-                  {renderOperationalAlertTable(
-                    operationalAlerts?.nearbyConsignments ?? [],
-                    "ETA",
-                    "No ETA consignments within the next 15 days",
-                    operationalAlertsLoading,
-                  )}
-                </div>
-
-                <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                  <div className="p-5 border-b border-border flex items-center gap-2 bg-muted/20">
-                    <AlertTriangle size={18} className="text-primary" />
-                    <h3 className="font-bold text-secondary">Needs Checking</h3>
-                  </div>
-                  {renderOperationalAlertTable(
-                    operationalAlerts?.needsChecking ?? [],
-                    "MRA Ref",
-                    "No consignments currently need entry checking",
-                    operationalAlertsLoading,
-                  )}
-                </div>
-              </div>
-
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                {/* Recent Activity */}
-                <div className="xl:col-span-2 bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                  <div className="p-5 border-b border-border flex items-center gap-2 bg-muted/20">
-                    <Clock size={18} className="text-primary" />
-                    <h3 className="font-bold text-secondary">Recent Activity</h3>
+                <div className="xl:col-span-2 space-y-3">
+                  <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedOverviewPanel(prev => prev === "nearby" ? null : "nearby")}
+                      className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <Clock size={18} className="text-primary shrink-0" />
+                        <span className="font-bold text-secondary truncate">Nearby Consignments</span>
+                      </span>
+                      <span className="flex items-center gap-3 shrink-0">
+                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
+                          {operationalAlerts?.nearbyConsignments?.length ?? 0}
+                        </span>
+                        <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "nearby" ? "rotate-90" : ""}`} />
+                      </span>
+                    </button>
+                    {expandedOverviewPanel === "nearby" && renderOperationalAlertTable(
+                      operationalAlerts?.nearbyConsignments ?? [],
+                      "ETA",
+                      "No ETA consignments within the next 15 days",
+                      operationalAlertsLoading,
+                    )}
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
-                        <tr>
-                          <th className="px-5 py-3">Reference</th>
-                          <th className="px-5 py-3">Company</th>
-                          <th className="px-5 py-3">Status</th>
-                          <th className="px-5 py-3 text-right">Updated</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {recentActivity?.map((activity) => (
-                          <tr key={activity.id} className="hover:bg-muted/20 transition-colors">
-                            <td className="px-5 py-3.5 font-semibold text-secondary">{activity.ifsRef}</td>
-                            <td className="px-5 py-3.5 text-muted-foreground">{activity.companyName}</td>
-                            <td className="px-5 py-3.5"><StatusBadge status={activity.status} /></td>
-                            <td className="px-5 py-3.5 text-right text-muted-foreground whitespace-nowrap text-xs">
-                              {formatDate(activity.lastUpdated)}
-                            </td>
-                          </tr>
-                        ))}
-                        {!recentActivity?.length && (
-                          <tr>
-                            <td colSpan={4} className="px-5 py-10 text-center text-muted-foreground text-sm">
-                              No changes found in the latest upload
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+
+                  <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedOverviewPanel(prev => prev === "checking" ? null : "checking")}
+                      className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <AlertTriangle size={18} className="text-primary shrink-0" />
+                        <span className="font-bold text-secondary truncate">Needs Checking</span>
+                      </span>
+                      <span className="flex items-center gap-3 shrink-0">
+                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
+                          {operationalAlerts?.needsChecking?.length ?? 0}
+                        </span>
+                        <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "checking" ? "rotate-90" : ""}`} />
+                      </span>
+                    </button>
+                    {expandedOverviewPanel === "checking" && renderOperationalAlertTable(
+                      operationalAlerts?.needsChecking ?? [],
+                      "MRA Ref",
+                      "No consignments currently need entry checking",
+                      operationalAlertsLoading,
+                    )}
+                  </div>
+
+                  <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedOverviewPanel(prev => prev === "activity" ? null : "activity")}
+                      className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <Clock size={18} className="text-primary shrink-0" />
+                        <span className="font-bold text-secondary truncate">Recent Activity</span>
+                      </span>
+                      <span className="flex items-center gap-3 shrink-0">
+                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
+                          {recentActivity?.length ?? 0}
+                        </span>
+                        <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "activity" ? "rotate-90" : ""}`} />
+                      </span>
+                    </button>
+                    {expandedOverviewPanel === "activity" && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                          <thead className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
+                            <tr>
+                              <th className="px-5 py-3">Reference</th>
+                              <th className="px-5 py-3">Company</th>
+                              <th className="px-5 py-3">Status</th>
+                              <th className="px-5 py-3 text-right">Updated</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {recentActivity?.map((activity) => (
+                              <tr key={activity.id} className="hover:bg-muted/20 transition-colors">
+                                <td className="px-5 py-3.5 font-semibold text-secondary">{activity.ifsRef}</td>
+                                <td className="px-5 py-3.5 text-muted-foreground">{activity.companyName}</td>
+                                <td className="px-5 py-3.5"><StatusBadge status={activity.status} /></td>
+                                <td className="px-5 py-3.5 text-right text-muted-foreground whitespace-nowrap text-xs">
+                                  {formatDate(activity.lastUpdated)}
+                                </td>
+                              </tr>
+                            ))}
+                            {!recentActivity?.length && (
+                              <tr>
+                                <td colSpan={4} className="px-5 py-10 text-center text-muted-foreground text-sm">
+                                  No changes found in the latest upload
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </div>
 
