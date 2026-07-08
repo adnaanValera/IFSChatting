@@ -1304,6 +1304,23 @@ router.get("/staff/company-report/:company/pdf", requireAuth, requireStaff, asyn
   streamCompanyReportPdf(res, companyName, `Status Report - ${companyName}.pdf`, shipments);
 });
 
+router.get("/customer/company-report/pdf", requireAuth, async (req, res) => {
+  const authReq = req as typeof req & { user: { role: string; companyName: string } };
+  if (authReq.user.role !== "customer") {
+    res.status(403).json({ error: "Customer access required" });
+    return;
+  }
+
+  const companyName = authReq.user.companyName;
+  const shipments = await db
+    .select()
+    .from(shipmentsTable)
+    .where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`)
+    .orderBy(asc(shipmentsTable.ifsRef));
+
+  streamCompanyReportPdf(res, companyName, `Status Report - ${companyName}.pdf`, shipments);
+});
+
 // ── Consignee-scoped Status Report Excel download (staff only) ───────────────
 // Same report format as the company-level download, but filtered to a single
 // consignee within that company.

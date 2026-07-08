@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useGetMe, useListShipments } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -5,7 +6,7 @@ import { useStaffLogout } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import {
   Loader2, LogOut, Package, Ship, Building2, MapPin,
-  CheckCircle, Home,
+  CheckCircle, Home, Download,
 } from "lucide-react";
 import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
 import { Link } from "wouter";
@@ -17,6 +18,7 @@ export default function CustomerDashboard() {
   const { data: user, isLoading: userLoading } = useGetMe();
   const { data: shipmentsPage, isLoading: shipmentsLoading } = useListShipments({ limit: 200 });
   const logoutMutation = useStaffLogout();
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -26,6 +28,30 @@ export default function CustomerDashboard() {
         setLocation("/");
       },
     });
+  };
+
+  const handleDownloadPdf = async () => {
+    setIsDownloadingPdf(true);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/customer/company-report/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const companyName = String((user as any)?.companyName ?? "Company").replace(/[\/\\?%*:|"<>]/g, "-").trim() || "Company";
+      a.href = url;
+      a.download = `Status Report - ${companyName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
   };
 
   if (userLoading) {
@@ -96,11 +122,22 @@ export default function CustomerDashboard() {
         </div>
 
         {/* Heading */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
           <h2 className="text-2xl font-extrabold text-secondary">Your Consignments</h2>
-          <span className="text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
-            {shipments.length} record{shipments.length !== 1 ? "s" : ""}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
+              {shipments.length} record{shipments.length !== 1 ? "s" : ""}
+            </span>
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={isDownloadingPdf || shipmentsLoading || shipments.length === 0}
+              className="flex items-center gap-2 bg-secondary hover:bg-secondary/90 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all disabled:opacity-60"
+            >
+              {isDownloadingPdf ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              Download PDF
+            </button>
+          </div>
         </div>
 
         {/* Shipment cards */}
