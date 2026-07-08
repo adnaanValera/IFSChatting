@@ -801,7 +801,7 @@ export default function Dashboard() {
                         {!recentActivity?.length && (
                           <tr>
                             <td colSpan={4} className="px-5 py-10 text-center text-muted-foreground text-sm">
-                              No recent activity — upload a file to get started
+                              No changes found in the latest upload
                             </td>
                           </tr>
                         )}

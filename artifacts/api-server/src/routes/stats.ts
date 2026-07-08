@@ -84,6 +84,21 @@ router.get("/stats/status-breakdown", requireAuth, async (_req, res) => {
 });
 
 router.get("/stats/recent-activity", requireAuth, async (_req, res) => {
+  const [latestUpload] = await db
+    .select({
+      id: uploadsTable.id,
+      newRecords: uploadsTable.newRecords,
+      updatedRecords: uploadsTable.updatedRecords,
+    })
+    .from(uploadsTable)
+    .orderBy(desc(uploadsTable.uploadedAt))
+    .limit(1);
+
+  if (!latestUpload || latestUpload.newRecords + latestUpload.updatedRecords === 0) {
+    res.json([]);
+    return;
+  }
+
   const items = await db
     .select({
       id: shipmentsTable.id,
@@ -94,6 +109,7 @@ router.get("/stats/recent-activity", requireAuth, async (_req, res) => {
       containerNo: shipmentsTable.containerNo,
     })
     .from(shipmentsTable)
+    .where(eq(shipmentsTable.uploadBatchId, latestUpload.id))
     .orderBy(desc(shipmentsTable.lastUpdated))
     .limit(10);
   res.json(items);

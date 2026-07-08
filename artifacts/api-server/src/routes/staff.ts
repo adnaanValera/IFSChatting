@@ -141,6 +141,35 @@ function autoIfsRef(companyName: string, rowKey: string): string {
   return `AUTO-${companyName.replace(/\s+/g, "-").toUpperCase()}-${(h >>> 0).toString(16).padStart(8, "0")}`;
 }
 
+function stableJson(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, val]) => `${JSON.stringify(key)}:${stableJson(val)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function sameText(a: unknown, b: unknown): boolean {
+  return (a ?? "") === (b ?? "");
+}
+
+async function pruneUploadHistoryForFilename(filename: string): Promise<void> {
+  const sameNameUploads = await db
+    .select({ id: uploadsTable.id })
+    .from(uploadsTable)
+    .where(eq(uploadsTable.filename, filename))
+    .orderBy(desc(uploadsTable.uploadedAt));
+
+  const oldUploadIds = sameNameUploads.slice(2).map((upload) => upload.id);
+  for (const id of oldUploadIds) {
+    await db.delete(uploadsTable).where(eq(uploadsTable.id, id));
+  }
+}
+
 async function upsertShipment(record: {
   ifsRef: string; mraRef?: string; shipper?: string; consignee?: string;
   containerNo?: string; cargoDescription?: string; invoiceNo?: string;
@@ -148,7 +177,7 @@ async function upsertShipment(record: {
   status: string; companyName: string; uploadBatchId?: number;
   extraFields?: Record<string, unknown>;
   matchByContainer?: boolean; // when true, match by (ifsRef, containerNo) pair
-}): Promise<"new" | "updated"> {
+}): Promise<"new" | "updated" | "unchanged"> {
   // Build where clause: for master uploads with a container no, use composite key
   // so multiple containers under the same IFS ref are distinct DB rows.
   const whereClause = (record.matchByContainer && record.containerNo)
@@ -156,12 +185,31 @@ async function upsertShipment(record: {
     : eq(shipmentsTable.ifsRef, record.ifsRef);
 
   const existing = await db
-    .select({ id: shipmentsTable.id })
+    .select()
     .from(shipmentsTable)
     .where(whereClause)
     .limit(1);
 
   if (existing.length > 0) {
+    const current = existing[0];
+    const extraFieldsChanged = record.extraFields !== undefined
+      ? stableJson(current.extraFields) !== stableJson(record.extraFields)
+      : false;
+    const hasChanges = extraFieldsChanged
+      || !sameText(current.mraRef, record.mraRef)
+      || !sameText(current.containerNo, record.containerNo)
+      || !sameText(current.shipper, record.shipper)
+      || !sameText(current.consignee, record.consignee)
+      || !sameText(current.cargoDescription, record.cargoDescription)
+      || !sameText(current.invoiceNo, record.invoiceNo)
+      || !sameText(current.pod, record.pod)
+      || !sameText(current.entry, record.entry)
+      || !sameText(current.finalPortDestination, record.finalPortDestination)
+      || !sameText(current.status, record.status)
+      || !sameText(current.companyName, record.companyName);
+
+    if (!hasChanges) return "unchanged";
+
     await db.update(shipmentsTable).set({
       mraRef: record.mraRef, containerNo: record.containerNo,
       shipper: record.shipper, consignee: record.consignee,
@@ -233,7 +281,8 @@ export async function processStatusReportWorksheet(
         extraFields: Object.keys(extraFields).length > 0 ? extraFields : undefined,
       });
       await db.insert(companiesTable).values({ companyName }).onConflictDoNothing();
-      if (result === "new") newRecords++; else updatedRecords++;
+      if (result === "new") newRecords++;
+      else if (result === "updated") updatedRecords++;
     } catch (err) {
       failedRows++;
       failureReasons.push(`Row ${r}: ${err instanceof Error ? err.message : String(err)}`);
@@ -316,7 +365,8 @@ export async function parseMasterWorksheet(
         matchByContainer: true, // distinguish multiple containers per IFS ref
       });
       await db.insert(companiesTable).values({ companyName }).onConflictDoNothing();
-      if (result === "new") newRecords++; else updatedRecords++;
+      if (result === "new") newRecords++;
+      else if (result === "updated") updatedRecords++;
     } catch (err) {
       failedRows++;
       failureReasons.push(`Row ${r}: ${err instanceof Error ? err.message : String(err)}`);
@@ -386,7 +436,8 @@ async function processGenericWorksheet(
         extraFields: Object.keys(extra).length > 0 ? extra : undefined,
       });
       await db.insert(companiesTable).values({ companyName: record["companyName"] as string }).onConflictDoNothing();
-      if (result === "new") newRecords++; else updatedRecords++;
+      if (result === "new") newRecords++;
+      else if (result === "updated") updatedRecords++;
     } catch (err) {
       failedRows++;
       failureReasons.push(`Row ${r}: ${err instanceof Error ? err.message : String(err)}`);
@@ -453,6 +504,7 @@ router.post("/staff/upload", requireAuth, requireStaff, upload.array("files"), a
       newRecords: result.newRecords,
       updatedRecords: result.updatedRecords,
     }).where(eq(uploadsTable.id, uploadRecord.id));
+    await pruneUploadHistoryForFilename(file.originalname);
 
     // Notify affected customers
     try {
@@ -537,6 +589,7 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
     newRecords: result.newRecords,
     updatedRecords: result.updatedRecords,
   }).where(eq(uploadsTable.id, uploadRecord.id));
+  await pruneUploadHistoryForFilename(file.originalname);
 
   res.json({
     totalRows: result.totalRows,
