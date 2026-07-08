@@ -13,6 +13,7 @@ import {
   UploadCloud, Loader2, Clock, CheckCircle2, AlertTriangle, Ship,
   Truck, Trash2, MessageSquare, ChevronDown, ChevronUp, Send, Mail, Home, History,
   Building2, Download, Search, ChevronRight,
+  Menu, X,
 } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -286,6 +287,7 @@ export default function Dashboard() {
   const [expandedFeedback, setExpandedFeedback] = useState<number | null>(null);
   const [expandedStatusSection, setExpandedStatusSection] = useState<string | null>(null);
   const [expandedOverviewPanel, setExpandedOverviewPanel] = useState<"nearby" | "checking" | "activity" | null>(null);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
   const [sendingReply, setSendingReply] = useState<number | null>(null);
 
@@ -501,6 +503,7 @@ export default function Dashboard() {
 
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
+    setIsMobileNavOpen(false);
     if (tab === "messages") loadFeedback();
     if (tab === "cards") loadCompanies();
     if (tab === "import") checkTemplateStatus();
@@ -815,8 +818,16 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-[#f5f6fa] flex flex-col">
       {/* Top bar */}
-      <header className="bg-secondary text-white h-14 flex items-center px-6 border-b border-white/10 sticky top-0 z-40 shadow-md">
+      <header className="bg-secondary text-white h-14 flex items-center px-4 sm:px-6 border-b border-white/10 sticky top-0 z-40 shadow-md">
         <div className="flex items-center gap-3 flex-1">
+          <button
+            type="button"
+            onClick={() => setIsMobileNavOpen(true)}
+            className="md:hidden p-2 -ml-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label="Open navigation"
+          >
+            <Menu size={20} />
+          </button>
           <LayoutDashboard size={18} className="text-primary" />
           <span className="font-bold text-base tracking-tight">Staff Dashboard</span>
           <Link
@@ -845,8 +856,27 @@ export default function Dashboard() {
       </header>
 
       <div className="flex flex-1 min-h-0">
+        {isMobileNavOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 z-40 md:hidden"
+            onClick={() => setIsMobileNavOpen(false)}
+          />
+        )}
         {/* Left sidebar */}
-        <aside className="w-56 shrink-0 bg-white border-r border-border flex flex-col sticky top-14 h-[calc(100vh-3.5rem)] shadow-sm">
+        <aside className={`fixed md:sticky top-14 left-0 z-50 md:z-auto w-64 md:w-56 shrink-0 bg-white border-r border-border flex flex-col h-[calc(100vh-3.5rem)] shadow-xl md:shadow-sm transition-transform duration-200 ease-out ${
+          isMobileNavOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}>
+          <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border">
+            <span className="font-bold text-secondary text-sm">Menu</span>
+            <button
+              type="button"
+              onClick={() => setIsMobileNavOpen(false)}
+              className="p-2 rounded-lg text-muted-foreground hover:text-secondary hover:bg-muted transition-colors"
+              aria-label="Close navigation"
+            >
+              <X size={18} />
+            </button>
+          </div>
           <nav className="flex-1 py-4 px-3 space-y-1">
             {navItems.map((item) => (
               <button
@@ -891,7 +921,7 @@ export default function Dashboard() {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+        <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
 
           {/* ── OVERVIEW ──────────────────────────────────── */}
           {activeTab === "overview" && (
