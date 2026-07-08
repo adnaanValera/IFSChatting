@@ -49,7 +49,10 @@ app.use(async (_req, res, next) => {
     next();
   } catch (err) {
     logger.error({ err }, "Runtime database bootstrap failed");
-    res.status(500).json({ error: "Database is not ready" });
+    res.status(500).json({
+      error: "Database is not ready",
+      message: err instanceof Error ? err.message : String(err),
+    });
   }
 });
 
