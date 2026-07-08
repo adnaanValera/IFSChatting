@@ -810,16 +810,16 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Status Breakdown */}
+                {/* Report Sections */}
                 <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
                   <div className="p-5 border-b border-border flex items-center gap-2 bg-muted/20">
                     <AlertCircle size={18} className="text-primary" />
-                    <h3 className="font-bold text-secondary">Status Breakdown</h3>
+                    <h3 className="font-bold text-secondary">Report Sections</h3>
                   </div>
                   <div className="p-5 space-y-3">
                     {statusBreakdown?.map((item) => (
-                      <div key={item.status} className="flex items-center justify-between">
-                        <StatusBadge status={item.status} />
+                      <div key={item.status} className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-semibold text-secondary uppercase tracking-wider">{item.status}</span>
                         <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">{item.count}</span>
                       </div>
                     ))}
