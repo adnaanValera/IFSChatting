@@ -704,6 +704,40 @@ function shipmentReportValues(s: typeof shipmentsTable.$inferSelect): string[] {
   ];
 }
 
+function shipmentReportValueByKey(s: typeof shipmentsTable.$inferSelect, key: string): string {
+  const values = shipmentReportValues(s);
+  const index = REPORT_KEYS.indexOf(key as typeof REPORT_KEYS[number]);
+  return index >= 0 ? values[index] : "";
+}
+
+function reportKeyFromHeader(header: string): typeof REPORT_KEYS[number] | null {
+  const normalized = normalizeSectionLabel(header);
+  if (normalized === "IFS REF" || normalized === "IFS REFERENCE") return "ifsRef";
+  if (normalized === "TYPE") return "type";
+  if (normalized.includes("BL") || normalized.includes("MANIFEST")) return "blNo";
+  if (normalized === "CONTAINER NO" || normalized === "CONTR" || normalized.includes("CONTAINER")) return "containerNo";
+  if (normalized === "SHIPPER") return "shipper";
+  if (normalized === "CONSIGNEE") return "consignee";
+  if (normalized.includes("CARGO")) return "cargoDescription";
+  if (normalized.includes("INVOICE")) return "invoiceNo";
+  if (normalized === "POD") return "pod";
+  if (normalized === "FPD" || normalized.includes("FINAL PORT")) return "finalPortDestination";
+  if (normalized === "AGENT") return "agent";
+  if (normalized === "MRA REF" || normalized.includes("MRA")) return "mraRef";
+  if (normalized === "ENTRY" || normalized.includes("ENTRY")) return "entry";
+  if (normalized === "STATUS") return "status";
+  return null;
+}
+
+function headerColumnMap(row: ExcelJS.Row): Array<{ col: number; key: typeof REPORT_KEYS[number] }> {
+  const mappings: Array<{ col: number; key: typeof REPORT_KEYS[number] }> = [];
+  row.eachCell({ includeEmpty: false }, (cell, col) => {
+    const key = reportKeyFromHeader(cellStr(cell.value) ?? "");
+    if (key) mappings.push({ col, key });
+  });
+  return mappings;
+}
+
 function updateTemplateDate(ws: ExcelJS.Worksheet, dateStr: string): void {
   let updated = false;
   ws.eachRow((row) => {
@@ -783,6 +817,8 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
     const rows = grouped.get(label) ?? [];
     const dataStart = section.dataStart + rowOffset;
     const dataEnd = section.dataEnd + rowOffset;
+    const columnMap = headerColumnMap(ws.getRow(section.headerRow + rowOffset));
+    const columnsToClear = columnMap.length > 0 ? columnMap.map((mapping) => mapping.col) : Array.from({ length: 14 }, (_v, i) => i + 3);
     const availableRows = Math.max(1, dataEnd - dataStart + 1);
     const neededRows = Math.max(1, rows.length);
     const templateRow = ws.getRow(dataStart);
@@ -797,12 +833,18 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
 
     for (let rowNumber = dataStart; rowNumber < dataStart + neededRows; rowNumber++) {
       const row = ws.getRow(rowNumber);
-      for (let col = 3; col <= 16; col++) row.getCell(col).value = "";
+      columnsToClear.forEach((col) => { row.getCell(col).value = ""; });
       const shipment = rows[rowNumber - dataStart];
       if (shipment) {
-        shipmentReportValues(shipment).forEach((value, i) => {
-          row.getCell(i + 3).value = value;
-        });
+        if (columnMap.length > 0) {
+          columnMap.forEach(({ col, key }) => {
+            row.getCell(col).value = shipmentReportValueByKey(shipment, key);
+          });
+        } else {
+          shipmentReportValues(shipment).forEach((value, i) => {
+            row.getCell(i + 3).value = value;
+          });
+        }
       }
       row.commit();
     }
