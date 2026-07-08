@@ -223,13 +223,13 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
 });
 
 router.get("/stats/status-breakdown", requireAuth, async (_req, res) => {
-  const sectionCounts = Object.fromEntries(SECTION_MAP.map((section) => [section.label, 0]));
+  const sectionCounts = Object.fromEntries(SECTION_MAP.map((section) => [section.label, 0])) as Record<string, number>;
   const statusCountsBySection = Object.fromEntries(
     SECTION_MAP.map((section) => [section.label, {} as Record<string, number>])
-  );
+  ) as Record<string, Record<string, number>>;
   const statusSortBySection = Object.fromEntries(
     SECTION_MAP.map((section) => [section.label, {} as Record<string, number>])
-  );
+  ) as Record<string, Record<string, number>>;
   const shipments = await db
     .select({
       status: shipmentsTable.status,
