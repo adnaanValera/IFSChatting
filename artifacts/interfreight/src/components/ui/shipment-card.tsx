@@ -241,6 +241,9 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
               {s.companyName && (
                 <p className="text-xs text-zinc-500 truncate mt-0.5">{s.companyName}</p>
               )}
+              <p className="text-xs text-zinc-400 truncate mt-0.5">
+                {s.cargoDescription?.trim() || "N/A"}
+              </p>
             </div>
           </div>
 
