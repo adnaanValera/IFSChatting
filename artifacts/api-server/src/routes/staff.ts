@@ -674,7 +674,7 @@ const REPORT_KEYS = [
 ] as const;
 
 const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }> = {
-  ifsRef: { min: 24, max: 24 },
+  ifsRef: { min: 34, max: 34 },
   type: { min: 8, max: 8 },
   blNo: { min: 18, max: 18 },
   containerNo: { min: 17, max: 17 },
@@ -1032,7 +1032,7 @@ async function generateCompanyReportWorkbook(
     ws.columns = [
       { width: 3 },   // A spacer
       { width: 3 },   // B spacer
-      { width: 15 },  // C IFS Ref
+      { width: 34 },  // C IFS Ref
       { width: 10 },  // D Type
       { width: 20 },  // E BL / Manifest No.
       { width: 16 },  // F Container No.
