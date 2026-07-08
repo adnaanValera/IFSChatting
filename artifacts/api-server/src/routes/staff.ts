@@ -620,20 +620,20 @@ const REPORT_KEYS = [
 ] as const;
 
 const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }> = {
-  ifsRef: { min: 18, max: 28 },
-  type: { min: 8, max: 12 },
-  blNo: { min: 16, max: 24 },
-  containerNo: { min: 15, max: 22 },
-  shipper: { min: 16, max: 26, wrap: true },
-  consignee: { min: 18, max: 28, wrap: true },
-  cargoDescription: { min: 20, max: 34, wrap: true },
-  invoiceNo: { min: 13, max: 20 },
-  pod: { min: 9, max: 14 },
-  finalPortDestination: { min: 9, max: 14 },
-  agent: { min: 14, max: 22, wrap: true },
-  mraRef: { min: 14, max: 22 },
-  entry: { min: 14, max: 22 },
-  status: { min: 14, max: 20 },
+  ifsRef: { min: 24, max: 24 },
+  type: { min: 8, max: 8 },
+  blNo: { min: 18, max: 18 },
+  containerNo: { min: 17, max: 17 },
+  shipper: { min: 18, max: 18, wrap: true },
+  consignee: { min: 20, max: 20, wrap: true },
+  cargoDescription: { min: 24, max: 24, wrap: true },
+  invoiceNo: { min: 14, max: 14 },
+  pod: { min: 10, max: 10 },
+  finalPortDestination: { min: 10, max: 10 },
+  agent: { min: 15, max: 15, wrap: true },
+  mraRef: { min: 16, max: 16 },
+  entry: { min: 16, max: 16 },
+  status: { min: 16, max: 16 },
 };
 
 function cellTextLength(value: unknown): number {
@@ -666,19 +666,24 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
   ws.columns.forEach((col, idx) => {
     const colIdx = idx + 1;
     if (colIdx <= 2) { col.width = 3; return; }
-    const best = maxLen[colIdx] ?? 0;
     const key = columnKeys[colIdx];
-    const sizing = key ? REPORT_WIDTHS[key] : undefined;
-    const min = sizing?.min ?? 10;
-    const max = sizing?.max ?? 26;
-    if (best > 0) col.width = Math.min(Math.max(best + 2, min), max);
+    if (key) {
+      col.width = REPORT_WIDTHS[key].max;
+      return;
+    }
+    const best = maxLen[colIdx] ?? 0;
+    if (best > 0) col.width = Math.min(Math.max(best + 2, 8), 16);
   });
 
   ws.eachRow((row) => {
     row.eachCell({ includeEmpty: false }, (cell, colIdx) => {
       const key = columnKeys[colIdx];
-      if (key && REPORT_WIDTHS[key]?.wrap) {
-        cell.alignment = { ...(cell.alignment ?? {}), wrapText: true, vertical: "middle" };
+      if (key) {
+        cell.alignment = {
+          ...(cell.alignment ?? {}),
+          wrapText: Boolean(REPORT_WIDTHS[key]?.wrap),
+          vertical: "middle",
+        };
       }
     });
   });
@@ -751,7 +756,7 @@ function shipmentReportValueByKey(s: typeof shipmentsTable.$inferSelect, key: st
 
 function reportKeyFromHeader(header: string): typeof REPORT_KEYS[number] | null {
   const normalized = normalizeSectionLabel(header);
-  if (normalized === "IFS REF" || normalized === "IFS REFERENCE") return "ifsRef";
+  if (normalized === "IFS REF" || normalized === "IFS REFERENCE" || normalized.includes("IFS REF")) return "ifsRef";
   if (normalized === "TYPE") return "type";
   if (normalized.includes("BL") || normalized.includes("MANIFEST")) return "blNo";
   if (normalized === "CONTAINER NO" || normalized === "CONTR" || normalized.includes("CONTAINER")) return "containerNo";
