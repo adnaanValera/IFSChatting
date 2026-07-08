@@ -1,7 +1,7 @@
 {
   "installCommand": "corepack enable && pnpm install --no-frozen-lockfile --prod=false",
-  "buildCommand": "cd /vercel/path0 && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/interfreight run build",
-  "outputDirectory": "artifacts/interfreight/dist/public",
+  "buildCommand": "cd /vercel/path0 && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/interfreight run build && node /vercel/path0/scripts/copy-vercel-output.mjs",
+  "outputDirectory": "public",
   "functions": {
     "api/index.mjs": {
       "maxDuration": 60,
