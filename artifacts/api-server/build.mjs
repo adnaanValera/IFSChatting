@@ -3,12 +3,21 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
+import { cp, mkdir, rm } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+
+async function copyRuntimePackage(packageName, distDir, resolvedFile, parentLevels = 0) {
+  let packageRoot = path.dirname(require.resolve(resolvedFile));
+  for (let i = 0; i < parentLevels; i++) packageRoot = path.dirname(packageRoot);
+  const target = path.join(distDir, "node_modules", ...packageName.split("/"));
+  await mkdir(path.dirname(target), { recursive: true });
+  await cp(packageRoot, target, { recursive: true });
+}
 
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
@@ -62,7 +71,6 @@ async function buildAll() {
       "@prisma/client",
       "@mikro-orm/*",
       "@grpc/*",
-      "@swc/*",
       "@aws-sdk/*",
       "@azure/*",
       "@opentelemetry/*",
@@ -121,6 +129,9 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  await copyRuntimePackage("@swc/helpers", distDir, "@swc/helpers/cjs/_define_property.cjs", 1);
+  await copyRuntimePackage("tslib", distDir, "tslib/tslib.js");
 }
 
 buildAll().catch((err) => {

@@ -5,7 +5,7 @@
   "functions": {
     "api/index.mjs": {
       "maxDuration": 60,
-      "includeFiles": "{artifacts/api-server/dist/**,node_modules/@swc/helpers/**,node_modules/.pnpm/@swc+helpers*/node_modules/@swc/helpers/**,node_modules/tslib/**,node_modules/.pnpm/tslib*/node_modules/tslib/**,artifacts/api-server/node_modules/@swc/helpers/**,artifacts/api-server/node_modules/.pnpm/@swc+helpers*/node_modules/@swc/helpers/**,artifacts/api-server/node_modules/tslib/**,artifacts/api-server/node_modules/.pnpm/tslib*/node_modules/tslib/**}"
+      "includeFiles": "artifacts/api-server/dist/**"
     }
   },
   "rewrites": [
