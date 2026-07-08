@@ -114,40 +114,35 @@ function shipmentSectionLabel(shipment: Shipment): string {
   ))?.label ?? "OTHER SHIPMENTS";
 }
 
-function parseShipmentDate(value: string): Date | null {
+function shipmentDateSortKey(value: string): number | null {
   const monthNames: Record<string, number> = {
-    jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3,
-    may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7, sep: 8, sept: 8,
-    september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
+    jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3, apr: 4, april: 4,
+    may: 5, jun: 6, june: 6, jul: 7, july: 7, aug: 8, august: 8, sep: 9, sept: 9,
+    september: 9, oct: 10, october: 10, nov: 11, november: 11, dec: 12, december: 12,
   };
-  const now = new Date();
-  const wordDate = value.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)(?:\s+(\d{2,4}))?\b/);
+  const wordDate = value.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\b/);
   if (wordDate?.[1] && wordDate[2]) {
     const month = monthNames[wordDate[2].toLowerCase()];
-    if (month !== undefined) {
-      const year = wordDate[3] ? normalizeYear(wordDate[3]) : now.getFullYear();
-      return new Date(year, month, Number(wordDate[1]));
-    }
+    if (month !== undefined) return month * 100 + Number(wordDate[1]);
   }
-  const slashDate = value.match(/\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/);
+  const monthFirstDate = value.match(/\b([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?\b/);
+  if (monthFirstDate?.[1] && monthFirstDate[2]) {
+    const month = monthNames[monthFirstDate[1].toLowerCase()];
+    if (month !== undefined) return month * 100 + Number(monthFirstDate[2]);
+  }
+  const slashDate = value.match(/\b(\d{1,2})[/-](\d{1,2})(?:[/-]\d{2,4})?\b/);
   if (slashDate?.[1] && slashDate[2]) {
-    const year = slashDate[3] ? normalizeYear(slashDate[3]) : now.getFullYear();
-    return new Date(year, Number(slashDate[2]) - 1, Number(slashDate[1]));
+    return Number(slashDate[2]) * 100 + Number(slashDate[1]);
   }
   return null;
-}
-
-function normalizeYear(value: string): number {
-  const year = Number(value);
-  return year < 100 ? 2000 + year : year;
 }
 
 function sortRowsForSection(label: string, rows: Shipment[]): Shipment[] {
   if (label !== "SHIPMENTS ON SEA") return rows;
   return [...rows].sort((a, b) => {
-    const aDate = parseShipmentDate(a.status)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-    const bDate = parseShipmentDate(b.status)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-    return aDate - bDate;
+    const aKey = shipmentDateSortKey(a.status) ?? Number.MAX_SAFE_INTEGER;
+    const bKey = shipmentDateSortKey(b.status) ?? Number.MAX_SAFE_INTEGER;
+    return aKey - bKey;
   });
 }
 
