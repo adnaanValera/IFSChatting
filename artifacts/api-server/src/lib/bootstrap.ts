@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import { pool } from "@workspace/db";
 import { logger } from "./logger";
 
@@ -75,28 +74,27 @@ async function createTables() {
       read boolean NOT NULL DEFAULT false,
       created_at timestamptz NOT NULL DEFAULT now()
     );
+
+    CREATE TABLE IF NOT EXISTS report_templates (
+      id integer PRIMARY KEY DEFAULT 1,
+      content bytea NOT NULL,
+      uploaded_at timestamptz NOT NULL DEFAULT now(),
+      CONSTRAINT single_report_template CHECK (id = 1)
+    );
   `);
 }
 
-async function seedAdmin() {
-  const email = process.env.ADMIN_EMAIL ?? "admin@interfreight.mw";
-  const password = process.env.ADMIN_PASSWORD ?? "admin123";
-  const passwordHash = await bcrypt.hash(password, 12);
-
+async function removeOldDefaultAdmin() {
   await pool.query(
-    `
-      INSERT INTO users (full_name, company_name, email, password_hash, role)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (email) DO NOTHING
-    `,
-    ["Admin", "InterFreight Solutions", email.toLowerCase(), passwordHash, "admin"],
+    "DELETE FROM users WHERE lower(email) = lower($1) AND role = 'admin'",
+    ["admin@interfreight.mw"],
   );
 }
 
 export function ensureRuntimeData() {
   bootstrapPromise ??= (async () => {
     await createTables();
-    await seedAdmin();
+    await removeOldDefaultAdmin();
     logger.info("Runtime database bootstrap complete");
   })();
 

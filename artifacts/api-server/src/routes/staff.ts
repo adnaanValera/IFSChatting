@@ -4,7 +4,7 @@ import ExcelJS from "exceljs";
 import { ZipArchive } from "archiver";
 import path from "path";
 import fs from "fs";
-import { db, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable } from "@workspace/db";
+import { db, pool, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable } from "@workspace/db";
 import { eq, asc, and, or, isNull } from "drizzle-orm";
 import { requireAuth, requireStaff, requireAdmin } from "../middlewares/auth";
 import { logger } from "../lib/logger";
@@ -117,6 +117,20 @@ function isSectionTitle(vals: unknown[]): boolean {
   const cells = vals.slice(1).map((v) => cellStr(v)).filter(Boolean) as string[];
   if (cells.length < 2) return false;
   return cells.every((c) => c === cells[0]);
+}
+
+function normalizeSectionLabel(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function sectionLabelFromRow(vals: unknown[]): string | null {
+  const cells = vals.slice(1).map((v) => cellStr(v)).filter(Boolean) as string[];
+  if (cells.length === 0) return null;
+  const first = cells[0];
+  if (cells.every((c) => normalizeSectionLabel(c) === normalizeSectionLabel(first))) {
+    return first.toUpperCase().trim();
+  }
+  return null;
 }
 
 function autoIfsRef(companyName: string, rowKey: string): string {
@@ -245,11 +259,13 @@ export async function parseMasterWorksheet(
   const failureReasons: string[] = [];
   let colOffset: number | null = null;
   const consigneeSet = new Set<string>();
+  let currentSection: string | null = null;
 
   for (let r = 1; r <= worksheet.rowCount; r++) {
     const vals = worksheet.getRow(r).values as unknown[];
     if (!vals || vals.length <= 1) continue;
-    if (isSectionTitle(vals)) { colOffset = null; continue; }
+    const sectionLabel = sectionLabelFromRow(vals);
+    if (sectionLabel) { currentSection = sectionLabel; colOffset = null; continue; }
     const detected = detectColOffset(vals);
     if (detected !== null) { colOffset = detected; continue; }
     if (colOffset === null) continue;
@@ -286,6 +302,7 @@ export async function parseMasterWorksheet(
     if (typeField) extraFields["Type"] = typeField;
     if (blManifest) extraFields["BL / Manifest No."] = blManifest;
     if (agent) extraFields["Agent"] = agent;
+    if (currentSection) extraFields["Source Section"] = currentSection;
 
     totalRows++;
     try {
@@ -559,18 +576,39 @@ router.delete("/staff/uploads/:id", requireAuth, requireStaff, async (req, res) 
 
 // ── Report template upload / status ─────────────────────────────────────────
 
-router.get("/staff/template-status", requireAuth, requireStaff, (_req, res) => {
+async function getReportTemplate(): Promise<{ buffer: Buffer; uploadedAt?: string } | null> {
+  const result = await pool.query<{ content: Buffer; uploaded_at: Date }>(
+    "SELECT content, uploaded_at FROM report_templates WHERE id = 1",
+  );
+  if (result.rows[0]) {
+    return { buffer: result.rows[0].content, uploadedAt: result.rows[0].uploaded_at.toISOString() };
+  }
   if (fs.existsSync(TEMPLATE_PATH)) {
     const stat = fs.statSync(TEMPLATE_PATH);
-    res.json({ hasTemplate: true, uploadedAt: stat.mtime.toISOString(), sizeBytes: stat.size });
-  } else {
-    res.json({ hasTemplate: false });
+    return { buffer: fs.readFileSync(TEMPLATE_PATH), uploadedAt: stat.mtime.toISOString() };
   }
+  return null;
+}
+
+router.get("/staff/template-status", requireAuth, requireStaff, async (_req, res) => {
+  const template = await getReportTemplate();
+  res.json(template
+    ? { hasTemplate: true, uploadedAt: template.uploadedAt, sizeBytes: template.buffer.length }
+    : { hasTemplate: false }
+  );
 });
 
-router.post("/staff/upload-template", requireAuth, requireStaff, templateUpload.single("file"), (req, res) => {
+router.post("/staff/upload-template", requireAuth, requireStaff, templateUpload.single("file"), async (req, res) => {
   if (!req.file) { res.status(400).json({ error: "No file provided" }); return; }
   fs.writeFileSync(TEMPLATE_PATH, req.file.buffer);
+  await pool.query(
+    `
+      INSERT INTO report_templates (id, content, uploaded_at)
+      VALUES (1, $1, now())
+      ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, uploaded_at = now()
+    `,
+    [req.file.buffer],
+  );
   res.json({ message: "Template saved", sizeBytes: req.file.buffer.length });
 });
 
@@ -609,6 +647,11 @@ const SECTION_MAP: { label: string; statuses: string[] }[] = [
   { label: "SHIPMENTS ON SEA",     statuses: ["Delayed", "On Sea", "At Sea"] },
 ];
 
+const REPORT_KEYS = [
+  "ifsRef", "type", "blNo", "containerNo", "shipper", "consignee", "cargoDescription",
+  "invoiceNo", "pod", "finalPortDestination", "agent", "mraRef", "entry", "status",
+] as const;
+
 function extraVal(extra: Record<string, unknown>, ...keys: string[]): string {
   for (const k of keys) {
     const v = extra[k];
@@ -625,6 +668,149 @@ function todayString(): string {
   return `${dd}.${mm}.${yy}`;
 }
 
+function shipmentSectionLabel(s: typeof shipmentsTable.$inferSelect): string {
+  const extra = (s.extraFields as Record<string, unknown>) ?? {};
+  const sourceSection = extraVal(extra, "Source Section", "sourceSection");
+  if (sourceSection) {
+    const matchingSection = SECTION_MAP.find((section) =>
+      normalizeSectionLabel(section.label) === normalizeSectionLabel(sourceSection)
+    );
+    return matchingSection?.label ?? sourceSection.toUpperCase();
+  }
+
+  const status = s.status.toLowerCase();
+  return SECTION_MAP.find((section) => section.statuses.some(
+    (st) => status.includes(st.toLowerCase()) || st.toLowerCase().includes(status),
+  ))?.label ?? "OTHER SHIPMENTS";
+}
+
+function shipmentReportValues(s: typeof shipmentsTable.$inferSelect): string[] {
+  const extra = (s.extraFields as Record<string, unknown>) ?? {};
+  return [
+    s.ifsRef,
+    extraVal(extra, "Type", "type"),
+    extraVal(extra, "BL / Manifest No.", "BL/Manifest No.", "BL", "bl"),
+    s.containerNo ?? "",
+    s.shipper ?? "",
+    s.consignee ?? "",
+    s.cargoDescription ?? "",
+    s.invoiceNo ?? "",
+    s.pod ?? "",
+    s.finalPortDestination ?? "",
+    extraVal(extra, "Agent", "agent"),
+    s.mraRef ?? "",
+    s.entry ?? "",
+    s.status,
+  ];
+}
+
+function updateTemplateDate(ws: ExcelJS.Worksheet, dateStr: string): void {
+  let updated = false;
+  ws.eachRow((row) => {
+    row.eachCell((cell) => {
+      const value = cellStr(cell.value);
+      if (value && /^date\s*:/i.test(value)) {
+        cell.value = value.replace(/^date\s*:.*/i, `Date: ${dateStr}`);
+        updated = true;
+      }
+    });
+  });
+  if (!updated) ws.getCell("M5").value = `Date: ${dateStr}`;
+}
+
+function copyRowStyle(source: ExcelJS.Row, target: ExcelJS.Row): void {
+  target.height = source.height;
+  source.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    const targetCell = target.getCell(colNumber);
+    targetCell.style = { ...cell.style };
+    targetCell.numFmt = cell.numFmt;
+    targetCell.alignment = cell.alignment ? { ...cell.alignment } : cell.alignment;
+    targetCell.border = cell.border ? { ...cell.border } : cell.border;
+    targetCell.fill = cell.fill ? { ...cell.fill } : cell.fill;
+    targetCell.font = cell.font ? { ...cell.font } : cell.font;
+  });
+}
+
+function findTemplateSections(ws: ExcelJS.Worksheet): Record<string, { sectionRow: number; headerRow: number; dataStart: number; dataEnd: number }> {
+  const found: Array<{ label: string; row: number }> = [];
+  ws.eachRow((row, rowNumber) => {
+    const values = row.values as unknown[];
+    const rowText = values.map((v) => cellStr(v)).filter(Boolean).join(" ");
+    for (const section of SECTION_MAP) {
+      if (normalizeSectionLabel(rowText).includes(normalizeSectionLabel(section.label))) {
+        found.push({ label: section.label, row: rowNumber });
+      }
+    }
+  });
+
+  const sections: Record<string, { sectionRow: number; headerRow: number; dataStart: number; dataEnd: number }> = {};
+  for (let i = 0; i < found.length; i++) {
+    const current = found[i];
+    const nextRow = found[i + 1]?.row ?? ((ws.lastRow?.number ?? current.row) + 1);
+    let headerRow = current.row + 1;
+    for (let rowNumber = current.row + 1; rowNumber < nextRow; rowNumber++) {
+      const row = ws.getRow(rowNumber);
+      const values = (row.values as unknown[]).map((v) => normalizeSectionLabel(cellStr(v) ?? ""));
+      if (values.some((v) => v === "IFS REF")) {
+        headerRow = rowNumber;
+        break;
+      }
+    }
+    sections[current.label] = {
+      sectionRow: current.row,
+      headerRow,
+      dataStart: headerRow + 1,
+      dataEnd: Math.max(headerRow + 1, nextRow - 1),
+    };
+  }
+  return sections;
+}
+
+function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipmentsTable.$inferSelect)[]): boolean {
+  const sections = findTemplateSections(ws);
+  if (Object.keys(sections).length === 0) return false;
+
+  const grouped = new Map<string, (typeof shipmentsTable.$inferSelect)[]>();
+  for (const shipment of shipments) {
+    const label = shipmentSectionLabel(shipment);
+    grouped.set(label, [...(grouped.get(label) ?? []), shipment]);
+  }
+
+  const orderedLabels = SECTION_MAP.map((section) => section.label).filter((label) => sections[label]);
+  let rowOffset = 0;
+  for (const label of orderedLabels) {
+    const section = sections[label];
+    const rows = grouped.get(label) ?? [];
+    const dataStart = section.dataStart + rowOffset;
+    const dataEnd = section.dataEnd + rowOffset;
+    const availableRows = Math.max(1, dataEnd - dataStart + 1);
+    const neededRows = Math.max(1, rows.length);
+    const templateRow = ws.getRow(dataStart);
+
+    if (neededRows > availableRows) {
+      ws.spliceRows(dataEnd + 1, 0, ...Array.from({ length: neededRows - availableRows }, () => []));
+      for (let rowNumber = dataEnd + 1; rowNumber <= dataEnd + neededRows - availableRows; rowNumber++) {
+        copyRowStyle(templateRow, ws.getRow(rowNumber));
+      }
+      rowOffset += neededRows - availableRows;
+    }
+
+    for (let rowNumber = dataStart; rowNumber < dataStart + neededRows; rowNumber++) {
+      const row = ws.getRow(rowNumber);
+      for (let col = 3; col <= 16; col++) row.getCell(col).value = "";
+      const shipment = rows[rowNumber - dataStart];
+      if (shipment) {
+        shipmentReportValues(shipment).forEach((value, i) => {
+          row.getCell(i + 3).value = value;
+        });
+      }
+      row.commit();
+    }
+  }
+
+  return true;
+}
+
 async function generateCompanyReportWorkbook(
   companyName: string,
   shipments: (typeof shipmentsTable.$inferSelect)[],
@@ -639,15 +825,10 @@ async function generateCompanyReportWorkbook(
     // ── Template-based path ───────────────────────────────────────────────
     await wb.xlsx.load(templateBuf);
     ws = wb.worksheets[0];
-
-    // Update company name (C5) and date (M5) in the fixed header section
-    ws.getCell("C5").value = companyName;
-    ws.getCell("M5").value = `Date: ${dateStr}`;
-
-    // Remove all data rows (row 7 onwards), keeping rows 1-6 (branding header)
-    const lastRowNum = ws.lastRow?.number ?? 6;
-    if (lastRowNum >= 7) {
-      ws.spliceRows(7, lastRowNum - 6);
+    updateTemplateDate(ws, dateStr);
+    if (fillTemplateSections(ws, shipments)) {
+      autoFitWorksheet(ws);
+      return wb;
     }
   } else {
     // ── Scratch path (no template) ────────────────────────────────────────
@@ -795,8 +976,8 @@ async function generateCompanyReportWorkbook(
 router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, async (req, res) => {
   const companyName = decodeURIComponent(req.params["company"] as string);
   const shipments = await db.select().from(shipmentsTable).where(eq(shipmentsTable.companyName, companyName)).orderBy(asc(shipmentsTable.ifsRef));
-  const templateBuf = fs.existsSync(TEMPLATE_PATH) ? fs.readFileSync(TEMPLATE_PATH) : null;
-  const wb = await generateCompanyReportWorkbook(companyName, shipments, templateBuf);
+  const template = await getReportTemplate();
+  const wb = await generateCompanyReportWorkbook(companyName, shipments, template?.buffer ?? null);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName}.xlsx"`);
   await wb.xlsx.write(res);
@@ -825,9 +1006,9 @@ router.get("/staff/company-report/:company/consignee/:consignee/excel", requireA
     )
     .orderBy(asc(shipmentsTable.ifsRef));
 
-  const templateBuf = fs.existsSync(TEMPLATE_PATH) ? fs.readFileSync(TEMPLATE_PATH) : null;
+  const template = await getReportTemplate();
   const reportLabel = isUnspecified ? companyName : consigneeName;
-  const wb = await generateCompanyReportWorkbook(reportLabel, shipments, templateBuf);
+  const wb = await generateCompanyReportWorkbook(reportLabel, shipments, template?.buffer ?? null);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName} - ${reportLabel}.xlsx"`);
   await wb.xlsx.write(res);
@@ -849,7 +1030,7 @@ router.get("/staff/all-reports-zip", requireAuth, requireStaff, async (_req, res
   }
 
   // Load template once (null = fall back to built-in format)
-  const templateBuf = fs.existsSync(TEMPLATE_PATH) ? fs.readFileSync(TEMPLATE_PATH) : null;
+  const template = await getReportTemplate();
 
   const dateStr = todayString();
   res.setHeader("Content-Type", "application/zip");
@@ -865,7 +1046,7 @@ router.get("/staff/all-reports-zip", requireAuth, requireStaff, async (_req, res
       .where(eq(shipmentsTable.companyName, companyName))
       .orderBy(asc(shipmentsTable.ifsRef));
 
-    const wb = await generateCompanyReportWorkbook(companyName, shipments, templateBuf);
+    const wb = await generateCompanyReportWorkbook(companyName, shipments, template?.buffer ?? null);
     const buf = await wb.xlsx.writeBuffer();
     const safeName = companyName.replace(/[/\\?%*:|"<>]/g, "-").trim();
     arc.append(Buffer.from(buf), { name: `Status Report - ${safeName}.xlsx` });
