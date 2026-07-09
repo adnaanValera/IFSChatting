@@ -126,6 +126,10 @@ function isIgnoredShipmentStatus(status: unknown): boolean {
   return false;
 }
 
+function isCompletedSection(value: unknown): boolean {
+  return String(value ?? "").trim().toLowerCase().includes("completed");
+}
+
 const activeShipmentSql = sql`NOT (
   lower(${shipmentsTable.status}) LIKE '%completed%'
   OR lower(coalesce(${shipmentsTable.extraFields}->>'Source Section', '')) LIKE '%completed%'
@@ -157,6 +161,29 @@ async function pruneCompletedShipments(): Promise<number> {
        OR lower(coalesce(extra_fields->>'Source Section', '')) LIKE '%completed%'
        OR lower(coalesce(extra_fields->>'sourceSection', '')) LIKE '%completed%'
        OR lower(coalesce(extra_fields->>'Section', '')) LIKE '%completed%'
+  `);
+  return result.rowCount ?? 0;
+}
+
+async function pruneShipmentsNotInUpload(uploadBatchId: number): Promise<number> {
+  await pool.query(
+    `DELETE FROM shipment_change_logs
+     WHERE shipment_id IN (
+      SELECT id FROM shipments
+      WHERE upload_batch_id IS DISTINCT FROM $1
+     )`,
+    [uploadBatchId],
+  );
+
+  const result = await pool.query(
+    "DELETE FROM shipments WHERE upload_batch_id IS DISTINCT FROM $1",
+    [uploadBatchId],
+  );
+  await pool.query(`
+    DELETE FROM companies c
+    WHERE NOT EXISTS (
+      SELECT 1 FROM shipments s WHERE lower(s.company_name) = lower(c.company_name)
+    )
   `);
   return result.rowCount ?? 0;
 }
@@ -465,7 +492,12 @@ async function upsertShipment(record: {
       || !sameText(current.status, record.status)
       || !sameText(current.companyName, record.companyName);
 
-    if (!hasChanges) return "unchanged";
+    if (!hasChanges) {
+      if (record.uploadBatchId !== undefined && current.uploadBatchId !== record.uploadBatchId) {
+        await db.update(shipmentsTable).set({ uploadBatchId: record.uploadBatchId }).where(eq(shipmentsTable.id, existing[0].id));
+      }
+      return "unchanged";
+    }
 
     await db.update(shipmentsTable).set({
       mraRef: record.mraRef, containerNo: record.containerNo,
@@ -637,6 +669,7 @@ export async function parseMasterWorksheet(
     // o + 14 = Docs (informational, not stored)
 
     if (![ifsRef, shipper, consignee, containerNo, cargoDesc].some(Boolean)) continue;
+    if (isCompletedSection(currentSection) || isCompletedSection(defaultSection)) continue;
 
     // Use consignee as the company (this is the tracking master — one company per row)
     const companyName = (consignee ?? shipper ?? "Unknown").trim();
@@ -880,6 +913,7 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
     sheetResult.consignees.forEach((name) => consigneeSet.add(name));
   }
   result.consignees = [...consigneeSet].sort();
+  const removedStaleRows = await pruneShipmentsNotInUpload(uploadRecord.id);
 
   await db.update(uploadsTable).set({
     totalRows: result.totalRows,
@@ -895,7 +929,7 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
     failedRows: result.failedRows,
     failureReasons: result.failureReasons.slice(0, 10),
     consignees: result.consignees,
-    message: `Tracking master processed: ${result.totalRows} rows, ${result.consignees.length} companies (${result.newRecords} new, ${result.updatedRecords} updated${result.failedRows > 0 ? `, ${result.failedRows} failed` : ""})`,
+    message: `Tracking master processed: ${result.totalRows} rows, ${result.consignees.length} companies (${result.newRecords} new, ${result.updatedRecords} updated, ${removedStaleRows} closed/old removed${result.failedRows > 0 ? `, ${result.failedRows} failed` : ""})`,
   });
 });
 
