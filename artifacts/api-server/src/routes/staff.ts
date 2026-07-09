@@ -250,6 +250,33 @@ function sameText(a: unknown, b: unknown): boolean {
   return (a ?? "") === (b ?? "");
 }
 
+function matchText(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function matchContainer(value: unknown): string {
+  return matchText(value).replace(/[^a-z0-9]/g, "");
+}
+
+function recordBlManifest(record: { extraFields?: Record<string, unknown> }): string {
+  return matchContainer(
+    record.extraFields?.["BL / Manifest No."] ??
+    record.extraFields?.["BL/Manifest No."] ??
+    record.extraFields?.["BL"] ??
+    record.extraFields?.["bl"],
+  );
+}
+
+function shipmentBlManifest(shipment: { extraFields?: unknown }): string {
+  const extra = (shipment.extraFields as Record<string, unknown>) ?? {};
+  return matchContainer(
+    extra["BL / Manifest No."] ??
+    extra["BL/Manifest No."] ??
+    extra["BL"] ??
+    extra["bl"],
+  );
+}
+
 async function pruneUploadHistoryForFilename(filename: string): Promise<void> {
   const sameNameUploads = await db
     .select({ id: uploadsTable.id })
@@ -282,17 +309,63 @@ async function upsertShipment(record: {
   extraFields?: Record<string, unknown>;
   matchByContainer?: boolean; // when true, match by (ifsRef, containerNo) pair
 }): Promise<"new" | "updated" | "unchanged"> {
-  // Build where clause: for master uploads with a container no, use composite key
-  // so multiple containers under the same IFS ref are distinct DB rows.
-  const whereClause = (record.matchByContainer && record.containerNo)
+  const exactWhereClause = (record.matchByContainer && record.containerNo)
     ? and(eq(shipmentsTable.ifsRef, record.ifsRef), eq(shipmentsTable.containerNo, record.containerNo))
     : eq(shipmentsTable.ifsRef, record.ifsRef);
 
-  const existing = await db
+  let existing = await db
     .select()
     .from(shipmentsTable)
-    .where(whereClause)
+    .where(exactWhereClause)
     .limit(1);
+
+  if (existing.length === 0) {
+    const candidates = await db
+      .select()
+      .from(shipmentsTable)
+      .where(sql`lower(${shipmentsTable.companyName}) = lower(${record.companyName}) OR lower(${shipmentsTable.consignee}) = lower(${record.consignee ?? ""})`)
+      .limit(250);
+
+    const incoming = {
+      ifsRef: matchText(record.ifsRef),
+      containerNo: matchContainer(record.containerNo),
+      mraRef: matchContainer(record.mraRef),
+      invoiceNo: matchContainer(record.invoiceNo),
+      consignee: matchText(record.consignee ?? record.companyName),
+      shipper: matchText(record.shipper),
+      blManifest: recordBlManifest(record),
+    };
+
+    const matched = candidates.find((candidate) => {
+      const candidateValues = {
+        ifsRef: matchText(candidate.ifsRef),
+        containerNo: matchContainer(candidate.containerNo),
+        mraRef: matchContainer(candidate.mraRef),
+        invoiceNo: matchContainer(candidate.invoiceNo),
+        consignee: matchText(candidate.consignee ?? candidate.companyName),
+        shipper: matchText(candidate.shipper),
+        blManifest: shipmentBlManifest(candidate),
+      };
+
+      if (incoming.mraRef && candidateValues.mraRef && incoming.mraRef === candidateValues.mraRef) return true;
+      if (incoming.blManifest && candidateValues.blManifest && incoming.blManifest === candidateValues.blManifest) {
+        return (
+          (incoming.containerNo && candidateValues.containerNo && incoming.containerNo === candidateValues.containerNo) ||
+          (incoming.invoiceNo && candidateValues.invoiceNo && incoming.invoiceNo === candidateValues.invoiceNo) ||
+          (!incoming.containerNo && !candidateValues.containerNo && incoming.consignee === candidateValues.consignee)
+        );
+      }
+      if (incoming.invoiceNo && candidateValues.invoiceNo && incoming.invoiceNo === candidateValues.invoiceNo) {
+        return incoming.consignee === candidateValues.consignee || incoming.shipper === candidateValues.shipper;
+      }
+      if (incoming.ifsRef && candidateValues.ifsRef && incoming.ifsRef === candidateValues.ifsRef) {
+        return !incoming.containerNo || !candidateValues.containerNo || incoming.containerNo === candidateValues.containerNo || incoming.invoiceNo === candidateValues.invoiceNo;
+      }
+      return false;
+    });
+
+    if (matched) existing = [matched];
+  }
 
   if (existing.length > 0) {
     const current = existing[0];
