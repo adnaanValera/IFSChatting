@@ -1491,19 +1491,21 @@ export default function Dashboard() {
                       return (
                         <div key={company.id} className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
                           {/* Card header */}
-                          <div className="flex items-center gap-4 px-5 py-4">
-                            <div className="p-2.5 bg-primary/10 rounded-xl shrink-0">
-                              <Building2 size={18} className="text-primary" />
+                          <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+                            <div className="flex min-w-0 items-start gap-3 sm:flex-1">
+                              <div className="p-2.5 bg-primary/10 rounded-xl shrink-0">
+                                <Building2 size={18} className="text-primary" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-secondary leading-snug break-words sm:truncate">{company.companyName}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{company.shipmentCount} shipment{company.shipmentCount !== 1 ? "s" : ""}</p>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-secondary truncate">{company.companyName}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">{company.shipmentCount} shipment{company.shipmentCount !== 1 ? "s" : ""}</p>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:shrink-0">
                               <button
                                 onClick={() => downloadCompanyReport(company.companyName, "excel")}
                                 disabled={isDownloadingExcel || isDownloadingPdf}
-                                className="flex items-center gap-1.5 text-sm font-semibold bg-secondary hover:bg-secondary/90 text-white px-3 py-2 rounded-lg transition-all disabled:opacity-60"
+                                className="flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold bg-secondary hover:bg-secondary/90 text-white px-2 sm:px-3 py-2 rounded-lg transition-all disabled:opacity-60"
                                 title="Download Excel report"
                               >
                                 {isDownloadingExcel ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
@@ -1512,7 +1514,7 @@ export default function Dashboard() {
                               <button
                                 onClick={() => downloadCompanyReport(company.companyName, "pdf")}
                                 disabled={isDownloadingExcel || isDownloadingPdf}
-                                className="flex items-center gap-1.5 text-sm font-semibold bg-primary hover:bg-primary/90 text-white px-3 py-2 rounded-lg transition-all disabled:opacity-60"
+                                className="flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold bg-primary hover:bg-primary/90 text-white px-2 sm:px-3 py-2 rounded-lg transition-all disabled:opacity-60"
                                 title="Download PDF report"
                               >
                                 {isDownloadingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
@@ -1520,7 +1522,7 @@ export default function Dashboard() {
                               </button>
                               <button
                                 onClick={() => toggleCompanyCard(company.companyName)}
-                                className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-secondary border border-border px-3 py-2 rounded-lg transition-all"
+                                className="flex items-center justify-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-secondary border border-border px-2 sm:px-3 py-2 rounded-lg transition-all"
                               >
                                 {isLoadingThis ? <Loader2 size={14} className="animate-spin" /> : <ChevronRight size={14} className={`transition-transform ${isExpanded ? "rotate-90" : ""}`} />}
                                 {isExpanded ? "Close" : "View"}
@@ -1549,21 +1551,23 @@ export default function Dashboard() {
                                     return (
                                       <div key={group.key} className="bg-muted/10">
                                         {/* Consignee sub-header */}
-                                        <div className="flex items-center gap-3 pl-10 pr-5 py-3">
-                                          <div className="p-2 bg-secondary/10 rounded-lg shrink-0">
-                                            <Users size={15} className="text-secondary" />
+                                        <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-3 sm:pl-10 sm:pr-5">
+                                          <div className="flex min-w-0 items-start gap-3 sm:flex-1">
+                                            <div className="p-2 bg-secondary/10 rounded-lg shrink-0">
+                                              <Users size={15} className="text-secondary" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                              <p className="font-semibold text-secondary text-sm leading-snug break-words sm:truncate">{group.name}</p>
+                                              <p className="text-xs text-muted-foreground mt-0.5">
+                                                {group.rows.length} shipment{group.rows.length !== 1 ? "s" : ""}
+                                              </p>
+                                            </div>
                                           </div>
-                                          <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-secondary text-sm truncate">{group.name}</p>
-                                            <p className="text-xs text-muted-foreground mt-0.5">
-                                              {group.rows.length} shipment{group.rows.length !== 1 ? "s" : ""}
-                                            </p>
-                                          </div>
-                                          <div className="flex items-center gap-2 shrink-0">
+                                          <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:shrink-0">
                                             <button
                                               onClick={() => downloadConsigneeReport(company.companyName, group.key, group.name, "excel")}
                                               disabled={isConsDownloadingExcel || isConsDownloadingPdf}
-                                              className="flex items-center gap-1.5 text-xs font-semibold bg-secondary hover:bg-secondary/90 text-white px-2.5 py-1.5 rounded-lg transition-all disabled:opacity-60"
+                                              className="flex items-center justify-center gap-1.5 text-xs font-semibold bg-secondary hover:bg-secondary/90 text-white px-2 py-1.5 rounded-lg transition-all disabled:opacity-60 sm:px-2.5"
                                               title="Download Excel report for this consignee"
                                             >
                                               {isConsDownloadingExcel ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
@@ -1572,7 +1576,7 @@ export default function Dashboard() {
                                             <button
                                               onClick={() => downloadConsigneeReport(company.companyName, group.key, group.name, "pdf")}
                                               disabled={isConsDownloadingExcel || isConsDownloadingPdf}
-                                              className="flex items-center gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-white px-2.5 py-1.5 rounded-lg transition-all disabled:opacity-60"
+                                              className="flex items-center justify-center gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-white px-2 py-1.5 rounded-lg transition-all disabled:opacity-60 sm:px-2.5"
                                               title="Download PDF report for this consignee"
                                             >
                                               {isConsDownloadingPdf ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
@@ -1580,7 +1584,7 @@ export default function Dashboard() {
                                             </button>
                                             <button
                                               onClick={() => toggleConsigneeCard(company.companyName, group.key)}
-                                              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-secondary border border-border px-2.5 py-1.5 rounded-lg transition-all"
+                                              className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-secondary border border-border px-2 py-1.5 rounded-lg transition-all sm:px-2.5"
                                             >
                                               <ChevronRight size={13} className={`transition-transform ${isConsExpanded ? "rotate-90" : ""}`} />
                                               {isConsExpanded ? "Close" : "View"}

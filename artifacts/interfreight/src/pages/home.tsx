@@ -76,6 +76,70 @@ const features = [
   },
 ];
 
+function AnimatedStat({ value, label, index }: { value: string; label: string; index: number }) {
+  const [count, setCount] = useState(0);
+  const [started, setStarted] = useState(false);
+  const numericValue = Number.parseInt(value.replace(/\D/g, ""), 10) || 0;
+  const suffix = value.replace(/[0-9]/g, "");
+
+  useEffect(() => {
+    if (!started) return;
+    let frame = 0;
+    const totalFrames = 34;
+    const timer = window.setInterval(() => {
+      frame += 1;
+      const progress = 1 - Math.pow(1 - frame / totalFrames, 3);
+      setCount(Math.round(numericValue * progress));
+      if (frame >= totalFrames) window.clearInterval(timer);
+    }, 28);
+
+    return () => window.clearInterval(timer);
+  }, [numericValue, started]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once: true }}
+      onViewportEnter={() => setStarted(true)}
+      transition={{ delay: index * 0.1, duration: 0.35 }}
+    >
+      <p className="text-4xl md:text-5xl font-extrabold text-primary mb-2">
+        {count}{suffix}
+      </p>
+      <p className="text-white/60 text-sm font-medium uppercase tracking-wider">{label}</p>
+    </motion.div>
+  );
+}
+
+function RouteMotion() {
+  return (
+    <div className="mt-8 rounded-2xl border border-white/15 bg-white/10 px-5 py-4 backdrop-blur-sm">
+      <div className="flex items-center gap-3 text-white/80 text-xs font-semibold uppercase tracking-widest mb-3">
+        <span>South Africa</span>
+        <span className="text-primary">to</span>
+        <span>Malawi</span>
+      </div>
+      <div className="relative h-7">
+        <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/20" />
+        <motion.div
+          className="absolute left-0 top-1/2 h-px -translate-y-1/2 bg-primary shadow-[0_0_18px_rgba(240,78,35,0.75)]"
+          initial={{ width: "0%" }}
+          animate={{ width: ["0%", "100%", "100%"] }}
+          transition={{ duration: 3.2, repeat: Infinity, repeatDelay: 1.1, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-primary/60 bg-secondary text-primary shadow-[0_0_24px_rgba(240,78,35,0.45)]"
+          animate={{ left: ["0%", "calc(100% - 2.25rem)", "calc(100% - 2.25rem)"] }}
+          transition={{ duration: 3.2, repeat: Infinity, repeatDelay: 1.1, ease: "easeInOut" }}
+        >
+          <Truck size={16} />
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
 function StaffTracker() {
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
@@ -277,19 +341,23 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
+              <motion.a
                 href="/#services"
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.98 }}
                 className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold px-8 py-4 rounded-lg shadow-xl text-lg transition-all group"
               >
                 Our Services
                 <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
-              </a>
-              <a
+              </motion.a>
+              <motion.a
                 href="/#contact"
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.98 }}
                 className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white font-semibold px-8 py-4 rounded-lg transition-all backdrop-blur-sm text-lg"
               >
                 Contact Us
-              </a>
+              </motion.a>
               {role === "customer" && (
                 <Link
                   href="/dashboard"
@@ -309,6 +377,8 @@ export default function Home() {
                 </Link>
               )}
             </div>
+
+            <RouteMotion />
 
             {/* ── Tracking login prompt — visible to guests & logged-in clients ── */}
             {(!role || role === "customer") && (
@@ -412,16 +482,7 @@ export default function Home() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center rounded-3xl border border-white/15 bg-secondary/80 px-6 py-10 shadow-xl backdrop-blur-md">
             {stats.map(({ value, label }, i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.35 }}
-              >
-                <p className="text-4xl md:text-5xl font-extrabold text-primary mb-2">{value}</p>
-                <p className="text-white/60 text-sm font-medium uppercase tracking-wider">{label}</p>
-              </motion.div>
+              <AnimatedStat key={label} value={value} label={label} index={i} />
             ))}
           </div>
         </div>
@@ -458,7 +519,8 @@ export default function Home() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.08, duration: 0.4 }}
-                  className="bg-white border border-border rounded-xl p-5 shadow-sm"
+                  whileHover={{ y: -5, scale: 1.01 }}
+                  className="bg-white border border-border rounded-xl p-5 shadow-sm hover:shadow-xl hover:border-primary/30 transition-all"
                 >
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">

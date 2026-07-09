@@ -124,13 +124,16 @@ function StatusPill({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-2 font-bold rounded-full ${theme.pillBg} ${theme.pillText} ${
+      className={`relative inline-flex items-center gap-2 font-bold rounded-full ${theme.pillBg} ${theme.pillText} shadow-[0_0_18px_rgba(255,255,255,0.12)] ${
         large
           ? "px-8 py-3.5 text-base tracking-widest w-full justify-center"
           : "px-3 py-1.5 text-xs tracking-wider"
       }`}
     >
-      <span className={`w-2 h-2 rounded-full ${theme.pillDot} shrink-0`} />
+      <span className={`relative flex h-2 w-2 shrink-0`}>
+        <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${theme.pillDot} opacity-60`} />
+        <span className={`relative inline-flex h-2 w-2 rounded-full ${theme.pillDot}`} />
+      </span>
       {status?.toUpperCase()}
     </span>
   );
