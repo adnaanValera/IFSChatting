@@ -94,6 +94,15 @@ async function createTables() {
       created_at timestamptz NOT NULL DEFAULT now()
     );
 
+    CREATE TABLE IF NOT EXISTS announcements (
+      id serial PRIMARY KEY,
+      title text NOT NULL,
+      message text NOT NULL,
+      active boolean NOT NULL DEFAULT true,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+
     CREATE TABLE IF NOT EXISTS report_templates (
       id integer PRIMARY KEY DEFAULT 1,
       content bytea NOT NULL,

@@ -7,6 +7,7 @@ import statsRouter from "./stats";
 import staffRouter from "./staff";
 import feedbackRouter from "./feedback";
 import notificationsRouter from "./notifications";
+import announcementsRouter from "./announcements";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(statsRouter);
 router.use(staffRouter);
 router.use(feedbackRouter);
 router.use(notificationsRouter);
+router.use(announcementsRouter);
 
 export default router;

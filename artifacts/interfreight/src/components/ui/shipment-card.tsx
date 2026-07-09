@@ -122,21 +122,36 @@ function StatusPill({
   theme: typeof T[Variant];
   large?: boolean;
 }) {
+  const displayStatus = customerFriendlyStatus(status);
   return (
     <span
-      className={`relative inline-flex items-center gap-2 font-bold rounded-full ${theme.pillBg} ${theme.pillText} shadow-[0_0_18px_rgba(255,255,255,0.12)] ${
+      className={`relative inline-flex items-center gap-2 font-bold rounded-full max-w-full text-center leading-tight ${theme.pillBg} ${theme.pillText} shadow-[0_0_18px_rgba(255,255,255,0.12)] ${
         large
-          ? "px-8 py-3.5 text-base tracking-widest w-full justify-center"
-          : "px-3 py-1.5 text-xs tracking-wider"
+          ? "px-5 sm:px-8 py-3.5 text-sm sm:text-base tracking-wider sm:tracking-widest w-full justify-center"
+          : "px-3 py-1.5 text-[11px] sm:text-xs tracking-wide sm:tracking-wider"
       }`}
     >
       <span className={`relative flex h-2 w-2 shrink-0`}>
         <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${theme.pillDot} opacity-60`} />
         <span className={`relative inline-flex h-2 w-2 rounded-full ${theme.pillDot}`} />
       </span>
-      {status?.toUpperCase()}
+      {displayStatus.toUpperCase()}
     </span>
   );
+}
+
+function customerFriendlyStatus(status?: string | null): string {
+  const text = String(status ?? "").trim();
+  const lower = text.toLowerCase();
+  const etaMatch = text.match(/\bETA\s+([A-Za-z]+)\s+(.+)$/i);
+  if (etaMatch?.[1] && etaMatch[2]) return `Expected at ${etaMatch[1]}: ${etaMatch[2].trim()}`;
+  if (lower.includes("at pod") || lower.includes("at port")) return "At port of discharge";
+  if (lower.includes("on sea") || lower.includes("at sea")) return "On sea";
+  if (lower.includes("enroute")) return "Enroute to destination";
+  if (lower.includes("in transit")) return "In transit";
+  if (lower.includes("awaiting clearance")) return "Awaiting clearance";
+  if (lower.includes("delivered")) return "Delivered";
+  return text || "N/A";
 }
 
 function FieldCell({
@@ -246,11 +261,12 @@ export interface ShipmentCardProps {
     extraFields?: Record<string, unknown> | null;
   };
   statusChange?: { oldValue: string; newValue: string };
+  highlight?: boolean;
   index?: number;
   defaultOpen?: boolean;
 }
 
-export function ShipmentCard({ shipment: s, statusChange, index = 0, defaultOpen = false }: ShipmentCardProps) {
+export function ShipmentCard({ shipment: s, statusChange, highlight = false, index = 0, defaultOpen = false }: ShipmentCardProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const variant = resolveVariant(s.extraFields);
   const theme = T[variant];
@@ -263,16 +279,17 @@ export function ShipmentCard({ shipment: s, statusChange, index = 0, defaultOpen
 
   return (
     <motion.div
+      id={`shipment-${s.ifsRef}`}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04, duration: 0.28, ease: "easeOut" }}
-      className={`rounded-xl sm:rounded-2xl overflow-hidden border ${theme.cardBorder} shadow-2xl`}
+      className={`rounded-xl sm:rounded-2xl overflow-hidden border ${highlight ? "ring-2 ring-primary/60" : ""} ${theme.cardBorder} shadow-2xl scroll-mt-28`}
       style={{ background: theme.cardBg }}
     >
       {/* ── Collapsed header — always visible ─────────────────────────────── */}
       <button className="w-full text-left" onClick={() => setIsOpen((o) => !o)}>
         <div
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-4 hover:brightness-110 transition-all"
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-3 sm:px-5 py-3 sm:py-4 hover:brightness-110 transition-all"
           style={{ background: isOpen ? "transparent" : theme.headerBg }}
         >
           {/* Left: icon + ref */}
@@ -292,7 +309,7 @@ export function ShipmentCard({ shipment: s, statusChange, index = 0, defaultOpen
                 {theme.label}
                 {typeLabel ? ` · ${typeLabel}` : ""}
               </p>
-              <p className="text-white font-bold text-base leading-tight truncate">
+              <p className="text-white font-bold text-sm sm:text-base leading-tight truncate">
                 {collapsedIdentifier}
               </p>
               {s.companyName && (
@@ -305,8 +322,8 @@ export function ShipmentCard({ shipment: s, statusChange, index = 0, defaultOpen
           </div>
 
           {/* Right: status + chevron */}
-          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 w-full sm:w-auto">
-            <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 shrink-0 w-full sm:w-auto">
+            <div className="flex flex-col items-end gap-1 max-w-[calc(100%-1.75rem)]">
               <StatusPill status={s.status} theme={theme} />
               {statusChange && (
                 <motion.span
@@ -315,7 +332,7 @@ export function ShipmentCard({ shipment: s, statusChange, index = 0, defaultOpen
                   transition={{ duration: 1.8, repeat: 2 }}
                   className="text-[11px] font-semibold text-white/70"
                 >
-                  {statusChange.oldValue} -&gt; {statusChange.newValue}
+                  {customerFriendlyStatus(statusChange.oldValue)} -&gt; {customerFriendlyStatus(statusChange.newValue)}
                 </motion.span>
               )}
             </div>
@@ -397,7 +414,7 @@ export function ShipmentCard({ shipment: s, statusChange, index = 0, defaultOpen
                       transition={{ duration: 1.8, repeat: 2 }}
                       className="text-[11px] font-semibold text-white/70"
                     >
-                      {statusChange.oldValue} -&gt; {statusChange.newValue}
+                      {customerFriendlyStatus(statusChange.oldValue)} -&gt; {customerFriendlyStatus(statusChange.newValue)}
                     </motion.span>
                   )}
                 </div>
@@ -510,7 +527,7 @@ export function ShipmentCard({ shipment: s, statusChange, index = 0, defaultOpen
                     transition={{ duration: 0.25 }}
                     className="text-center text-xs font-semibold text-zinc-300 mt-3"
                   >
-                    {statusChange.oldValue} -&gt; {statusChange.newValue}
+                    {customerFriendlyStatus(statusChange.oldValue)} -&gt; {customerFriendlyStatus(statusChange.newValue)}
                   </motion.p>
                 )}
                 {s.lastUpdated && (

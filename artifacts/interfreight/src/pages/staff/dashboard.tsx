@@ -22,6 +22,14 @@ import { formatDate } from "@/lib/utils";
 
 type Tab = "overview" | "import" | "history" | "messages" | "cards";
 
+type Announcement = {
+  id: number;
+  title: string;
+  message: string;
+  active: boolean;
+  updatedAt: string;
+};
+
 type CompanyItem = { id: number; companyName: string; shipmentCount: number };
 type Shipment = {
   id: number; ifsRef: string; mraRef?: string; containerNo?: string;
@@ -295,6 +303,10 @@ export default function Dashboard() {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
   const [sendingReply, setSendingReply] = useState<number | null>(null);
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  const [announcementTitle, setAnnouncementTitle] = useState("");
+  const [announcementMessage, setAnnouncementMessage] = useState("");
+  const [announcementSaving, setAnnouncementSaving] = useState(false);
 
   const { data: user } = useGetMe();
   const logoutMutation = useStaffLogout();
@@ -348,6 +360,52 @@ export default function Dashboard() {
   useEffect(() => {
     loadOperationalAlerts();
   }, []);
+
+  const loadAnnouncement = async () => {
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/announcements/current`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setAnnouncement(data);
+      setAnnouncementTitle(data?.title ?? "");
+      setAnnouncementMessage(data?.message ?? "");
+    } catch {
+      setAnnouncement(null);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) loadAnnouncement();
+  }, [isAdmin]);
+
+  const saveAnnouncement = async (active = true) => {
+    setAnnouncementSaving(true);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/announcements/current`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: announcementTitle, message: announcementMessage, active }),
+      });
+      if (!res.ok) throw new Error("Failed to save announcement");
+      const data = await res.json();
+      setAnnouncement(data);
+      if (!data) {
+        setAnnouncementTitle("");
+        setAnnouncementMessage("");
+      }
+      toast({ title: active ? "Announcement published" : "Announcement cleared" });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Announcement failed", description: err.message });
+    } finally {
+      setAnnouncementSaving(false);
+    }
+  };
 
   // ── Company Cards functions ───────────────────────────────────────────────
   const loadCompanies = async () => {
@@ -967,6 +1025,54 @@ export default function Dashboard() {
                 <h2 className="text-2xl font-extrabold text-secondary mb-1">Dashboard</h2>
                 <p className="text-sm text-muted-foreground">Overview of all shipments and activity</p>
               </div>
+
+              {isAdmin && (
+                <div className="bg-secondary text-white rounded-xl border border-white/10 shadow-sm p-4 sm:p-5">
+                  <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+                    <div className="flex-1">
+                      <p className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">Customer Announcement</p>
+                      <input
+                        value={announcementTitle}
+                        onChange={(e) => setAnnouncementTitle(e.target.value)}
+                        placeholder="Announcement title"
+                        className="w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/35 outline-none focus:border-primary"
+                      />
+                    </div>
+                    <div className="flex-[2]">
+                      <textarea
+                        value={announcementMessage}
+                        onChange={(e) => setAnnouncementMessage(e.target.value)}
+                        placeholder="Message customers should see on their dashboard"
+                        rows={2}
+                        className="w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/35 outline-none focus:border-primary resize-none"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => saveAnnouncement(true)}
+                        disabled={announcementSaving || !announcementTitle.trim() || !announcementMessage.trim()}
+                        className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold disabled:opacity-50"
+                      >
+                        Publish
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => saveAnnouncement(false)}
+                        disabled={announcementSaving || !announcement}
+                        className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-semibold disabled:opacity-50"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                  {announcement && (
+                    <p className="text-xs text-white/45 mt-3">
+                      Live now: <span className="text-white/75 font-semibold">{announcement.title}</span>
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Stats Row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
