@@ -390,6 +390,7 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08, duration: 0.4 }}
+                whileHover={{ y: -6 }}
                 className="bg-white border border-border rounded-2xl p-7 shadow-sm hover:shadow-md hover:border-primary/30 transition-all group"
               >
                 <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
@@ -472,19 +473,31 @@ export default function Home() {
 
       {/* ── Weekly Consolidation ─────────────────────────── */}
       <section className="py-0 bg-background overflow-hidden">
-        <div className="relative min-h-[500px] flex items-stretch">
+        <div className="relative min-h-[500px] flex flex-col lg:flex-row items-stretch">
           {/* Photo side */}
-          <div className="hidden lg:block w-1/2 relative">
+          <motion.div
+            initial={{ opacity: 0, x: -24 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.55 }}
+            className="w-full lg:w-1/2 relative min-h-[280px] sm:min-h-[380px] lg:min-h-[500px] bg-[#111315]"
+          >
             <img
               src={consolidationImg}
               alt="Weekly Consolidation South Africa to Malawi"
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-contain"
             />
-            <div className="absolute inset-0 bg-secondary/30" />
-          </div>
+            <div className="absolute inset-0 bg-secondary/10" />
+          </motion.div>
 
           {/* Content side */}
-          <div className="w-full lg:w-1/2 bg-secondary flex items-center">
+          <motion.div
+            initial={{ opacity: 0, x: 24 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.55, delay: 0.08 }}
+            className="w-full lg:w-1/2 bg-secondary flex items-center"
+          >
             <div className="px-10 py-16 lg:px-16 max-w-xl">
               <p className="text-primary font-semibold tracking-[0.2em] uppercase text-sm mb-4">
                 Featured Service
@@ -526,14 +539,16 @@ export default function Home() {
                 ))}
               </ul>
 
-              <a
+              <motion.a
                 href="/#contact"
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
                 className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold px-7 py-4 rounded-xl transition-all text-sm"
               >
                 Get a Quote <ArrowRight size={16} />
-              </a>
+              </motion.a>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Second row — warehouse image full width strip */}
