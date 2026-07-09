@@ -1160,7 +1160,7 @@ export default function Dashboard() {
                                       <div key={`${activity.id}-${change.field}-${index}`} className="text-xs">
                                         <span className="font-semibold text-secondary">{change.field}: </span>
                                         <span className="text-muted-foreground line-through decoration-muted-foreground/50">{change.oldValue || "N/A"}</span>
-                                        <ChevronRight size={12} className="inline mx-1 text-primary" />
+                                        <span className="mx-1 font-semibold text-primary">-&gt;</span>
                                         <span className="font-semibold text-secondary">{change.newValue || "N/A"}</span>
                                       </div>
                                     ))}

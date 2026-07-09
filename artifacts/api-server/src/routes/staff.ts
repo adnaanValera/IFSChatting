@@ -83,10 +83,48 @@ function displayText(value: unknown): string {
   return String(value).trim();
 }
 
+function smartChangeValues(oldValue: unknown, newValue: unknown): { oldValue: string; newValue: string } {
+  const oldText = displayText(oldValue);
+  const newText = displayText(newValue);
+  if (oldText === "N/A" || newText === "N/A") return { oldValue: oldText, newValue: newText };
+
+  const oldParts = oldText.split(/\s+/);
+  const newParts = newText.split(/\s+/);
+  let prefixLength = 0;
+  while (
+    prefixLength < oldParts.length - 1 &&
+    prefixLength < newParts.length - 1 &&
+    oldParts[prefixLength].toLowerCase() === newParts[prefixLength].toLowerCase()
+  ) {
+    prefixLength += 1;
+  }
+
+  if (prefixLength >= 2) {
+    return {
+      oldValue: oldParts.slice(0, prefixLength + 1).join(" "),
+      newValue: newParts.slice(prefixLength).join(" "),
+    };
+  }
+
+  return { oldValue: oldText, newValue: newText };
+}
+
 function pushTextChange(changes: ChangeLogEntry[], field: string, oldValue: unknown, newValue: unknown): void {
   if (!sameText(oldValue as string | null | undefined, newValue as string | null | undefined)) {
-    changes.push({ field, oldValue: displayText(oldValue), newValue: displayText(newValue) });
+    changes.push({ field, ...smartChangeValues(oldValue, newValue) });
   }
+}
+
+function extraText(extraFields: unknown, key: string): string | undefined {
+  const extra = (extraFields as Record<string, unknown>) ?? {};
+  const value = extra[key];
+  return value === undefined || value === null || String(value).trim() === "" ? undefined : String(value).trim();
+}
+
+function sectionChangeLabel(value: unknown): string {
+  const text = displayText(value);
+  if (/completed/i.test(text)) return "Shipments Completed";
+  return text;
 }
 
 // Expanded field map — covers many real-world Excel column name variations
@@ -224,6 +262,16 @@ async function pruneUploadHistoryForFilename(filename: string): Promise<void> {
     await pool.query("DELETE FROM shipment_change_logs WHERE upload_batch_id = $1", [id]);
     await db.delete(uploadsTable).where(eq(uploadsTable.id, id));
   }
+
+  const allUploads = await db
+    .select({ id: uploadsTable.id })
+    .from(uploadsTable)
+    .orderBy(desc(uploadsTable.uploadedAt));
+  const olderUploadIds = allUploads.slice(10).map((upload) => upload.id);
+  for (const id of olderUploadIds) {
+    await pool.query("DELETE FROM shipment_change_logs WHERE upload_batch_id = $1", [id]);
+    await db.delete(uploadsTable).where(eq(uploadsTable.id, id));
+  }
 }
 
 async function upsertShipment(record: {
@@ -264,11 +312,24 @@ async function upsertShipment(record: {
     pushTextChange(changes, "Status", current.status, record.status);
     pushTextChange(changes, "Company", current.companyName, record.companyName);
     if (extraFieldsChanged) {
-      changes.push({
-        field: "Extra Fields",
-        oldValue: displayText(stableJson(current.extraFields)),
-        newValue: displayText(stableJson(record.extraFields)),
-      });
+      const oldSection = extraText(current.extraFields, "Source Section");
+      const newSection = extraText(record.extraFields, "Source Section");
+      if (!sameText(oldSection, newSection)) {
+        changes.push({
+          field: "Section",
+          oldValue: sectionChangeLabel(oldSection),
+          newValue: sectionChangeLabel(newSection),
+        });
+      }
+      const oldType = extraText(current.extraFields, "Type");
+      const newType = extraText(record.extraFields, "Type");
+      if (!sameText(oldType, newType)) pushTextChange(changes, "Type", oldType, newType);
+      const oldBl = extraText(current.extraFields, "BL / Manifest No.");
+      const newBl = extraText(record.extraFields, "BL / Manifest No.");
+      if (!sameText(oldBl, newBl)) pushTextChange(changes, "BL / Manifest No.", oldBl, newBl);
+      const oldAgent = extraText(current.extraFields, "Agent");
+      const newAgent = extraText(record.extraFields, "Agent");
+      if (!sameText(oldAgent, newAgent)) pushTextChange(changes, "Agent", oldAgent, newAgent);
     }
     const hasChanges = extraFieldsChanged
       || !sameText(current.mraRef, record.mraRef)
@@ -398,6 +459,7 @@ export async function processStatusReportWorksheet(
 export async function parseMasterWorksheet(
   worksheet: ExcelJS.Worksheet,
   uploadBatchId?: number,
+  defaultSection?: string | null,
 ): Promise<{
   totalRows: number; newRecords: number; updatedRecords: number;
   failedRows: number; failureReasons: string[]; consignees: string[];
@@ -406,7 +468,7 @@ export async function parseMasterWorksheet(
   const failureReasons: string[] = [];
   let colOffset: number | null = null;
   const consigneeSet = new Set<string>();
-  let currentSection: string | null = null;
+  let currentSection: string | null = defaultSection ?? null;
 
   for (let r = 1; r <= worksheet.rowCount; r++) {
     const vals = worksheet.getRow(r).values as unknown[];
@@ -450,13 +512,15 @@ export async function parseMasterWorksheet(
     if (blManifest) extraFields["BL / Manifest No."] = blManifest;
     if (agent) extraFields["Agent"] = agent;
     if (currentSection) extraFields["Source Section"] = currentSection;
+    const sectionText = currentSection ?? defaultSection ?? "";
+    const finalStatus = /completed/i.test(sectionText) ? "Shipments Completed" : (status ?? "In Transit");
 
     totalRows++;
     try {
       const result = await upsertShipment({
         ifsRef: finalIfsRef, mraRef, shipper, consignee, containerNo,
         cargoDescription: cargoDesc, invoiceNo, pod, entry,
-        finalPortDestination: fpd, status: status ?? "In Transit",
+        finalPortDestination: fpd, status: finalStatus,
         companyName, uploadBatchId,
         extraFields: Object.keys(extraFields).length > 0 ? extraFields : undefined,
         matchByContainer: true, // distinguish multiple containers per IFS ref
@@ -669,8 +733,7 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
     return;
   }
 
-  const ws = workbook.worksheets[0]; // Sheet1 — the live shipments sheet
-  if (!ws) { res.status(400).json({ error: "No worksheet found in file" }); return; }
+  if (workbook.worksheets.length === 0) { res.status(400).json({ error: "No worksheet found in file" }); return; }
 
   const [uploadRecord] = await db.insert(uploadsTable).values({
     filename: file.originalname,
@@ -681,7 +744,26 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
   }).returning();
   await saveOriginalUploadFile(uploadRecord.id, file);
 
-  const result = await parseMasterWorksheet(ws, uploadRecord.id);
+  const result = {
+    totalRows: 0,
+    newRecords: 0,
+    updatedRecords: 0,
+    failedRows: 0,
+    failureReasons: [] as string[],
+    consignees: [] as string[],
+  };
+  const consigneeSet = new Set<string>();
+
+  for (const sheet of workbook.worksheets) {
+    const sheetResult = await parseMasterWorksheet(sheet, uploadRecord.id, sheet.name);
+    result.totalRows += sheetResult.totalRows;
+    result.newRecords += sheetResult.newRecords;
+    result.updatedRecords += sheetResult.updatedRecords;
+    result.failedRows += sheetResult.failedRows;
+    sheetResult.failureReasons.forEach((reason) => result.failureReasons.push(`[${sheet.name}] ${reason}`));
+    sheetResult.consignees.forEach((name) => consigneeSet.add(name));
+  }
+  result.consignees = [...consigneeSet].sort();
 
   await db.update(uploadsTable).set({
     totalRows: result.totalRows,
