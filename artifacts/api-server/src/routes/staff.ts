@@ -5,7 +5,6 @@ import { ZipArchive } from "archiver";
 import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs";
-import { createRequire } from "module";
 import { db, pool, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable } from "@workspace/db";
 import { eq, asc, desc, and, or, isNull, sql } from "drizzle-orm";
 import { requireAuth, requireStaff, requireAdmin } from "../middlewares/auth";
@@ -19,9 +18,6 @@ const uploadsDir = process.env.VERCEL
   ? path.resolve("/tmp", "ifs-uploads")
   : path.resolve(workspaceRoot, "artifacts/api-server/uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-
-const require = createRequire(import.meta.url);
-const PDFDocument = require("pdfkit") as typeof import("pdfkit");
 
 // Fixed path where the report template is stored (overwritten on each upload)
 const TEMPLATE_PATH = path.resolve(uploadsDir, "report-template.xlsx");
@@ -1172,64 +1168,90 @@ async function generateCompanyReportWorkbook(
 
 // ── Company Status Report Excel download (staff only) ────────────────────────
 
-function drawPdfText(
-  doc: PDFKit.PDFDocument,
-  text: string,
-  x: number,
-  y: number,
-  width: number,
-  options: PDFKit.Mixins.TextOptions = {},
-): void {
-  doc.text(text || "", x + 3, y + 4, { width: Math.max(1, width - 6), ellipsis: true, ...options });
+function pdfEscape(value: string): string {
+  return value.replace(/[^\x20-\x7E]/g, "?").replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/[\r\n]+/g, " ");
 }
 
-function drawPdfReport(
-  doc: PDFKit.PDFDocument,
+function pdfColor(hex: string): string {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16) / 255;
+  const g = parseInt(clean.slice(2, 4), 16) / 255;
+  const b = parseInt(clean.slice(4, 6), 16) / 255;
+  return `${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)}`;
+}
+
+function truncatePdfText(value: string, maxChars: number): string {
+  const clean = (value || "").replace(/\s+/g, " ").trim();
+  return clean.length > maxChars ? `${clean.slice(0, Math.max(0, maxChars - 3))}...` : clean;
+}
+
+function generateCompanyReportPdfBuffer(
   companyName: string,
   shipments: (typeof shipmentsTable.$inferSelect)[],
-): void {
-  const RED = "#C00000";
-  const DARK_BLUE = "#1F3864";
-  const HEADER_BG = "#D6DCE4";
-  const ROW_ALT = "#F2F2F2";
-  const BORDER = "#808080";
+): Buffer {
+  const pageWidth = 842;
+  const pageHeight = 595;
+  const RED = pdfColor("#C00000");
+  const DARK_BLUE = pdfColor("#1F3864");
+  const HEADER_BG = pdfColor("#D6DCE4");
+  const ROW_ALT = pdfColor("#F2F2F2");
+  const WHITE = pdfColor("#FFFFFF");
+  const BLACK = pdfColor("#000000");
+  const GREY = pdfColor("#888888");
+  const BORDER = pdfColor("#808080");
   const dateStr = todayString();
   const left = 24;
   const right = 24;
   const top = 26;
-  const pageWidth = doc.page.width - left - right;
-  const bottom = doc.page.height - 28;
+  const contentWidth = pageWidth - left - right;
+  const bottom = pageHeight - 28;
   const colWidths = [62, 34, 82, 72, 76, 84, 112, 66, 38, 38, 54, 68, 56, 70];
   const labels = ["IFS Ref", "Type", "BL / Manifest No.", "Container No.", "Shipper", "Consignee", "Cargo Desc", "Invoice No.", "POD", "FPD", "Agent", "MRA Ref", "Entry", "Status"];
-
+  const pages: string[] = [];
+  let content = "";
   let y = top;
+
+  const py = (value: number) => pageHeight - value;
+  const add = (value: string) => { content += value; };
+  const page = () => { content = ""; y = top; };
+  const finishPage = () => { pages.push(content); };
+  const rect = (x: number, topY: number, width: number, height: number, fill: string, stroke = BORDER) => {
+    add(`q ${fill} rg ${stroke} RG 0.5 w ${x.toFixed(2)} ${py(topY + height).toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re B Q\n`);
+  };
+  const text = (value: string, x: number, topY: number, size: number, font: "F1" | "F2" | "F3", color: string, width: number, align: "left" | "center" | "right" = "left") => {
+    const maxChars = Math.max(4, Math.floor(width / (size * 0.48)));
+    const clean = truncatePdfText(value, maxChars);
+    const approxWidth = clean.length * size * 0.48;
+    const tx = align === "center" ? x + Math.max(0, (width - approxWidth) / 2) : align === "right" ? x + Math.max(0, width - approxWidth) : x;
+    add(`BT /${font} ${size} Tf ${color} rg ${tx.toFixed(2)} ${py(topY).toFixed(2)} Td (${pdfEscape(clean)}) Tj ET\n`);
+  };
+
   const drawTitle = () => {
-    doc.font("Helvetica-Bold").fontSize(16).fillColor(RED).text("InterFreight Solutions", left, y, { width: pageWidth * 0.66 });
-    doc.font("Helvetica-Bold").fontSize(13).fillColor(DARK_BLUE).text("Status Report", left + pageWidth * 0.66, y + 2, { width: pageWidth * 0.34, align: "right" });
+    text("InterFreight Solutions", left, y + 16, 16, "F2", RED, contentWidth * 0.66);
+    text("Status Report", left + contentWidth * 0.66, y + 15, 13, "F2", DARK_BLUE, contentWidth * 0.34, "right");
     y += 24;
-    doc.font("Helvetica-Bold").fontSize(10).fillColor("#000000").text(companyName, left, y, { width: pageWidth * 0.66 });
-    doc.font("Helvetica").fontSize(9).fillColor("#000000").text(`Date: ${dateStr}`, left + pageWidth * 0.66, y, { width: pageWidth * 0.34, align: "right" });
+    text(companyName, left, y + 10, 10, "F2", BLACK, contentWidth * 0.66);
+    text(`Date: ${dateStr}`, left + contentWidth * 0.66, y + 10, 9, "F1", BLACK, contentWidth * 0.34, "right");
     y += 24;
   };
   const ensureSpace = (height: number) => {
     if (y + height <= bottom) return;
-    doc.addPage();
-    y = top;
+    finishPage();
+    page();
     drawTitle();
   };
   const drawSectionHeader = (title: string) => {
     ensureSpace(40);
-    doc.rect(left, y, pageWidth, 20).fill(DARK_BLUE);
-    doc.font("Helvetica-Bold").fontSize(9).fillColor("#FFFFFF").text(title, left, y + 6, { width: pageWidth, align: "center" });
+    rect(left, y, contentWidth, 20, DARK_BLUE, DARK_BLUE);
+    text(title, left, y + 13, 9, "F2", WHITE, contentWidth, "center");
     y += 20;
   };
   const drawColumnHeaders = () => {
     let x = left;
-    doc.font("Helvetica-Bold").fontSize(6.6).fillColor("#000000");
     for (let i = 0; i < labels.length; i++) {
       const width = colWidths[i] ?? 40;
-      doc.rect(x, y, width, 18).fillAndStroke(HEADER_BG, BORDER);
-      drawPdfText(doc, labels[i] ?? "", x, y, width, { align: "center" });
+      rect(x, y, width, 18, HEADER_BG);
+      text(labels[i] ?? "", x + 3, y + 12, 6.6, "F2", BLACK, width - 6, "center");
       x += width;
     }
     y += 18;
@@ -1238,16 +1260,16 @@ function drawPdfReport(
     ensureSpace(23);
     const values = shipmentReportValues(shipment);
     let x = left;
-    doc.font("Helvetica").fontSize(6.8).fillColor("#000000");
     for (let i = 0; i < values.length; i++) {
       const width = colWidths[i] ?? 40;
-      doc.rect(x, y, width, 22).fillAndStroke(rowIndex % 2 === 1 ? ROW_ALT : "#FFFFFF", BORDER);
-      drawPdfText(doc, values[i] || "", x, y, width, { align: i <= 3 || i >= 7 ? "center" : "left" });
+      rect(x, y, width, 22, rowIndex % 2 === 1 ? ROW_ALT : WHITE);
+      text(values[i] || "", x + 3, y + 13, 6.8, "F1", BLACK, width - 6, i <= 3 || i >= 7 ? "center" : "left");
       x += width;
     }
     y += 22;
   };
 
+  page();
   drawTitle();
   const usedStatuses = new Set<string>();
   for (const section of SECTION_MAP) {
@@ -1259,8 +1281,8 @@ function drawPdfReport(
     drawColumnHeaders();
     if (rows.length === 0) {
       ensureSpace(20);
-      doc.rect(left, y, pageWidth, 20).fillAndStroke("#FFFFFF", BORDER);
-      doc.font("Helvetica-Oblique").fontSize(8).fillColor("#888888").text("-", left, y + 6, { width: pageWidth, align: "center" });
+      rect(left, y, contentWidth, 20, WHITE);
+      text("-", left, y + 13, 8, "F3", GREY, contentWidth, "center");
       y += 20;
     } else {
       rows.forEach((shipment, index) => drawShipmentRow(shipment, index));
@@ -1274,6 +1296,43 @@ function drawPdfReport(
     drawColumnHeaders();
     other.forEach((shipment, index) => drawShipmentRow(shipment, index));
   }
+  finishPage();
+
+  const objects: string[] = [];
+  const addObject = (body: string) => {
+    objects.push(body);
+    return objects.length;
+  };
+  const fontNormal = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const fontBold = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  const fontOblique = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>");
+  const pageRefs: number[] = [];
+  const pageObjectIndexes: number[] = [];
+  for (const pageContent of pages) {
+    const stream = Buffer.from(pageContent, "utf8");
+    const contentObject = addObject(`<< /Length ${stream.length} >>\nstream\n${pageContent}endstream`);
+    const pageObject = addObject("");
+    pageObjectIndexes.push(pageObject);
+    pageRefs.push(contentObject);
+  }
+  const pagesObject = addObject("");
+  pageObjectIndexes.forEach((pageObject, index) => {
+    objects[pageObject - 1] = `<< /Type /Page /Parent ${pagesObject} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontNormal} 0 R /F2 ${fontBold} 0 R /F3 ${fontOblique} 0 R >> >> /Contents ${pageRefs[index]} 0 R >>`;
+  });
+  objects[pagesObject - 1] = `<< /Type /Pages /Kids [${pageObjectIndexes.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageObjectIndexes.length} >>`;
+  const catalogObject = addObject(`<< /Type /Catalog /Pages ${pagesObject} 0 R >>`);
+
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [0];
+  objects.forEach((body, index) => {
+    offsets.push(Buffer.byteLength(pdf, "utf8"));
+    pdf += `${index + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xrefOffset = Buffer.byteLength(pdf, "utf8");
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i < offsets.length; i++) pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogObject} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return Buffer.from(pdf, "utf8");
 }
 
 function streamCompanyReportPdf(
@@ -1282,12 +1341,11 @@ function streamCompanyReportPdf(
   fileName: string,
   shipments: (typeof shipmentsTable.$inferSelect)[],
 ): void {
+  const pdf = generateCompanyReportPdfBuffer(reportLabel, shipments);
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
-  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, bufferPages: false });
-  doc.pipe(res);
-  drawPdfReport(doc, reportLabel, shipments);
-  doc.end();
+  res.setHeader("Content-Length", String(pdf.length));
+  res.end(pdf);
 }
 
 router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, async (req, res) => {

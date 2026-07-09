@@ -823,7 +823,7 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => setIsMobileNavOpen(true)}
-            className="md:hidden p-2 -ml-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            className="lg:hidden p-2 -ml-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
             aria-label="Open navigation"
           >
             <Menu size={20} />
@@ -858,15 +858,15 @@ export default function Dashboard() {
       <div className="flex flex-1 min-h-0">
         {isMobileNavOpen && (
           <div
-            className="fixed inset-0 bg-black/40 z-40 md:hidden"
+            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
             onClick={() => setIsMobileNavOpen(false)}
           />
         )}
         {/* Left sidebar */}
-        <aside className={`fixed md:sticky top-14 left-0 z-50 md:z-auto w-64 md:w-56 shrink-0 bg-white border-r border-border flex flex-col h-[calc(100vh-3.5rem)] shadow-xl md:shadow-sm transition-transform duration-200 ease-out ${
-          isMobileNavOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        <aside className={`fixed lg:sticky top-14 left-0 z-50 lg:z-auto w-64 lg:w-56 shrink-0 bg-white border-r border-border flex flex-col h-[calc(100vh-3.5rem)] shadow-xl lg:shadow-sm transition-transform duration-200 ease-out ${
+          isMobileNavOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}>
-          <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-border">
             <span className="font-bold text-secondary text-sm">Menu</span>
             <button
               type="button"
