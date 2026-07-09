@@ -6,7 +6,11 @@ import { requireAuth } from "../middlewares/auth";
 const router = Router();
 
 const activeShipmentSql = sql`NOT (
-  lower(${shipmentsTable.status}) LIKE '%offloaded%'
+  lower(${shipmentsTable.status}) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'Source Section', '')) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'sourceSection', '')) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'Section', '')) LIKE '%completed%'
+  OR lower(${shipmentsTable.status}) LIKE '%offloaded%'
   OR lower(trim(${shipmentsTable.status})) = 'mt'
   OR lower(${shipmentsTable.status}) LIKE 'mt %'
   OR lower(${shipmentsTable.status}) LIKE '%mt turn%'

@@ -118,6 +118,7 @@ function pushTextChange(changes: ChangeLogEntry[], field: string, oldValue: unkn
 function isIgnoredShipmentStatus(status: unknown): boolean {
   const normalized = String(status ?? "").trim().toLowerCase();
   if (!normalized) return false;
+  if (normalized.includes("completed")) return true;
   if (normalized.includes("offloaded")) return true;
   if (normalized === "mt") return true;
   if (normalized.startsWith("mt ")) return true;
@@ -126,11 +127,39 @@ function isIgnoredShipmentStatus(status: unknown): boolean {
 }
 
 const activeShipmentSql = sql`NOT (
-  lower(${shipmentsTable.status}) LIKE '%offloaded%'
+  lower(${shipmentsTable.status}) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'Source Section', '')) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'sourceSection', '')) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'Section', '')) LIKE '%completed%'
+  OR lower(${shipmentsTable.status}) LIKE '%offloaded%'
   OR lower(trim(${shipmentsTable.status})) = 'mt'
   OR lower(${shipmentsTable.status}) LIKE 'mt %'
   OR lower(${shipmentsTable.status}) LIKE '%mt turn%'
 )`;
+
+async function pruneCompletedShipments(): Promise<number> {
+  await pool.query(`
+    DELETE FROM shipment_change_logs
+    WHERE lower(coalesce(status, '')) LIKE '%completed%'
+       OR lower(coalesce(changes::text, '')) LIKE '%completed%'
+       OR shipment_id IN (
+        SELECT id FROM shipments
+        WHERE lower(status) LIKE '%completed%'
+           OR lower(coalesce(extra_fields->>'Source Section', '')) LIKE '%completed%'
+           OR lower(coalesce(extra_fields->>'sourceSection', '')) LIKE '%completed%'
+           OR lower(coalesce(extra_fields->>'Section', '')) LIKE '%completed%'
+      )
+  `);
+
+  const result = await pool.query(`
+    DELETE FROM shipments
+    WHERE lower(status) LIKE '%completed%'
+       OR lower(coalesce(extra_fields->>'Source Section', '')) LIKE '%completed%'
+       OR lower(coalesce(extra_fields->>'sourceSection', '')) LIKE '%completed%'
+       OR lower(coalesce(extra_fields->>'Section', '')) LIKE '%completed%'
+  `);
+  return result.rowCount ?? 0;
+}
 
 // Expanded field map — covers many real-world Excel column name variations
 const FIELD_MAP: Record<string, string> = {
@@ -721,6 +750,8 @@ router.post("/staff/upload", requireAuth, requireStaff, upload.array("files"), a
   const files = req.files as Express.Multer.File[] | undefined;
   if (!files || files.length === 0) { res.status(400).json({ error: "No files provided" }); return; }
 
+  await pruneCompletedShipments();
+
   let totalRows = 0, newRecords = 0, updatedRecords = 0, failedRows = 0;
   const allFailureReasons: string[] = [];
   const allDetectedHeaders: Set<string> = new Set();
@@ -811,6 +842,8 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
   }
 
   if (workbook.worksheets.length === 0) { res.status(400).json({ error: "No worksheet found in file" }); return; }
+
+  await pruneCompletedShipments();
 
   const [uploadRecord] = await db.insert(uploadsTable).values({
     filename: file.originalname,

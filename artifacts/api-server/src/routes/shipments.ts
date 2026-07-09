@@ -6,7 +6,11 @@ import type { AuthPayload } from "../middlewares/auth";
 
 // Statuses that are closed/archived — hidden from public tracking
 const activeShipmentSql = sql`NOT (
-  lower(${shipmentsTable.status}) LIKE '%offloaded%'
+  lower(${shipmentsTable.status}) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'Source Section', '')) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'sourceSection', '')) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'Section', '')) LIKE '%completed%'
+  OR lower(${shipmentsTable.status}) LIKE '%offloaded%'
   OR lower(trim(${shipmentsTable.status})) = 'mt'
   OR lower(${shipmentsTable.status}) LIKE 'mt %'
   OR lower(${shipmentsTable.status}) LIKE '%mt turn%'
@@ -14,7 +18,7 @@ const activeShipmentSql = sql`NOT (
 
 function isIgnoredShipmentStatus(status: unknown): boolean {
   const normalized = String(status ?? "").trim().toLowerCase();
-  return normalized.includes("offloaded") || normalized === "mt" || normalized.startsWith("mt ") || normalized.includes("mt turn");
+  return normalized.includes("completed") || normalized.includes("offloaded") || normalized === "mt" || normalized.startsWith("mt ") || normalized.includes("mt turn");
 }
 
 const router = Router();

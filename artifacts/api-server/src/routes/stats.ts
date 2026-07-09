@@ -35,6 +35,7 @@ function sectionLabelForShipment(shipment: { status: string; extraFields: unknow
 function isIgnoredShipmentStatus(status: unknown): boolean {
   const normalized = String(status ?? "").trim().toLowerCase();
   if (!normalized) return false;
+  if (normalized.includes("completed")) return true;
   if (normalized.includes("offloaded")) return true;
   if (normalized === "mt") return true;
   if (normalized.startsWith("mt ")) return true;
@@ -43,7 +44,11 @@ function isIgnoredShipmentStatus(status: unknown): boolean {
 }
 
 const activeShipmentSql = sql`NOT (
-  lower(${shipmentsTable.status}) LIKE '%offloaded%'
+  lower(${shipmentsTable.status}) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'Source Section', '')) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'sourceSection', '')) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'Section', '')) LIKE '%completed%'
+  OR lower(${shipmentsTable.status}) LIKE '%offloaded%'
   OR lower(trim(${shipmentsTable.status})) = 'mt'
   OR lower(${shipmentsTable.status}) LIKE 'mt %'
   OR lower(${shipmentsTable.status}) LIKE '%mt turn%'
@@ -344,6 +349,8 @@ router.get("/stats/recent-activity", requireAuth, async (_req, res) => {
      FROM shipment_change_logs l
      LEFT JOIN shipments s ON s.id = l.shipment_id
      WHERE l.upload_batch_id = $1
+       AND lower(coalesce(l.status, '')) NOT LIKE '%completed%'
+       AND lower(coalesce(l.changes::text, '')) NOT LIKE '%completed%'
      ORDER BY l.created_at DESC, l.id DESC
      LIMIT 50`,
     [latestUpload.id],
