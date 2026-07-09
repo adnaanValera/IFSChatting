@@ -192,11 +192,12 @@ export interface ShipmentCardProps {
     lastUpdated?: string;
     extraFields?: Record<string, unknown> | null;
   };
+  statusChange?: { oldValue: string; newValue: string };
   index?: number;
   defaultOpen?: boolean;
 }
 
-export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: ShipmentCardProps) {
+export function ShipmentCard({ shipment: s, statusChange, index = 0, defaultOpen = false }: ShipmentCardProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const variant = resolveVariant(s.extraFields);
   const theme = T[variant];
@@ -252,7 +253,14 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
 
           {/* Right: status + chevron */}
           <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 w-full sm:w-auto">
-            <StatusPill status={s.status} theme={theme} />
+            <div className="flex flex-col items-end gap-1">
+              <StatusPill status={s.status} theme={theme} />
+              {statusChange && (
+                <span className="text-[11px] font-semibold text-white/70">
+                  {statusChange.oldValue} -&gt; {statusChange.newValue}
+                </span>
+              )}
+            </div>
             <div
               className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
             >
@@ -322,7 +330,14 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
                   </p>
                 </div>
 
-                <StatusPill status={s.status} theme={theme} />
+                <div className="flex flex-col items-start sm:items-end gap-1">
+                  <StatusPill status={s.status} theme={theme} />
+                  {statusChange && (
+                    <span className="text-[11px] font-semibold text-white/70">
+                      {statusChange.oldValue} -&gt; {statusChange.newValue}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -423,6 +438,11 @@ export function ShipmentCard({ shipment: s, index = 0, defaultOpen = false }: Sh
                   Status
                 </p>
                 <StatusPill status={s.status} theme={theme} large />
+                {statusChange && (
+                  <p className="text-center text-xs font-semibold text-zinc-300 mt-3">
+                    {statusChange.oldValue} -&gt; {statusChange.newValue}
+                  </p>
+                )}
                 {s.lastUpdated && (
                   <p className="text-center text-[10px] text-zinc-600 mt-3">
                     Last updated · {formatDate(s.lastUpdated)}

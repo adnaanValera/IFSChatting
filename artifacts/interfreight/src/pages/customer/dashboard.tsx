@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useGetMe, useListShipments } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStaffLogout } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import {
@@ -43,11 +43,42 @@ function reportDateStamp(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+type StatusNotification = {
+  ifsRef?: string | null;
+  message?: string | null;
+};
+
+function authFetch(path: string, options: RequestInit = {}) {
+  const token = localStorage.getItem("intf_token");
+  return fetch(path, {
+    ...options,
+    headers: {
+      ...(options.headers ?? {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
+
+function parseStatusChange(message?: string | null): { oldValue: string; newValue: string } | undefined {
+  const match = String(message ?? "").match(/status changed:\s*(.*?)\s*->\s*(.*?)\.\s*Tap/i);
+  if (!match) return undefined;
+  return { oldValue: match[1]?.trim() || "N/A", newValue: match[2]?.trim() || "N/A" };
+}
+
 export default function CustomerDashboard() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { data: user, isLoading: userLoading } = useGetMe();
   const { data: shipmentsPage, isLoading: shipmentsLoading } = useListShipments({ limit: 200 });
+  const { data: notifications = [] } = useQuery<StatusNotification[]>({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const r = await authFetch("/api/notifications");
+      if (!r.ok) return [];
+      return r.json();
+    },
+    retry: false,
+  });
   const logoutMutation = useStaffLogout();
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
@@ -100,6 +131,12 @@ export default function CustomerDashboard() {
 
   const typedUser = user as any;
   const shipments = shipmentsPage?.items ?? [];
+  const statusChangesByIfsRef = new Map<string, { oldValue: string; newValue: string }>();
+  for (const notification of notifications) {
+    if (!notification.ifsRef || statusChangesByIfsRef.has(notification.ifsRef)) continue;
+    const change = parseStatusChange(notification.message);
+    if (change) statusChangesByIfsRef.set(notification.ifsRef, change);
+  }
   const sectionRows = STATUS_SECTIONS.map((section) => ({
     ...section,
     rows: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === section.reportLabel),
@@ -207,7 +244,12 @@ export default function CustomerDashboard() {
                   </div>
                 ) : (
                   section.rows.map((s: any, index: number) => (
-                    <ShipmentCard key={s.id} shipment={s} index={index} />
+                    <ShipmentCard
+                      key={s.id}
+                      shipment={s}
+                      statusChange={statusChangesByIfsRef.get(s.ifsRef)}
+                      index={index}
+                    />
                   ))
                 )}
               </section>

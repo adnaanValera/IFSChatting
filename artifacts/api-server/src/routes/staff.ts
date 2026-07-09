@@ -115,22 +115,6 @@ function pushTextChange(changes: ChangeLogEntry[], field: string, oldValue: unkn
   }
 }
 
-function extraText(extraFields: unknown, key: string): string | undefined {
-  const extra = (extraFields as Record<string, unknown>) ?? {};
-  const value = extra[key];
-  return value === undefined || value === null || String(value).trim() === "" ? undefined : String(value).trim();
-}
-
-function sectionChangeLabel(value: unknown): string {
-  const text = displayText(value);
-  if (/completed/i.test(text)) return "Shipments Completed";
-  return text;
-}
-
-function isCompletedRecord(record: { status?: string; extraFields?: Record<string, unknown> }): boolean {
-  return /completed/i.test(String(record.status ?? "")) || /completed/i.test(String(record.extraFields?.["Source Section"] ?? ""));
-}
-
 function isIgnoredShipmentStatus(status: unknown): boolean {
   const normalized = String(status ?? "").trim().toLowerCase();
   if (!normalized) return false;
@@ -298,6 +282,45 @@ function shipmentBlManifest(shipment: { extraFields?: unknown }): string {
   );
 }
 
+function shipmentIdentifier(record: {
+  ifsRef?: string;
+  containerNo?: string | null;
+  extraFields?: Record<string, unknown> | unknown;
+}): string {
+  const extra = (record.extraFields as Record<string, unknown>) ?? {};
+  return displayText(
+    extra["BL / Manifest No."] ??
+    extra["BL/Manifest No."] ??
+    extra["BL"] ??
+    record.containerNo ??
+    record.ifsRef,
+  );
+}
+
+async function notifyCustomersOfStatusChange(args: {
+  companyName: string;
+  ifsRef: string;
+  containerNo?: string | null;
+  extraFields?: Record<string, unknown>;
+  change: ChangeLogEntry;
+}): Promise<void> {
+  const customers = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(sql`lower(${usersTable.companyName}) = lower(${args.companyName})`);
+
+  for (const { id: userId } of customers) {
+    await db.insert(notificationsTable).values({
+      userId,
+      title: "Shipment Status Updated",
+      message: `${shipmentIdentifier(args)} status changed: ${args.change.oldValue} -> ${args.change.newValue}. Tap to view your dashboard.`,
+      ifsRef: args.ifsRef,
+      companyName: args.companyName,
+      status: args.change.newValue,
+    });
+  }
+}
+
 async function pruneUploadHistoryForFilename(filename: string): Promise<void> {
   const sameNameUploads = await db
     .select({ id: uploadsTable.id })
@@ -330,7 +353,6 @@ async function upsertShipment(record: {
   extraFields?: Record<string, unknown>;
   matchByContainer?: boolean; // when true, match by (ifsRef, containerNo) pair
 }): Promise<"new" | "updated" | "unchanged"> {
-  const completedRecord = isCompletedRecord(record);
   const ignoredRecord = isIgnoredShipmentStatus(record.status);
   const exactWhereClause = (record.matchByContainer && record.containerNo)
     ? and(eq(shipmentsTable.ifsRef, record.ifsRef), eq(shipmentsTable.containerNo, record.containerNo))
@@ -400,37 +422,7 @@ async function upsertShipment(record: {
       ? stableJson(current.extraFields) !== stableJson(record.extraFields)
       : false;
     const changes: ChangeLogEntry[] = [];
-    pushTextChange(changes, "MRA Ref", current.mraRef, record.mraRef);
-    pushTextChange(changes, "Container No.", current.containerNo, record.containerNo);
-    pushTextChange(changes, "Shipper", current.shipper, record.shipper);
-    pushTextChange(changes, "Consignee", current.consignee, record.consignee);
-    pushTextChange(changes, "Cargo Description", current.cargoDescription, record.cargoDescription);
-    pushTextChange(changes, "Invoice No.", current.invoiceNo, record.invoiceNo);
-    pushTextChange(changes, "POD", current.pod, record.pod);
-    pushTextChange(changes, "Entry", current.entry, record.entry);
-    pushTextChange(changes, "Final Port Destination", current.finalPortDestination, record.finalPortDestination);
     pushTextChange(changes, "Status", current.status, record.status);
-    pushTextChange(changes, "Company", current.companyName, record.companyName);
-    if (extraFieldsChanged) {
-      const oldSection = extraText(current.extraFields, "Source Section");
-      const newSection = extraText(record.extraFields, "Source Section");
-      if (!sameText(oldSection, newSection)) {
-        changes.push({
-          field: "Section",
-          oldValue: sectionChangeLabel(oldSection),
-          newValue: sectionChangeLabel(newSection),
-        });
-      }
-      const oldType = extraText(current.extraFields, "Type");
-      const newType = extraText(record.extraFields, "Type");
-      if (!sameText(oldType, newType)) pushTextChange(changes, "Type", oldType, newType);
-      const oldBl = extraText(current.extraFields, "BL / Manifest No.");
-      const newBl = extraText(record.extraFields, "BL / Manifest No.");
-      if (!sameText(oldBl, newBl)) pushTextChange(changes, "BL / Manifest No.", oldBl, newBl);
-      const oldAgent = extraText(current.extraFields, "Agent");
-      const newAgent = extraText(record.extraFields, "Agent");
-      if (!sameText(oldAgent, newAgent)) pushTextChange(changes, "Agent", oldAgent, newAgent);
-    }
     const hasChanges = extraFieldsChanged
       || !sameText(current.mraRef, record.mraRef)
       || !sameText(current.containerNo, record.containerNo)
@@ -446,27 +438,6 @@ async function upsertShipment(record: {
 
     if (!hasChanges) return "unchanged";
 
-    if (completedRecord) {
-      if (!changes.some((change) => change.field === "Section")) {
-        changes.push({
-          field: "Section",
-          oldValue: sectionChangeLabel(extraText(current.extraFields, "Source Section")),
-          newValue: "Shipments Completed",
-        });
-      }
-      await recordShipmentChangeLog({
-        shipmentId: existing[0].id,
-        uploadBatchId: record.uploadBatchId,
-        changeType: "updated",
-        ifsRef: current.ifsRef,
-        companyName: current.companyName,
-        status: "Shipments Completed",
-        changes,
-      });
-      await db.delete(shipmentsTable).where(eq(shipmentsTable.id, existing[0].id));
-      return "updated";
-    }
-
     await db.update(shipmentsTable).set({
       mraRef: record.mraRef, containerNo: record.containerNo,
       shipper: record.shipper, consignee: record.consignee,
@@ -478,20 +449,34 @@ async function upsertShipment(record: {
       ...(record.extraFields !== undefined ? { extraFields: record.extraFields } : {}),
       lastUpdated: new Date(),
     }).where(eq(shipmentsTable.id, existing[0].id));
-    await recordShipmentChangeLog({
-      shipmentId: existing[0].id,
-      uploadBatchId: record.uploadBatchId,
-      changeType: "updated",
-      ifsRef: record.ifsRef,
-      companyName: record.companyName,
-      status: record.status,
-      changes,
-    });
+    if (changes.length > 0) {
+      const statusChange = changes[0];
+      if (!statusChange) return "updated";
+      await recordShipmentChangeLog({
+        shipmentId: existing[0].id,
+        uploadBatchId: record.uploadBatchId,
+        changeType: "updated",
+        ifsRef: record.ifsRef,
+        companyName: record.companyName,
+        status: record.status,
+        changes,
+      });
+      try {
+        await notifyCustomersOfStatusChange({
+          companyName: record.companyName,
+          ifsRef: record.ifsRef,
+          containerNo: record.containerNo,
+          extraFields: record.extraFields,
+          change: statusChange,
+        });
+      } catch (notifErr) {
+        logger.warn({ notifErr, ifsRef: record.ifsRef }, "Failed to create status-change notification");
+      }
+    }
     return "updated";
   }
 
   if (ignoredRecord) return "unchanged";
-  if (completedRecord) return "unchanged";
 
   const [inserted] = await db.insert(shipmentsTable).values(record).returning({ id: shipmentsTable.id });
   await recordShipmentChangeLog({
@@ -636,15 +621,13 @@ export async function parseMasterWorksheet(
     if (blManifest) extraFields["BL / Manifest No."] = blManifest;
     if (agent) extraFields["Agent"] = agent;
     if (currentSection) extraFields["Source Section"] = currentSection;
-    const sectionText = currentSection ?? defaultSection ?? "";
-    const finalStatus = /completed/i.test(sectionText) ? "Shipments Completed" : (status ?? "In Transit");
 
     totalRows++;
     try {
       const result = await upsertShipment({
         ifsRef: finalIfsRef, mraRef, shipper, consignee, containerNo,
         cargoDescription: cargoDesc, invoiceNo, pod, entry,
-        finalPortDestination: fpd, status: finalStatus,
+        finalPortDestination: fpd, status: status ?? "In Transit",
         companyName, uploadBatchId,
         extraFields: Object.keys(extraFields).length > 0 ? extraFields : undefined,
         matchByContainer: true, // distinguish multiple containers per IFS ref
@@ -792,36 +775,6 @@ router.post("/staff/upload", requireAuth, requireStaff, upload.array("files"), a
     }).where(eq(uploadsTable.id, uploadRecord.id));
     await pruneUploadHistoryForFilename(file.originalname);
 
-    // Notify affected customers
-    try {
-      const processed = await db
-        .selectDistinct({ companyName: shipmentsTable.companyName })
-        .from(shipmentsTable)
-        .where(eq(shipmentsTable.uploadBatchId, uploadRecord.id));
-
-      for (const { companyName } of processed) {
-        const customers = await db
-          .select({ id: usersTable.id })
-          .from(usersTable)
-          .where(sql`lower(${usersTable.companyName}) = lower(${companyName})`);
-
-        for (const { id: userId } of customers) {
-          const parts: string[] = [];
-          if (result.newRecords > 0) parts.push(`${result.newRecords} new`);
-          if (result.updatedRecords > 0) parts.push(`${result.updatedRecords} updated`);
-          const summary = parts.length > 0 ? parts.join(" and ") + " shipment" + (result.newRecords + result.updatedRecords !== 1 ? "s" : "") : "shipments";
-          await db.insert(notificationsTable).values({
-            userId,
-            title: "Shipment Status Updated",
-            message: `A new status report has been uploaded for ${companyName}: ${summary}. Tap to view your dashboard.`,
-            companyName,
-          });
-        }
-      }
-    } catch (notifErr) {
-      logger.warn({ notifErr }, "Failed to create customer notifications after upload");
-    }
-
     totalRows += result.totalRows;
     newRecords += result.newRecords;
     updatedRecords += result.updatedRecords;
@@ -878,7 +831,13 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
   };
   const consigneeSet = new Set<string>();
 
-  for (const sheet of workbook.worksheets) {
+  const activeWorksheets = workbook.worksheets.filter((sheet) => !/completed/i.test(sheet.name));
+  if (activeWorksheets.length === 0) {
+    res.status(400).json({ error: "No active worksheet found. Shipments completed sheets are ignored." });
+    return;
+  }
+
+  for (const sheet of activeWorksheets) {
     const sheetResult = await parseMasterWorksheet(sheet, uploadRecord.id, sheet.name);
     result.totalRows += sheetResult.totalRows;
     result.newRecords += sheetResult.newRecords;
