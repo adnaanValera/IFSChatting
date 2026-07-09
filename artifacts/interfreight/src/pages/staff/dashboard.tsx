@@ -80,7 +80,7 @@ function reportDateStamp(): string {
 const STATUS_SECTIONS = [
   { label: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
   { label: "SHIPMENTS ENROUTE",   statuses: ["In Transit", "Enroute LLW", "Enroute BLZ", "Enroute"] },
-  { label: "SHIPMENTS AT POD",    statuses: ["At Port", "Offloading", "Offloaded"] },
+  { label: "SHIPMENTS AT POD",    statuses: ["At Port", "Offloading"] },
   { label: "SHIPMENTS ON SEA",    statuses: ["Delayed", "On Sea", "At Sea"] },
 ];
 

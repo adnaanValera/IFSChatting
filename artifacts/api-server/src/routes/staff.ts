@@ -131,6 +131,23 @@ function isCompletedRecord(record: { status?: string; extraFields?: Record<strin
   return /completed/i.test(String(record.status ?? "")) || /completed/i.test(String(record.extraFields?.["Source Section"] ?? ""));
 }
 
+function isIgnoredShipmentStatus(status: unknown): boolean {
+  const normalized = String(status ?? "").trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized.includes("offloaded")) return true;
+  if (normalized === "mt") return true;
+  if (normalized.startsWith("mt ")) return true;
+  if (normalized.includes("mt turn")) return true;
+  return false;
+}
+
+const activeShipmentSql = sql`NOT (
+  lower(${shipmentsTable.status}) LIKE '%offloaded%'
+  OR lower(trim(${shipmentsTable.status})) = 'mt'
+  OR lower(${shipmentsTable.status}) LIKE 'mt %'
+  OR lower(${shipmentsTable.status}) LIKE '%mt turn%'
+)`;
+
 // Expanded field map — covers many real-world Excel column name variations
 const FIELD_MAP: Record<string, string> = {
   // IFS Ref
@@ -314,6 +331,7 @@ async function upsertShipment(record: {
   matchByContainer?: boolean; // when true, match by (ifsRef, containerNo) pair
 }): Promise<"new" | "updated" | "unchanged"> {
   const completedRecord = isCompletedRecord(record);
+  const ignoredRecord = isIgnoredShipmentStatus(record.status);
   const exactWhereClause = (record.matchByContainer && record.containerNo)
     ? and(eq(shipmentsTable.ifsRef, record.ifsRef), eq(shipmentsTable.containerNo, record.containerNo))
     : eq(shipmentsTable.ifsRef, record.ifsRef);
@@ -374,6 +392,10 @@ async function upsertShipment(record: {
 
   if (existing.length > 0) {
     const current = existing[0];
+    if (ignoredRecord) {
+      await db.delete(shipmentsTable).where(eq(shipmentsTable.id, existing[0].id));
+      return "updated";
+    }
     const extraFieldsChanged = record.extraFields !== undefined
       ? stableJson(current.extraFields) !== stableJson(record.extraFields)
       : false;
@@ -468,6 +490,7 @@ async function upsertShipment(record: {
     return "updated";
   }
 
+  if (ignoredRecord) return "unchanged";
   if (completedRecord) return "unchanged";
 
   const [inserted] = await db.insert(shipmentsTable).values(record).returning({ id: shipmentsTable.id });
@@ -1080,7 +1103,7 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
 const SECTION_MAP: { label: string; statuses: string[] }[] = [
   { label: "SHIPMENTS IN MALAWI",  statuses: ["Delivered", "Awaiting Clearance"] },
   { label: "SHIPMENTS ENROUTE",    statuses: ["In Transit", "Enroute LLW", "Enroute BLZ", "Enroute"] },
-  { label: "SHIPMENTS AT POD",     statuses: ["At Port", "Offloading", "Offloaded"] },
+  { label: "SHIPMENTS AT POD",     statuses: ["At Port", "Offloading"] },
   { label: "SHIPMENTS ON SEA",     statuses: ["Delayed", "On Sea", "At Sea"] },
 ];
 
@@ -1684,7 +1707,7 @@ function streamCompanyReportPdf(
 
 router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, async (req, res) => {
   const companyName = decodeURIComponent(req.params["company"] as string);
-  const shipments = await db.select().from(shipmentsTable).where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`).orderBy(asc(shipmentsTable.ifsRef));
+  const shipments = await db.select().from(shipmentsTable).where(and(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`, activeShipmentSql)).orderBy(asc(shipmentsTable.ifsRef));
   const template = await getReportTemplate();
   const wb = await generateCompanyReportWorkbook(companyName, shipments, template?.buffer ?? null);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -1696,7 +1719,7 @@ router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, as
 router.get("/staff/company-report/:company/pdf", requireAuth, requireStaff, async (req, res) => {
   try {
     const companyName = decodeURIComponent(req.params["company"] as string);
-    const shipments = await db.select().from(shipmentsTable).where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`).orderBy(asc(shipmentsTable.ifsRef));
+    const shipments = await db.select().from(shipmentsTable).where(and(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`, activeShipmentSql)).orderBy(asc(shipmentsTable.ifsRef));
     streamCompanyReportPdf(res, companyName, `Status Report - ${companyName} (${todayString()}).pdf`, shipments);
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : "PDF generation failed");
@@ -1715,7 +1738,7 @@ router.get("/customer/company-report/pdf", requireAuth, async (req, res) => {
     const shipments = await db
       .select()
       .from(shipmentsTable)
-      .where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`)
+      .where(and(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`, activeShipmentSql))
       .orderBy(asc(shipmentsTable.ifsRef));
 
     streamCompanyReportPdf(res, companyName, `Status Report - ${companyName} (${todayString()}).pdf`, shipments);
@@ -1741,10 +1764,12 @@ router.get("/staff/company-report/:company/consignee/:consignee/excel", requireA
         ? and(
             sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`,
             or(eq(shipmentsTable.consignee, ""), isNull(shipmentsTable.consignee)),
+            activeShipmentSql,
           )
         : and(
             sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`,
             sql`lower(${shipmentsTable.consignee}) = lower(${consigneeName})`,
+            activeShipmentSql,
           ),
     )
     .orderBy(asc(shipmentsTable.ifsRef));
@@ -1772,10 +1797,12 @@ router.get("/staff/company-report/:company/consignee/:consignee/pdf", requireAut
           ? and(
               sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`,
               or(eq(shipmentsTable.consignee, ""), isNull(shipmentsTable.consignee)),
+              activeShipmentSql,
             )
           : and(
               sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`,
               sql`lower(${shipmentsTable.consignee}) = lower(${consigneeName})`,
+              activeShipmentSql,
             ),
       )
       .orderBy(asc(shipmentsTable.ifsRef));
@@ -1794,6 +1821,7 @@ router.get("/staff/all-reports-zip", requireAuth, requireStaff, async (_req, res
   const companies = await db
     .select({ companyName: sql<string>`min(${shipmentsTable.companyName})` })
     .from(shipmentsTable)
+    .where(activeShipmentSql)
     .groupBy(sql`lower(${shipmentsTable.companyName})`)
     .orderBy(sql`min(${shipmentsTable.companyName})`);
 
@@ -1816,7 +1844,7 @@ router.get("/staff/all-reports-zip", requireAuth, requireStaff, async (_req, res
     const shipments = await db
       .select()
       .from(shipmentsTable)
-      .where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`)
+      .where(and(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`, activeShipmentSql))
       .orderBy(asc(shipmentsTable.ifsRef));
 
     const wb = await generateCompanyReportWorkbook(companyName, shipments, template?.buffer ?? null);

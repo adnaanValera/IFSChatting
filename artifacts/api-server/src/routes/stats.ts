@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, pool, shipmentsTable, companiesTable, uploadsTable } from "@workspace/db";
+import { db, pool, shipmentsTable, uploadsTable } from "@workspace/db";
 import { sql, eq, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
@@ -8,7 +8,7 @@ const router = Router();
 const SECTION_MAP: { label: string; statuses: string[] }[] = [
   { label: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
   { label: "SHIPMENTS ENROUTE", statuses: ["In Transit", "Enroute LLW", "Enroute BLZ", "Enroute"] },
-  { label: "SHIPMENTS AT POD", statuses: ["At Port", "Offloading", "Offloaded"] },
+  { label: "SHIPMENTS AT POD", statuses: ["At Port", "Offloading"] },
   { label: "SHIPMENTS ON SEA", statuses: ["Delayed", "On Sea", "At Sea"] },
 ];
 
@@ -31,6 +31,23 @@ function sectionLabelForShipment(shipment: { status: string; extraFields: unknow
     (st) => status.includes(st.toLowerCase()) || st.toLowerCase().includes(status),
   ))?.label ?? "OTHER SHIPMENTS";
 }
+
+function isIgnoredShipmentStatus(status: unknown): boolean {
+  const normalized = String(status ?? "").trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized.includes("offloaded")) return true;
+  if (normalized === "mt") return true;
+  if (normalized.startsWith("mt ")) return true;
+  if (normalized.includes("mt turn")) return true;
+  return false;
+}
+
+const activeShipmentSql = sql`NOT (
+  lower(${shipmentsTable.status}) LIKE '%offloaded%'
+  OR lower(trim(${shipmentsTable.status})) = 'mt'
+  OR lower(${shipmentsTable.status}) LIKE 'mt %'
+  OR lower(${shipmentsTable.status}) LIKE '%mt turn%'
+)`;
 
 function extraValue(extraFields: unknown, ...keys: string[]): string {
   const extra = (extraFields as Record<string, unknown>) ?? {};
@@ -132,19 +149,24 @@ function shipmentIdentifier(shipment: { containerNo: string | null; extraFields:
 }
 
 router.get("/stats/dashboard", requireAuth, async (_req, res) => {
-  const [companiesCount] = await db.select({ count: sql<number>`count(*)::int` }).from(companiesTable);
-  const [shipmentsCount] = await db.select({ count: sql<number>`count(*)::int` }).from(shipmentsTable);
+  const [companiesCount] = await db
+    .select({ count: sql<number>`count(DISTINCT lower(${shipmentsTable.companyName}))::int` })
+    .from(shipmentsTable)
+    .where(activeShipmentSql);
+  const [shipmentsCount] = await db.select({ count: sql<number>`count(*)::int` }).from(shipmentsTable).where(activeShipmentSql);
 
   const statusCounts = await db
     .select({ status: shipmentsTable.status, count: sql<number>`count(*)::int` })
     .from(shipmentsTable)
+    .where(activeShipmentSql)
     .groupBy(shipmentsTable.status);
 
   const counts = Object.fromEntries(statusCounts.map((s) => [s.status, s.count]));
   const sectionCounts = Object.fromEntries(SECTION_MAP.map((section) => [section.label, 0]));
   const sectionRows = await db
     .select({ status: shipmentsTable.status, extraFields: shipmentsTable.extraFields })
-    .from(shipmentsTable);
+    .from(shipmentsTable)
+    .where(activeShipmentSql);
 
   for (const shipment of sectionRows) {
     const label = sectionLabelForShipment(shipment);
@@ -191,7 +213,8 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
       entry: shipmentsTable.entry,
       extraFields: shipmentsTable.extraFields,
     })
-    .from(shipmentsTable);
+    .from(shipmentsTable)
+    .where(activeShipmentSql);
 
   const mapBase = (shipment: typeof shipments[number]) => ({
     id: shipment.id,
@@ -238,9 +261,11 @@ router.get("/stats/status-breakdown", requireAuth, async (_req, res) => {
       cargoDescription: shipmentsTable.cargoDescription,
       extraFields: shipmentsTable.extraFields,
     })
-    .from(shipmentsTable);
+    .from(shipmentsTable)
+    .where(activeShipmentSql);
 
   for (const shipment of shipments) {
+    if (isIgnoredShipmentStatus(shipment.status)) continue;
     const label = sectionLabelForShipment(shipment);
     if (label in sectionCounts) {
       sectionCounts[label] += 1;

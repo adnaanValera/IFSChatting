@@ -1,11 +1,21 @@
 import { Router } from "express";
 import { db, shipmentsTable, companiesTable, usersTable } from "@workspace/db";
-import { eq, ilike, or, sql, desc, and, notInArray } from "drizzle-orm";
-
-// Statuses that are closed/archived — hidden from public tracking
-const HIDDEN_STATUSES = ["Offloaded", "Mt turn in"];
+import { eq, ilike, or, sql, desc, and } from "drizzle-orm";
 import { optionalAuth, requireAuth, requireStaff } from "../middlewares/auth";
 import type { AuthPayload } from "../middlewares/auth";
+
+// Statuses that are closed/archived — hidden from public tracking
+const activeShipmentSql = sql`NOT (
+  lower(${shipmentsTable.status}) LIKE '%offloaded%'
+  OR lower(trim(${shipmentsTable.status})) = 'mt'
+  OR lower(${shipmentsTable.status}) LIKE 'mt %'
+  OR lower(${shipmentsTable.status}) LIKE '%mt turn%'
+)`;
+
+function isIgnoredShipmentStatus(status: unknown): boolean {
+  const normalized = String(status ?? "").trim().toLowerCase();
+  return normalized.includes("offloaded") || normalized === "mt" || normalized.startsWith("mt ") || normalized.includes("mt turn");
+}
 
 const router = Router();
 
@@ -26,8 +36,7 @@ router.get("/shipments", optionalAuth, async (req, res) => {
 
   const conditions = [];
 
-  // Always hide closed/archived statuses on the public endpoint
-  conditions.push(notInArray(shipmentsTable.status, HIDDEN_STATUSES));
+  conditions.push(activeShipmentSql);
 
   // Authenticated customers are locked to their own company — no exceptions
   if (role === "customer" && userCompany) {
@@ -91,7 +100,7 @@ router.get("/shipments/:id", optionalAuth, async (req, res) => {
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [shipment] = await db.select().from(shipmentsTable).where(eq(shipmentsTable.id, id)).limit(1);
-  if (!shipment || HIDDEN_STATUSES.includes(shipment.status)) {
+  if (!shipment || isIgnoredShipmentStatus(shipment.status)) {
     res.status(404).json({ error: "Not found" });
     return;
   }
