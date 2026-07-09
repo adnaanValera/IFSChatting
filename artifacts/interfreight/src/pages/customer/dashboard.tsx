@@ -39,6 +39,10 @@ function shipmentSectionLabel(shipment: any): string {
   ))?.reportLabel ?? "OTHER SHIPMENTS";
 }
 
+function reportDateStamp(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function CustomerDashboard() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -74,7 +78,7 @@ export default function CustomerDashboard() {
       const a = document.createElement("a");
       const companyName = String((user as any)?.companyName ?? "Company").replace(/[\/\\?%*:|"<>]/g, "-").trim() || "Company";
       a.href = url;
-      a.download = `Status Report - ${companyName}.pdf`;
+      a.download = `Status Report - ${companyName} (${reportDateStamp()}).pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

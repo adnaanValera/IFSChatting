@@ -112,34 +112,6 @@ function AnimatedStat({ value, label, index }: { value: string; label: string; i
   );
 }
 
-function RouteMotion() {
-  return (
-    <div className="mt-8 rounded-2xl border border-white/15 bg-white/10 px-5 py-4 backdrop-blur-sm">
-      <div className="flex items-center gap-3 text-white/80 text-xs font-semibold uppercase tracking-widest mb-3">
-        <span>South Africa</span>
-        <span className="text-primary">to</span>
-        <span>Malawi</span>
-      </div>
-      <div className="relative h-7">
-        <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/20" />
-        <motion.div
-          className="absolute left-0 top-1/2 h-px -translate-y-1/2 bg-primary shadow-[0_0_18px_rgba(240,78,35,0.75)]"
-          initial={{ width: "0%" }}
-          animate={{ width: ["0%", "100%", "100%"] }}
-          transition={{ duration: 3.2, repeat: Infinity, repeatDelay: 1.1, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-primary/60 bg-secondary text-primary shadow-[0_0_24px_rgba(240,78,35,0.45)]"
-          animate={{ left: ["0%", "calc(100% - 2.25rem)", "calc(100% - 2.25rem)"] }}
-          transition={{ duration: 3.2, repeat: Infinity, repeatDelay: 1.1, ease: "easeInOut" }}
-        >
-          <Truck size={16} />
-        </motion.div>
-      </div>
-    </div>
-  );
-}
-
 function StaffTracker() {
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
@@ -377,8 +349,6 @@ export default function Home() {
                 </Link>
               )}
             </div>
-
-            <RouteMotion />
 
             {/* ── Tracking login prompt — visible to guests & logged-in clients ── */}
             {(!role || role === "customer") && (

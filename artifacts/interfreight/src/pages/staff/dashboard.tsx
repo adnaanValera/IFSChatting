@@ -73,6 +73,10 @@ function safeReportName(value: string): string {
   return value.replace(/[\/\\?%*:|"<>]/g, "-").trim() || "Report";
 }
 
+function reportDateStamp(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 const STATUS_SECTIONS = [
   { label: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
   { label: "SHIPMENTS ENROUTE",   statuses: ["In Transit", "Enroute LLW", "Enroute BLZ", "Enroute"] },
@@ -411,7 +415,7 @@ export default function Dashboard() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `Status Report - ${safeReportName(companyName)} - ${safeReportName(consigneeName)}.${format === "pdf" ? "pdf" : "xlsx"}`;
+      a.href = url; a.download = `Status Report - ${safeReportName(companyName)} - ${safeReportName(consigneeName)} (${reportDateStamp()}).${format === "pdf" ? "pdf" : "xlsx"}`;
       document.body.appendChild(a); a.click();
       document.body.removeChild(a); URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -434,7 +438,7 @@ export default function Dashboard() {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `Status Report - ${safeReportName(name)}.${format === "pdf" ? "pdf" : "xlsx"}`;
+      a.href = url; a.download = `Status Report - ${safeReportName(name)} (${reportDateStamp()}).${format === "pdf" ? "pdf" : "xlsx"}`;
       document.body.appendChild(a); a.click();
       document.body.removeChild(a); URL.revokeObjectURL(url);
     } catch (err: any) {

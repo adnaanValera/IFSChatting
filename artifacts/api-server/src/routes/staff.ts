@@ -1354,7 +1354,7 @@ router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, as
   const template = await getReportTemplate();
   const wb = await generateCompanyReportWorkbook(companyName, shipments, template?.buffer ?? null);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName}.xlsx"`);
+  res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName} (${todayString()}).xlsx"`);
   await wb.xlsx.write(res);
   res.end();
 });
@@ -1363,7 +1363,7 @@ router.get("/staff/company-report/:company/pdf", requireAuth, requireStaff, asyn
   try {
     const companyName = decodeURIComponent(req.params["company"] as string);
     const shipments = await db.select().from(shipmentsTable).where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`).orderBy(asc(shipmentsTable.ifsRef));
-    streamCompanyReportPdf(res, companyName, `Status Report - ${companyName}.pdf`, shipments);
+    streamCompanyReportPdf(res, companyName, `Status Report - ${companyName} (${todayString()}).pdf`, shipments);
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : "PDF generation failed");
   }
@@ -1384,7 +1384,7 @@ router.get("/customer/company-report/pdf", requireAuth, async (req, res) => {
       .where(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`)
       .orderBy(asc(shipmentsTable.ifsRef));
 
-    streamCompanyReportPdf(res, companyName, `Status Report - ${companyName}.pdf`, shipments);
+    streamCompanyReportPdf(res, companyName, `Status Report - ${companyName} (${todayString()}).pdf`, shipments);
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : "PDF generation failed");
   }
@@ -1419,7 +1419,7 @@ router.get("/staff/company-report/:company/consignee/:consignee/excel", requireA
   const reportLabel = isUnspecified ? companyName : (shipments[0]?.consignee ?? consigneeName);
   const wb = await generateCompanyReportWorkbook(reportLabel, shipments, template?.buffer ?? null);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName} - ${reportLabel}.xlsx"`);
+  res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName} - ${reportLabel} (${todayString()}).xlsx"`);
   await wb.xlsx.write(res);
   res.end();
 });
@@ -1447,7 +1447,7 @@ router.get("/staff/company-report/:company/consignee/:consignee/pdf", requireAut
       .orderBy(asc(shipmentsTable.ifsRef));
 
     const reportLabel = isUnspecified ? companyName : (shipments[0]?.consignee ?? consigneeName);
-    streamCompanyReportPdf(res, reportLabel, `Status Report - ${companyName} - ${reportLabel}.pdf`, shipments);
+    streamCompanyReportPdf(res, reportLabel, `Status Report - ${companyName} - ${reportLabel} (${todayString()}).pdf`, shipments);
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : "PDF generation failed");
   }
@@ -1488,7 +1488,7 @@ router.get("/staff/all-reports-zip", requireAuth, requireStaff, async (_req, res
     const wb = await generateCompanyReportWorkbook(companyName, shipments, template?.buffer ?? null);
     const buf = await wb.xlsx.writeBuffer();
     const safeName = companyName.replace(/[/\\?%*:|"<>]/g, "-").trim();
-    arc.append(Buffer.from(buf), { name: `Status Report - ${safeName}.xlsx` });
+    arc.append(Buffer.from(buf), { name: `Status Report - ${safeName} (${dateStr}).xlsx` });
   }
 
   await arc.finalize();
