@@ -5,7 +5,7 @@ import { ZipArchive } from "archiver";
 import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs";
-import { db, pool, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable } from "@workspace/db";
+import { db, pool, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable, sessionsTable } from "@workspace/db";
 import { eq, asc, desc, and, or, isNull, sql } from "drizzle-orm";
 import { requireAuth, requireStaff, requireAdmin } from "../middlewares/auth";
 import { logger } from "../lib/logger";
@@ -1907,6 +1907,7 @@ router.delete("/staff/users/:id", requireAuth, requireAdmin, async (req, res) =>
   if (!validPassword) { res.status(401).json({ error: "Incorrect admin password" }); return; }
 
   await db.delete(notificationsTable).where(eq(notificationsTable.userId, id));
+  await db.delete(sessionsTable).where(eq(sessionsTable.userId, id));
   const deleted = await db.delete(usersTable).where(eq(usersTable.id, id)).returning({ id: usersTable.id });
   if (deleted.length === 0) { res.status(404).json({ error: "User not found" }); return; }
 
@@ -1936,6 +1937,7 @@ router.patch("/staff/users/:id/password", requireAuth, requireAdmin, async (req,
     .returning({ id: usersTable.id });
 
   if (updated.length === 0) { res.status(404).json({ error: "User not found" }); return; }
+  await db.update(sessionsTable).set({ revokedAt: new Date() }).where(eq(sessionsTable.userId, id));
 
   res.status(204).send();
 });

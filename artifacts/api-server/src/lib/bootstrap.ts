@@ -103,6 +103,17 @@ async function createTables() {
       updated_at timestamptz NOT NULL DEFAULT now()
     );
 
+    CREATE TABLE IF NOT EXISTS sessions (
+      id serial PRIMARY KEY,
+      user_id integer NOT NULL,
+      token_id text NOT NULL UNIQUE,
+      user_agent text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      last_seen_at timestamptz NOT NULL DEFAULT now(),
+      expires_at timestamptz NOT NULL,
+      revoked_at timestamptz
+    );
+
     CREATE TABLE IF NOT EXISTS report_templates (
       id integer PRIMARY KEY DEFAULT 1,
       content bytea NOT NULL,

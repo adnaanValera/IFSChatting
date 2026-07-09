@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, sessionsTable, usersTable } from "@workspace/db";
+import { and, eq, gt, isNull } from "drizzle-orm";
 
 const _secret = process.env.SESSION_SECRET;
 if (!_secret) {
@@ -14,15 +14,51 @@ export interface AuthPayload {
   email: string;
   role: string;
   companyName: string;
+  tokenId?: string;
 }
 
 /** Attaches user if token present, but never blocks the request. */
-export function optionalAuth(req: Request, res: Response, next: NextFunction) {
+export async function optionalAuth(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     try {
       const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as AuthPayload;
-      (req as Request & { user: AuthPayload }).user = payload;
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, payload.userId))
+        .limit(1);
+
+      if (!user) {
+        next();
+        return;
+      }
+
+      if (payload.tokenId) {
+        const [session] = await db
+          .select({ id: sessionsTable.id })
+          .from(sessionsTable)
+          .where(and(
+            eq(sessionsTable.tokenId, payload.tokenId),
+            eq(sessionsTable.userId, user.id),
+            isNull(sessionsTable.revokedAt),
+            gt(sessionsTable.expiresAt, new Date()),
+          ))
+          .limit(1);
+
+        if (!session) {
+          next();
+          return;
+        }
+      }
+
+      (req as Request & { user: AuthPayload }).user = {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        companyName: user.companyName,
+        tokenId: payload.tokenId,
+      };
     } catch { /* ignore invalid tokens */ }
   }
   next();
@@ -48,11 +84,32 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return;
     }
 
+    if (payload.tokenId) {
+      const [session] = await db
+        .select({ id: sessionsTable.id })
+        .from(sessionsTable)
+        .where(and(
+          eq(sessionsTable.tokenId, payload.tokenId),
+          eq(sessionsTable.userId, user.id),
+          isNull(sessionsTable.revokedAt),
+          gt(sessionsTable.expiresAt, new Date()),
+        ))
+        .limit(1);
+
+      if (!session) {
+        res.status(401).json({ error: "Session expired or logged out" });
+        return;
+      }
+
+      await db.update(sessionsTable).set({ lastSeenAt: new Date() }).where(eq(sessionsTable.id, session.id));
+    }
+
     (req as Request & { user: AuthPayload }).user = {
       userId: user.id,
       email: user.email,
       role: user.role,
       companyName: user.companyName,
+      tokenId: payload.tokenId,
     };
     next();
   } catch {
@@ -81,5 +138,5 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
 }
 
 export function signToken(payload: AuthPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: "180d" });
 }

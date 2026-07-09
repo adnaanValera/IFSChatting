@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { db, usersTable } from "@workspace/db";
+import { randomUUID } from "crypto";
+import { db, sessionsTable, usersTable } from "@workspace/db";
 import { eq, ilike } from "drizzle-orm";
 import { signToken, requireAuth } from "../middlewares/auth";
 
@@ -11,6 +12,27 @@ function roleFromCompanyName(companyName: string): "admin" | "staff" | "customer
   if (value === "m@h0medab00") return "admin";
   if (value === "!nterfre1g#t") return "staff";
   return "customer";
+}
+
+const SESSION_DAYS = 180;
+
+async function createDeviceSession(user: typeof usersTable.$inferSelect, userAgent?: string): Promise<string> {
+  const tokenId = randomUUID();
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  await db.insert(sessionsTable).values({
+    userId: user.id,
+    tokenId,
+    userAgent: userAgent?.slice(0, 300),
+    expiresAt,
+  });
+
+  return signToken({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    companyName: user.companyName,
+    tokenId,
+  });
 }
 
 // ── Register ──────────────────────────────────────────────────────────────────
@@ -51,12 +73,7 @@ router.post("/auth/register", async (req, res) => {
     })
     .returning();
 
-  const token = signToken({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    companyName: user.companyName,
-  });
+  const token = await createDeviceSession(user, req.get("user-agent"));
 
   res.status(201).json({
     token,
@@ -96,12 +113,7 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
 
-  const token = signToken({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    companyName: user.companyName,
-  });
+  const token = await createDeviceSession(user, req.get("user-agent"));
 
   res.json({
     token,
@@ -117,7 +129,14 @@ router.post("/auth/login", async (req, res) => {
 
 // ── Logout ────────────────────────────────────────────────────────────────────
 
-router.post("/auth/logout", (_req, res) => {
+router.post("/auth/logout", requireAuth, async (req, res) => {
+  const authReq = req as typeof req & { user: { tokenId?: string } };
+  if (authReq.user.tokenId) {
+    await db
+      .update(sessionsTable)
+      .set({ revokedAt: new Date() })
+      .where(eq(sessionsTable.tokenId, authReq.user.tokenId));
+  }
   res.status(204).send();
 });
 
