@@ -127,6 +127,10 @@ function sectionChangeLabel(value: unknown): string {
   return text;
 }
 
+function isCompletedRecord(record: { status?: string; extraFields?: Record<string, unknown> }): boolean {
+  return /completed/i.test(String(record.status ?? "")) || /completed/i.test(String(record.extraFields?.["Source Section"] ?? ""));
+}
+
 // Expanded field map — covers many real-world Excel column name variations
 const FIELD_MAP: Record<string, string> = {
   // IFS Ref
@@ -309,6 +313,7 @@ async function upsertShipment(record: {
   extraFields?: Record<string, unknown>;
   matchByContainer?: boolean; // when true, match by (ifsRef, containerNo) pair
 }): Promise<"new" | "updated" | "unchanged"> {
+  const completedRecord = isCompletedRecord(record);
   const exactWhereClause = (record.matchByContainer && record.containerNo)
     ? and(eq(shipmentsTable.ifsRef, record.ifsRef), eq(shipmentsTable.containerNo, record.containerNo))
     : eq(shipmentsTable.ifsRef, record.ifsRef);
@@ -419,6 +424,27 @@ async function upsertShipment(record: {
 
     if (!hasChanges) return "unchanged";
 
+    if (completedRecord) {
+      if (!changes.some((change) => change.field === "Section")) {
+        changes.push({
+          field: "Section",
+          oldValue: sectionChangeLabel(extraText(current.extraFields, "Source Section")),
+          newValue: "Shipments Completed",
+        });
+      }
+      await recordShipmentChangeLog({
+        shipmentId: existing[0].id,
+        uploadBatchId: record.uploadBatchId,
+        changeType: "updated",
+        ifsRef: current.ifsRef,
+        companyName: current.companyName,
+        status: "Shipments Completed",
+        changes,
+      });
+      await db.delete(shipmentsTable).where(eq(shipmentsTable.id, existing[0].id));
+      return "updated";
+    }
+
     await db.update(shipmentsTable).set({
       mraRef: record.mraRef, containerNo: record.containerNo,
       shipper: record.shipper, consignee: record.consignee,
@@ -441,6 +467,8 @@ async function upsertShipment(record: {
     });
     return "updated";
   }
+
+  if (completedRecord) return "unchanged";
 
   const [inserted] = await db.insert(shipmentsTable).values(record).returning({ id: shipmentsTable.id });
   await recordShipmentChangeLog({
