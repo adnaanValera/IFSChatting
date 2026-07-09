@@ -291,7 +291,7 @@ export default function Dashboard() {
   const [deletingFeedbackId, setDeletingFeedbackId] = useState<number | null>(null);
   const [expandedFeedback, setExpandedFeedback] = useState<number | null>(null);
   const [expandedStatusSection, setExpandedStatusSection] = useState<string | null>(null);
-  const [expandedOverviewPanel, setExpandedOverviewPanel] = useState<"nearby" | "checking" | "activity" | null>(null);
+  const [expandedOverviewPanel, setExpandedOverviewPanel] = useState<"nearby" | "checking" | "new" | "activity" | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
   const [sendingReply, setSendingReply] = useState<number | null>(null);
@@ -790,6 +790,9 @@ export default function Dashboard() {
 
   const unreadCount = feedback.filter((f) => f.status === "unread").length;
   const dashboardStats = stats as any;
+  const activityPayload = recentActivity as any;
+  const recentUpdates = Array.isArray(activityPayload) ? activityPayload : (activityPayload?.recentActivity ?? []);
+  const newConsignments = Array.isArray(activityPayload) ? [] : (activityPayload?.newConsignments ?? []);
   const sectionCount = (label: string) =>
     dashboardStats?.sectionCounts?.find((section: { label: string; count: number }) => section.label === label)?.count ?? 0;
   const overviewCards = [
@@ -1067,6 +1070,60 @@ export default function Dashboard() {
                   <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
                     <button
                       type="button"
+                      onClick={() => setExpandedOverviewPanel(prev => prev === "new" ? null : "new")}
+                      className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <Package size={18} className="text-primary shrink-0" />
+                        <span className="font-bold text-secondary truncate">New Consignments</span>
+                      </span>
+                      <span className="flex items-center gap-3 shrink-0">
+                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
+                          {newConsignments.length}
+                        </span>
+                        <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "new" ? "rotate-90" : ""}`} />
+                      </span>
+                    </button>
+                    {expandedOverviewPanel === "new" && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                          <thead className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
+                            <tr>
+                              <th className="px-5 py-3">Identifier</th>
+                              <th className="px-5 py-3">Consignee</th>
+                              <th className="px-5 py-3">Shipper</th>
+                              <th className="px-5 py-3">Description</th>
+                              <th className="px-5 py-3">Invoice</th>
+                              <th className="px-5 py-3">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {newConsignments.map((item: any) => (
+                              <tr key={item.id} className="hover:bg-muted/20 transition-colors">
+                                <td className="px-5 py-3.5 font-semibold text-secondary whitespace-nowrap">{item.identifier || item.containerNo || item.ifsRef}</td>
+                                <td className="px-5 py-3.5 text-muted-foreground">{item.consignee || item.companyName || "N/A"}</td>
+                                <td className="px-5 py-3.5 text-muted-foreground">{item.shipper || "N/A"}</td>
+                                <td className="px-5 py-3.5 text-muted-foreground min-w-[220px]">{item.cargoDescription || "N/A"}</td>
+                                <td className="px-5 py-3.5 text-muted-foreground">{item.invoiceNo || "N/A"}</td>
+                                <td className="px-5 py-3.5"><StatusBadge status={item.status || "New"} /></td>
+                              </tr>
+                            ))}
+                            {!newConsignments.length && (
+                              <tr>
+                                <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground text-sm">
+                                  No new consignments found in the latest upload
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                    <button
+                      type="button"
                       onClick={() => setExpandedOverviewPanel(prev => prev === "activity" ? null : "activity")}
                       className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
                     >
@@ -1076,7 +1133,7 @@ export default function Dashboard() {
                       </span>
                       <span className="flex items-center gap-3 shrink-0">
                         <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
-                          {recentActivity?.length ?? 0}
+                          {recentUpdates.length}
                         </span>
                         <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "activity" ? "rotate-90" : ""}`} />
                       </span>
@@ -1088,22 +1145,36 @@ export default function Dashboard() {
                             <tr>
                               <th className="px-5 py-3">Reference</th>
                               <th className="px-5 py-3">Company</th>
-                              <th className="px-5 py-3">Status</th>
+                              <th className="px-5 py-3">Changes</th>
                               <th className="px-5 py-3 text-right">Updated</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
-                            {recentActivity?.map((activity) => (
+                            {recentUpdates.map((activity: any) => (
                               <tr key={activity.id} className="hover:bg-muted/20 transition-colors">
                                 <td className="px-5 py-3.5 font-semibold text-secondary">{activity.ifsRef}</td>
                                 <td className="px-5 py-3.5 text-muted-foreground">{activity.companyName}</td>
-                                <td className="px-5 py-3.5"><StatusBadge status={activity.status} /></td>
+                                <td className="px-5 py-3.5 min-w-[260px]">
+                                  <div className="space-y-2">
+                                    {(activity.changes ?? []).slice(0, 4).map((change: any, index: number) => (
+                                      <div key={`${activity.id}-${change.field}-${index}`} className="text-xs">
+                                        <span className="font-semibold text-secondary">{change.field}: </span>
+                                        <span className="text-muted-foreground line-through decoration-muted-foreground/50">{change.oldValue || "N/A"}</span>
+                                        <ChevronRight size={12} className="inline mx-1 text-primary" />
+                                        <span className="font-semibold text-secondary">{change.newValue || "N/A"}</span>
+                                      </div>
+                                    ))}
+                                    {(activity.changes ?? []).length > 4 && (
+                                      <p className="text-xs text-muted-foreground">+{(activity.changes ?? []).length - 4} more change(s)</p>
+                                    )}
+                                  </div>
+                                </td>
                                 <td className="px-5 py-3.5 text-right text-muted-foreground whitespace-nowrap text-xs">
                                   {formatDate(activity.lastUpdated)}
                                 </td>
                               </tr>
                             ))}
-                            {!recentActivity?.length && (
+                            {!recentUpdates.length && (
                               <tr>
                                 <td colSpan={4} className="px-5 py-10 text-center text-muted-foreground text-sm">
                                   No changes found in the latest upload

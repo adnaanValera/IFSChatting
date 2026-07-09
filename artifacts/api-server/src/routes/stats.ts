@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, shipmentsTable, companiesTable, uploadsTable } from "@workspace/db";
+import { db, pool, shipmentsTable, companiesTable, uploadsTable } from "@workspace/db";
 import { sql, eq, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
@@ -281,24 +281,70 @@ router.get("/stats/recent-activity", requireAuth, async (_req, res) => {
     .limit(1);
 
   if (!latestUpload || latestUpload.newRecords + latestUpload.updatedRecords === 0) {
-    res.json([]);
+    res.json({ newConsignments: [], recentActivity: [] });
     return;
   }
 
-  const items = await db
-    .select({
-      id: shipmentsTable.id,
-      ifsRef: shipmentsTable.ifsRef,
-      companyName: shipmentsTable.companyName,
-      status: shipmentsTable.status,
-      lastUpdated: shipmentsTable.lastUpdated,
-      containerNo: shipmentsTable.containerNo,
-    })
-    .from(shipmentsTable)
-    .where(eq(shipmentsTable.uploadBatchId, latestUpload.id))
-    .orderBy(desc(shipmentsTable.lastUpdated))
-    .limit(10);
-  res.json(items);
+  const result = await pool.query<{
+    id: number;
+    shipment_id: number | null;
+    change_type: string;
+    ifs_ref: string;
+    company_name: string;
+    status: string | null;
+    changes: unknown;
+    created_at: Date;
+    container_no: string | null;
+    shipper: string | null;
+    consignee: string | null;
+    cargo_description: string | null;
+    invoice_no: string | null;
+    extra_fields: Record<string, unknown> | null;
+  }>(
+    `SELECT
+       l.id,
+       l.shipment_id,
+       l.change_type,
+       l.ifs_ref,
+       l.company_name,
+       l.status,
+       l.changes,
+       l.created_at,
+       s.container_no,
+       s.shipper,
+       s.consignee,
+       s.cargo_description,
+       s.invoice_no,
+       s.extra_fields
+     FROM shipment_change_logs l
+     LEFT JOIN shipments s ON s.id = l.shipment_id
+     WHERE l.upload_batch_id = $1
+     ORDER BY l.created_at DESC, l.id DESC
+     LIMIT 50`,
+    [latestUpload.id],
+  );
+
+  const items = result.rows.map((row) => ({
+    id: row.id,
+    shipmentId: row.shipment_id,
+    changeType: row.change_type,
+    ifsRef: row.ifs_ref,
+    companyName: row.company_name,
+    status: row.status,
+    lastUpdated: row.created_at,
+    containerNo: row.container_no,
+    shipper: row.shipper,
+    consignee: row.consignee,
+    cargoDescription: row.cargo_description,
+    invoiceNo: row.invoice_no,
+    identifier: String(row.extra_fields?.["BL / Manifest No."] ?? row.extra_fields?.["BL/Manifest No."] ?? row.container_no ?? row.ifs_ref ?? ""),
+    changes: Array.isArray(row.changes) ? row.changes : [],
+  }));
+
+  res.json({
+    newConsignments: items.filter((item) => item.changeType === "new"),
+    recentActivity: items.filter((item) => item.changeType === "updated"),
+  });
 });
 
 export default router;

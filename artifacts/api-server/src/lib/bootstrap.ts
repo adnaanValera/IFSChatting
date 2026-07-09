@@ -58,6 +58,18 @@ async function createTables() {
       last_updated timestamptz NOT NULL DEFAULT now()
     );
 
+    CREATE TABLE IF NOT EXISTS shipment_change_logs (
+      id serial PRIMARY KEY,
+      shipment_id integer,
+      upload_batch_id integer,
+      change_type text NOT NULL,
+      ifs_ref text NOT NULL,
+      company_name text NOT NULL,
+      status text,
+      changes jsonb,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+
     CREATE TABLE IF NOT EXISTS feedback (
       id serial PRIMARY KEY,
       name text NOT NULL,

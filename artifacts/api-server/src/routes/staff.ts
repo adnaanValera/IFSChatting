@@ -50,6 +50,45 @@ async function saveOriginalUploadFile(uploadId: number, file: Express.Multer.Fil
   );
 }
 
+type ChangeLogEntry = { field: string; oldValue: string; newValue: string };
+
+async function recordShipmentChangeLog(args: {
+  shipmentId?: number;
+  uploadBatchId?: number;
+  changeType: "new" | "updated";
+  ifsRef: string;
+  companyName: string;
+  status?: string;
+  changes: ChangeLogEntry[];
+}): Promise<void> {
+  if (!args.uploadBatchId) return;
+  await pool.query(
+    `INSERT INTO shipment_change_logs
+      (shipment_id, upload_batch_id, change_type, ifs_ref, company_name, status, changes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+    [
+      args.shipmentId ?? null,
+      args.uploadBatchId,
+      args.changeType,
+      args.ifsRef,
+      args.companyName,
+      args.status ?? null,
+      JSON.stringify(args.changes),
+    ],
+  );
+}
+
+function displayText(value: unknown): string {
+  if (value === undefined || value === null || String(value).trim() === "") return "N/A";
+  return String(value).trim();
+}
+
+function pushTextChange(changes: ChangeLogEntry[], field: string, oldValue: unknown, newValue: unknown): void {
+  if (!sameText(oldValue as string | null | undefined, newValue as string | null | undefined)) {
+    changes.push({ field, oldValue: displayText(oldValue), newValue: displayText(newValue) });
+  }
+}
+
 // Expanded field map — covers many real-world Excel column name variations
 const FIELD_MAP: Record<string, string> = {
   // IFS Ref
@@ -182,6 +221,7 @@ async function pruneUploadHistoryForFilename(filename: string): Promise<void> {
 
   const oldUploadIds = sameNameUploads.slice(2).map((upload) => upload.id);
   for (const id of oldUploadIds) {
+    await pool.query("DELETE FROM shipment_change_logs WHERE upload_batch_id = $1", [id]);
     await db.delete(uploadsTable).where(eq(uploadsTable.id, id));
   }
 }
@@ -211,6 +251,25 @@ async function upsertShipment(record: {
     const extraFieldsChanged = record.extraFields !== undefined
       ? stableJson(current.extraFields) !== stableJson(record.extraFields)
       : false;
+    const changes: ChangeLogEntry[] = [];
+    pushTextChange(changes, "MRA Ref", current.mraRef, record.mraRef);
+    pushTextChange(changes, "Container No.", current.containerNo, record.containerNo);
+    pushTextChange(changes, "Shipper", current.shipper, record.shipper);
+    pushTextChange(changes, "Consignee", current.consignee, record.consignee);
+    pushTextChange(changes, "Cargo Description", current.cargoDescription, record.cargoDescription);
+    pushTextChange(changes, "Invoice No.", current.invoiceNo, record.invoiceNo);
+    pushTextChange(changes, "POD", current.pod, record.pod);
+    pushTextChange(changes, "Entry", current.entry, record.entry);
+    pushTextChange(changes, "Final Port Destination", current.finalPortDestination, record.finalPortDestination);
+    pushTextChange(changes, "Status", current.status, record.status);
+    pushTextChange(changes, "Company", current.companyName, record.companyName);
+    if (extraFieldsChanged) {
+      changes.push({
+        field: "Extra Fields",
+        oldValue: displayText(stableJson(current.extraFields)),
+        newValue: displayText(stableJson(record.extraFields)),
+      });
+    }
     const hasChanges = extraFieldsChanged
       || !sameText(current.mraRef, record.mraRef)
       || !sameText(current.containerNo, record.containerNo)
@@ -237,10 +296,32 @@ async function upsertShipment(record: {
       ...(record.extraFields !== undefined ? { extraFields: record.extraFields } : {}),
       lastUpdated: new Date(),
     }).where(eq(shipmentsTable.id, existing[0].id));
+    await recordShipmentChangeLog({
+      shipmentId: existing[0].id,
+      uploadBatchId: record.uploadBatchId,
+      changeType: "updated",
+      ifsRef: record.ifsRef,
+      companyName: record.companyName,
+      status: record.status,
+      changes,
+    });
     return "updated";
   }
 
-  await db.insert(shipmentsTable).values(record);
+  const [inserted] = await db.insert(shipmentsTable).values(record).returning({ id: shipmentsTable.id });
+  await recordShipmentChangeLog({
+    shipmentId: inserted?.id,
+    uploadBatchId: record.uploadBatchId,
+    changeType: "new",
+    ifsRef: record.ifsRef,
+    companyName: record.companyName,
+    status: record.status,
+    changes: [
+      { field: "Status", oldValue: "N/A", newValue: displayText(record.status) },
+      { field: "Consignee", oldValue: "N/A", newValue: displayText(record.consignee ?? record.companyName) },
+      { field: "Cargo Description", oldValue: "N/A", newValue: displayText(record.cargoDescription) },
+    ],
+  });
   return "new";
 }
 
@@ -680,6 +761,7 @@ router.get("/staff/uploads/:id/download", requireAuth, requireStaff, async (req,
 // ── Delete ALL uploads + all shipments (staff only) ──────────────────────────
 
 router.delete("/staff/uploads", requireAuth, requireStaff, async (_req, res) => {
+  await pool.query("DELETE FROM shipment_change_logs");
   await db.delete(shipmentsTable);
   await db.delete(uploadsTable);
   await db.delete(companiesTable);
@@ -691,6 +773,7 @@ router.delete("/staff/uploads", requireAuth, requireStaff, async (_req, res) => 
 router.delete("/staff/uploads/:id", requireAuth, requireStaff, async (req, res) => {
   const id = parseInt(req.params["id"] as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  await pool.query("DELETE FROM shipment_change_logs WHERE upload_batch_id = $1", [id]);
   await db.delete(shipmentsTable).where(eq(shipmentsTable.uploadBatchId, id));
   await db.delete(uploadsTable).where(eq(uploadsTable.id, id));
   res.status(204).send();
