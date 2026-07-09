@@ -174,6 +174,59 @@ function extraText(extraFields: Record<string, unknown> | null | undefined, ...k
 
 /* ── Main component ───────────────────────────────────────────────────────── */
 
+const journeySteps = ["On Sea", "At POD", "Enroute", "In Malawi"];
+
+function journeyIndex(status: string): number {
+  const text = status.toLowerCase();
+  if (text.includes("delivered") || text.includes("malawi") || text.includes("clearance")) return 3;
+  if (text.includes("enroute") || text.includes("transit")) return 2;
+  if (text.includes("pod") || text.includes("port") || text.includes("offloading")) return 1;
+  return 0;
+}
+
+function ShipmentJourney({ status, theme }: { status: string; theme: typeof T[Variant] }) {
+  const activeIndex = journeyIndex(status);
+  return (
+    <div className="px-4 sm:px-5 py-4">
+      <div className="relative grid grid-cols-4 gap-2">
+        <div className="absolute left-0 right-0 top-3 h-px bg-white/10" />
+        <motion.div
+          className="absolute left-0 top-3 h-px"
+          style={{ background: theme.dividerColor }}
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.max(0, activeIndex) * 33.33}%` }}
+          transition={{ duration: 0.55, ease: "easeOut" }}
+        />
+        {journeySteps.map((step, i) => {
+          const reached = i <= activeIndex;
+          return (
+            <div key={step} className="relative flex flex-col items-center gap-2">
+              <motion.span
+                initial={{ scale: 0.85 }}
+                animate={{ scale: reached ? 1 : 0.9 }}
+                className="z-10 h-6 w-6 rounded-full border flex items-center justify-center"
+                style={{
+                  borderColor: reached ? theme.dividerColor : "rgba(255,255,255,0.18)",
+                  background: reached ? `${theme.dividerColor}33` : "rgba(255,255,255,0.05)",
+                  boxShadow: reached ? `0 0 18px ${theme.dividerColor}55` : "none",
+                }}
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ background: reached ? theme.dividerColor : "rgba(255,255,255,0.28)" }}
+                />
+              </motion.span>
+              <span className={`text-[10px] font-bold uppercase tracking-wide text-center ${reached ? "text-white" : "text-zinc-600"}`}>
+                {step}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export interface ShipmentCardProps {
   shipment: {
     id: number;
@@ -256,9 +309,14 @@ export function ShipmentCard({ shipment: s, statusChange, index = 0, defaultOpen
             <div className="flex flex-col items-end gap-1">
               <StatusPill status={s.status} theme={theme} />
               {statusChange && (
-                <span className="text-[11px] font-semibold text-white/70">
+                <motion.span
+                  initial={{ opacity: 0.45 }}
+                  animate={{ opacity: [0.65, 1, 0.65] }}
+                  transition={{ duration: 1.8, repeat: 2 }}
+                  className="text-[11px] font-semibold text-white/70"
+                >
                   {statusChange.oldValue} -&gt; {statusChange.newValue}
-                </span>
+                </motion.span>
               )}
             </div>
             <div
@@ -333,9 +391,14 @@ export function ShipmentCard({ shipment: s, statusChange, index = 0, defaultOpen
                 <div className="flex flex-col items-start sm:items-end gap-1">
                   <StatusPill status={s.status} theme={theme} />
                   {statusChange && (
-                    <span className="text-[11px] font-semibold text-white/70">
+                    <motion.span
+                      initial={{ opacity: 0.45 }}
+                      animate={{ opacity: [0.65, 1, 0.65] }}
+                      transition={{ duration: 1.8, repeat: 2 }}
+                      className="text-[11px] font-semibold text-white/70"
+                    >
                       {statusChange.oldValue} -&gt; {statusChange.newValue}
-                    </span>
+                    </motion.span>
                   )}
                 </div>
               </div>
@@ -429,6 +492,8 @@ export function ShipmentCard({ shipment: s, statusChange, index = 0, defaultOpen
                   />
                 </div>
 
+              <ShipmentJourney status={s.status} theme={theme} />
+
               {/* STATUS footer */}
               <div
                 className="px-4 sm:px-5 pt-4 pb-5"
@@ -439,9 +504,14 @@ export function ShipmentCard({ shipment: s, statusChange, index = 0, defaultOpen
                 </p>
                 <StatusPill status={s.status} theme={theme} large />
                 {statusChange && (
-                  <p className="text-center text-xs font-semibold text-zinc-300 mt-3">
+                  <motion.p
+                    initial={{ opacity: 0.5, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="text-center text-xs font-semibold text-zinc-300 mt-3"
+                  >
                     {statusChange.oldValue} -&gt; {statusChange.newValue}
-                  </p>
+                  </motion.p>
                 )}
                 {s.lastUpdated && (
                   <p className="text-center text-[10px] text-zinc-600 mt-3">

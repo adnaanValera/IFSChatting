@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Truck, Ship, Plane, Warehouse, ShieldCheck, Clock, Globe, Award,
   ChevronRight, LogIn, LayoutDashboard, LogOut, ArrowRight,
   Phone, Mail, MapPin, Send, CheckCircle2, AlertCircle,
   Search, Building2, SearchX, Loader2, X,
-  TrainFront,
+  TrainFront, Boxes, ClipboardCheck,
 } from "lucide-react";
 import { ShipmentCard } from "@/components/ui/shipment-card";
 import consolidationImg from "@assets/WhatsApp_Image_2026-06-30_at_13.47.05_1783091673424.jpeg";
@@ -15,8 +15,6 @@ import { useGetMe, useStaffLogout, useListShipments } from "@workspace/api-clien
 import { useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { StatusBadge } from "@/components/ui/status-badge";
-import logoUrl from "@assets/Inter_freight_logo_nobg.png";
 
 const services = [
   {
@@ -44,13 +42,23 @@ const services = [
     title: "Warehousing & Customs",
     desc: "Secure bonded warehousing in Blantyre plus full MRA customs clearance — declarations, duties, and compliance handled end-to-end.",
   },
+  {
+    icon: ClipboardCheck,
+    title: "Import & Export Consultation",
+    desc: "Practical guidance for documentation, clearance planning, and day-to-day import/export decisions.",
+  },
+  {
+    icon: Boxes,
+    title: "Packaging & Palletization",
+    desc: "Cargo preparation support including packaging, palletization, and careful handling for safer movement.",
+  },
 ];
 
 const stats = [
-  { value: "500+", label: "Shipments Handled" },
-  { value: "10+", label: "Years Experience" },
-  { value: "15+", label: "Regional Partners" },
-  { value: "99%", label: "On-Time Delivery" },
+  { value: "2020", label: "Established in Malawi" },
+  { value: "Blantyre", label: "Commercial City Base" },
+  { value: "Border Points", label: "Malawi Coverage" },
+  { value: "Mon-Fri", label: "8:00 AM - 5:00 PM" },
 ];
 
 const features = [
@@ -77,35 +85,15 @@ const features = [
 ];
 
 function AnimatedStat({ value, label, index }: { value: string; label: string; index: number }) {
-  const [count, setCount] = useState(0);
-  const [started, setStarted] = useState(false);
-  const numericValue = Number.parseInt(value.replace(/\D/g, ""), 10) || 0;
-  const suffix = value.replace(/[0-9]/g, "");
-
-  useEffect(() => {
-    if (!started) return;
-    let frame = 0;
-    const totalFrames = 34;
-    const timer = window.setInterval(() => {
-      frame += 1;
-      const progress = 1 - Math.pow(1 - frame / totalFrames, 3);
-      setCount(Math.round(numericValue * progress));
-      if (frame >= totalFrames) window.clearInterval(timer);
-    }, 28);
-
-    return () => window.clearInterval(timer);
-  }, [numericValue, started]);
-
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       whileInView={{ opacity: 1, scale: 1 }}
       viewport={{ once: true }}
-      onViewportEnter={() => setStarted(true)}
       transition={{ delay: index * 0.1, duration: 0.35 }}
     >
-      <p className="text-4xl md:text-5xl font-extrabold text-primary mb-2">
-        {count}{suffix}
+      <p className="text-3xl md:text-4xl font-extrabold text-primary mb-2">
+        {value}
       </p>
       <p className="text-white/60 text-sm font-medium uppercase tracking-wider">{label}</p>
     </motion.div>
@@ -308,8 +296,8 @@ export default function Home() {
               <span className="text-primary">Forward</span>
             </h1>
             <p className="text-xl md:text-2xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
-              Premium logistics, freight forwarding, and customs clearance.
-              Seamless connectivity across Southern and East Africa.
+              Established in Blantyre, Malawi, with freight forwarding, customs clearance,
+              and cargo handling across key regional corridors.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -425,7 +413,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {services.map(({ icon: Icon, title, desc }, i) => (
               <motion.div
                 key={title}
@@ -470,9 +458,24 @@ export default function Home() {
                 The partner your cargo deserves
               </h2>
               <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-                With over a decade of experience moving goods across the region, we combine local
-                knowledge with international standards — so your supply chain never skips a beat.
+                Inter Freight Solutions was established in 2020 in Malawi, based in the commercial
+                city of Blantyre. Our team supports cargo through key Malawi border points including
+                Mwanza, Songwe, Mchinji, Dedza, Muloza, Chiponde, and Marka in Nsanje.
               </p>
+              <div className="grid sm:grid-cols-2 gap-3 mb-8">
+                <div className="rounded-2xl border border-border bg-background/70 p-4">
+                  <p className="text-primary text-xs font-bold uppercase tracking-widest mb-2">Vision</p>
+                  <p className="text-secondary text-sm font-semibold leading-relaxed">
+                    To earn client confidence through honesty, integrity, and dependable service.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border bg-background/70 p-4">
+                  <p className="text-primary text-xs font-bold uppercase tracking-widest mb-2">Mission</p>
+                  <p className="text-secondary text-sm font-semibold leading-relaxed">
+                    To provide complete logistics solutions that are efficient, reliable, and affordable.
+                  </p>
+                </div>
+              </div>
               <a
                 href="/#contact"
                 className="inline-flex items-center gap-2 text-primary font-semibold hover:gap-3 transition-all"

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Bell, Package, X } from "lucide-react";
+import { Bell, Package, X, ArrowRight, Building2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Notification {
@@ -35,6 +35,10 @@ function timeAgo(iso: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+function notificationCompany(n: Notification) {
+  return n.companyName?.trim() || "Shipment Updates";
+}
+
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -53,6 +57,13 @@ export function NotificationBell() {
   });
 
   const unread = notifications.filter((n) => !n.read).length;
+  const statusUpdates = notifications.filter((n) => n.status).length;
+  const groupedNotifications = notifications.reduce<Record<string, Notification[]>>((groups, notification) => {
+    const key = notificationCompany(notification);
+    groups[key] ??= [];
+    groups[key].push(notification);
+    return groups;
+  }, {});
 
   const markOne = useMutation({
     mutationFn: (id: number) => authFetch(`/api/notifications/${id}/read`, { method: "PATCH" }),
@@ -94,7 +105,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-80 bg-[#111315] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
+        <div className="absolute right-0 top-12 w-[22rem] max-w-[calc(100vw-1.5rem)] bg-[#111315] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
             <div className="flex items-center gap-2">
@@ -124,6 +135,21 @@ export function NotificationBell() {
             </div>
           </div>
 
+          {notifications.length > 0 && (
+            <div className="px-4 py-3 border-b border-white/10 bg-white/[0.03]">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-widest text-white/35">Unread</p>
+                  <p className="text-lg font-extrabold text-white">{unread}</p>
+                </div>
+                <div className="rounded-xl border border-primary/20 bg-primary/10 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-widest text-primary/70">Status updates</p>
+                  <p className="text-lg font-extrabold text-primary">{statusUpdates}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* List */}
           <div className="max-h-80 overflow-y-auto">
             {notifications.length === 0 ? (
@@ -132,31 +158,46 @@ export function NotificationBell() {
                 <p className="text-white/40 text-sm">No notifications yet</p>
               </div>
             ) : (
-              notifications.map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => handleNotifClick(n)}
-                  className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors flex gap-3 items-start ${!n.read ? "bg-primary/5" : ""}`}
-                >
-                  <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${!n.read ? "bg-primary/20 border border-primary/30" : "bg-white/5 border border-white/10"}`}>
-                    <Package size={14} className={!n.read ? "text-primary" : "text-white/40"} />
+              Object.entries(groupedNotifications).map(([company, items]) => (
+                <div key={company} className="border-b border-white/5">
+                  <div className="flex items-center justify-between gap-2 px-4 py-2 bg-white/[0.025]">
+                    <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-white/45">
+                      <Building2 size={12} />
+                      {company}
+                    </span>
+                    <span className="text-[10px] font-bold text-primary bg-primary/10 rounded-full px-2 py-0.5">
+                      {items.length}
+                    </span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className={`text-sm font-semibold leading-tight ${!n.read ? "text-white" : "text-white/60"}`}>
-                        {n.title}
-                      </p>
-                      {!n.read && <span className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />}
-                    </div>
-                    <p className="text-white/50 text-xs mt-1 leading-relaxed line-clamp-2">{n.message}</p>
-                    {n.status && (
-                      <span className="inline-block mt-1.5 bg-primary/20 text-primary text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                        {n.status}
-                      </span>
-                    )}
-                    <p className="text-white/25 text-[10px] mt-1">{timeAgo(n.createdAt)}</p>
-                  </div>
-                </button>
+                  {items.map((n) => (
+                    <button
+                      key={n.id}
+                      onClick={() => handleNotifClick(n)}
+                      className={`w-full text-left px-4 py-3 hover:bg-white/5 transition-colors flex gap-3 items-start ${!n.read ? "bg-primary/5" : ""}`}
+                    >
+                      <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${!n.read ? "bg-primary/20 border border-primary/30" : "bg-white/5 border border-white/10"}`}>
+                        <Package size={14} className={!n.read ? "text-primary" : "text-white/40"} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className={`text-sm font-semibold leading-tight ${!n.read ? "text-white" : "text-white/60"}`}>
+                            {n.title}
+                          </p>
+                          {!n.read && <span className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />}
+                        </div>
+                        <p className="text-white/50 text-xs mt-1 leading-relaxed line-clamp-2">{n.message}</p>
+                        <div className="flex items-center justify-between gap-2 mt-1.5">
+                          {n.status ? (
+                            <span className="inline-block bg-primary/20 text-primary text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                              {n.status}
+                            </span>
+                          ) : <span />}
+                          <span className="text-white/25 text-[10px]">{timeAgo(n.createdAt)}</span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               ))
             )}
           </div>
@@ -167,7 +208,7 @@ export function NotificationBell() {
                 onClick={() => { setOpen(false); navigate("/dashboard"); }}
                 className="w-full text-center text-primary text-xs font-semibold hover:text-primary/80 transition-colors py-1"
               >
-                View all shipments →
+                View affected shipments <ArrowRight size={12} className="inline ml-1" />
               </button>
             </div>
           )}
