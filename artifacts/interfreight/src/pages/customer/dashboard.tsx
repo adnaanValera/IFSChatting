@@ -160,7 +160,11 @@ export default function CustomerDashboard() {
     if (change) statusChangesByIfsRef.set(notification.ifsRef, change);
   }
   const todayUpdates = notifications.filter((notification) => notification.status && isToday(notification.createdAt));
-  const todayUpdatedRefs = new Set(todayUpdates.map((notification) => notification.ifsRef).filter(Boolean));
+  const todayUpdatedRefs = new Set(
+    todayUpdates
+      .map((notification) => notification.ifsRef)
+      .filter((ifsRef): ifsRef is string => Boolean(ifsRef)),
+  );
   const sectionRows = STATUS_SECTIONS.map((section) => ({
     ...section,
     rows: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === section.reportLabel),
