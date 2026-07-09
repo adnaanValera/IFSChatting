@@ -105,9 +105,9 @@ function StaffTracker() {
   };
 
   return (
-    <section className="py-20 bg-muted/30 border-y border-border">
+    <section className="py-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
-        <div className="text-center mb-10">
+        <div className="text-center mb-10 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md">
           <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-3">
             Staff &amp; Admin
           </p>
@@ -241,25 +241,28 @@ export default function Home() {
   const dashboardHref = role === "staff" || role === "admin" ? "/staff/dashboard" : "/dashboard";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative min-h-screen bg-secondary">
+      <div className="fixed inset-0 z-0">
+        <img
+          src="/assets/hero-port.png"
+          alt=""
+          aria-hidden="true"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-secondary/95 via-secondary/82 to-secondary/70" />
+      </div>
+
+      <div className="relative z-10">
       <Navbar />
 
       {/* ── Hero ─────────────────────────────────────────── */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <img
-            src="/assets/hero-port.png"
-            alt="Shipping port"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-secondary/95 via-secondary/85 to-secondary/60" />
-        </div>
-
         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto pt-16">
           <motion.div
             initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
+            className="rounded-3xl border border-white/15 bg-secondary/70 px-6 py-10 shadow-2xl backdrop-blur-md sm:px-10 md:px-14"
           >
             <p className="text-primary font-semibold tracking-[0.2em] uppercase text-sm mb-5">
               InterFreight Solutions — Malawi
@@ -368,9 +371,9 @@ export default function Home() {
       </section>
 
       {/* ── Services ─────────────────────────────────────── */}
-      <section id="services" className="py-24 bg-background scroll-mt-16">
+      <section id="services" className="py-24 scroll-mt-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <div className="text-center mb-16 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md">
             <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-3">
               What We Do
             </p>
@@ -405,9 +408,9 @@ export default function Home() {
       </section>
 
       {/* ── Stats (dark band) ─────────────────────────────── */}
-      <section className="py-20 bg-secondary">
+      <section className="py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center rounded-3xl border border-white/15 bg-secondary/80 px-6 py-10 shadow-xl backdrop-blur-md">
             {stats.map(({ value, label }, i) => (
               <motion.div
                 key={label}
@@ -425,10 +428,10 @@ export default function Home() {
       </section>
 
       {/* ── Why Choose Us ────────────────────────────────── */}
-      <section className="py-24 bg-muted/40">
+      <section className="py-24">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div>
+            <div className="rounded-3xl border border-white/15 bg-white/90 p-8 shadow-xl backdrop-blur-md">
               <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-3">
                 Why InterFreight
               </p>
@@ -472,8 +475,9 @@ export default function Home() {
       </section>
 
       {/* ── Weekly Consolidation ─────────────────────────── */}
-      <section className="py-0 bg-background overflow-hidden">
-        <div className="relative min-h-[500px] flex flex-col lg:flex-row items-stretch">
+      <section className="py-10 overflow-hidden">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative min-h-[500px] flex flex-col lg:flex-row items-stretch overflow-hidden rounded-3xl border border-white/15 shadow-2xl backdrop-blur-md">
           {/* Photo side */}
           <motion.div
             initial={{ opacity: 0, x: -24 }}
@@ -496,7 +500,7 @@ export default function Home() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.55, delay: 0.08 }}
-            className="w-full lg:w-1/2 bg-secondary flex items-center"
+            className="w-full lg:w-1/2 bg-secondary/90 flex items-center"
           >
             <div className="px-10 py-16 lg:px-16 max-w-xl">
               <p className="text-primary font-semibold tracking-[0.2em] uppercase text-sm mb-4">
@@ -552,7 +556,7 @@ export default function Home() {
         </div>
 
         {/* Second row — warehouse image full width strip */}
-        <div className="relative h-64 overflow-hidden">
+        <div className="relative h-64 overflow-hidden rounded-3xl border border-white/15 shadow-2xl mt-8">
           <img
             src={warehouseImg}
             alt="InterFreight warehouse"
@@ -567,16 +571,17 @@ export default function Home() {
             </div>
           </div>
         </div>
+        </div>
       </section>
 
       {/* ── Staff Tracking (staff + admin only) ──────────── */}
       {(role === "staff" || role === "admin") && <StaffTracker />}
 
       {/* ── Client Portal ────────────────────────────────── */}
-      <section className="py-20 bg-background border-y border-border">
+      <section className="py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto">
-            <div className="bg-secondary rounded-2xl px-8 py-10 flex flex-col md:flex-row items-center gap-8 shadow-lg">
+            <div className="bg-secondary/90 border border-white/15 rounded-2xl px-8 py-10 flex flex-col md:flex-row items-center gap-8 shadow-xl backdrop-blur-md">
               <div className="flex-1 text-center md:text-left">
                 <p className="text-primary font-semibold tracking-widest uppercase text-xs mb-2">
                   Client Portal
@@ -629,9 +634,9 @@ export default function Home() {
       </section>
 
       {/* ── Contact ──────────────────────────────────────── */}
-      <section id="contact" className="py-24 bg-muted/40 scroll-mt-16">
+      <section id="contact" className="py-24 scroll-mt-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
+          <div className="text-center mb-14 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md">
             <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-3">
               Get In Touch
             </p>
@@ -779,6 +784,7 @@ export default function Home() {
       </section>
 
       <Footer />
+      </div>
     </div>
   );
 }
