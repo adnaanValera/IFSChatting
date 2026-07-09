@@ -28,8 +28,15 @@ async function createTables() {
       total_rows integer NOT NULL DEFAULT 0,
       new_records integer NOT NULL DEFAULT 0,
       updated_records integer NOT NULL DEFAULT 0,
-      uploaded_by text
+      uploaded_by text,
+      file_data bytea,
+      mime_type text,
+      file_size integer
     );
+
+    ALTER TABLE uploads ADD COLUMN IF NOT EXISTS file_data bytea;
+    ALTER TABLE uploads ADD COLUMN IF NOT EXISTS mime_type text;
+    ALTER TABLE uploads ADD COLUMN IF NOT EXISTS file_size integer;
 
     CREATE TABLE IF NOT EXISTS shipments (
       id serial PRIMARY KEY,

@@ -286,6 +286,7 @@ export default function Dashboard() {
   const [isTemplateUploading, setIsTemplateUploading] = useState(false);
   const [templateStatus, setTemplateStatus] = useState<{ hasTemplate: boolean; uploadedAt?: string } | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [downloadingUploadId, setDownloadingUploadId] = useState<number | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
   const [deletingFeedbackId, setDeletingFeedbackId] = useState<number | null>(null);
   const [expandedFeedback, setExpandedFeedback] = useState<number | null>(null);
@@ -665,6 +666,35 @@ export default function Dashboard() {
       toast({ variant: "destructive", title: "Delete failed", description: err.message });
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleDownloadUpload = async (id: number, filename: string) => {
+    setDownloadingUploadId(id);
+    const token = localStorage.getItem("intf_token");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/uploads/${id}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Download failed");
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Download failed", description: err.message });
+    } finally {
+      setDownloadingUploadId(null);
     }
   };
 
@@ -1396,34 +1426,48 @@ export default function Dashboard() {
                 ) : (
                   <div className="divide-y divide-border">
                     {uploads.map((upload) => (
-                      <div key={upload.id} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/20 transition-colors group">
+                      <div key={upload.id} className="flex flex-col gap-3 px-4 py-4 hover:bg-muted/20 transition-colors group sm:flex-row sm:items-center sm:gap-4 sm:px-6">
                         <div className="p-2 bg-muted rounded-lg shrink-0">
                           <FileSpreadsheet size={18} className="text-muted-foreground" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-secondary truncate" title={upload.filename}>
+                          <p className="font-semibold text-sm text-secondary leading-snug break-words sm:truncate" title={upload.filename}>
                             {upload.filename}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             Uploaded {formatDate(upload.uploadedAt)} · by {upload.uploadedBy}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                           <span className="text-xs bg-muted px-2 py-1 rounded font-medium text-muted-foreground">{upload.totalRows} rows</span>
                           <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded font-medium">+{upload.newRecords} new</span>
                           <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded font-medium">~{upload.updatedRecords} updated</span>
                         </div>
-                        <button
-                          onClick={() => handleDeleteUpload(upload.id, upload.filename)}
-                          disabled={deletingId === upload.id}
-                          title="Delete this upload and its shipments"
-                          className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-red-50"
-                        >
-                          {deletingId === upload.id
-                            ? <Loader2 size={16} className="animate-spin" />
-                            : <Trash2 size={16} />
-                          }
-                        </button>
+                        <div className="flex items-center gap-2 sm:shrink-0">
+                          <button
+                            onClick={() => handleDownloadUpload(upload.id, upload.filename)}
+                            disabled={downloadingUploadId === upload.id}
+                            title="Download original uploaded file"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-secondary/90 disabled:opacity-60"
+                          >
+                            {downloadingUploadId === upload.id
+                              ? <Loader2 size={14} className="animate-spin" />
+                              : <Download size={14} />
+                            }
+                            Download
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUpload(upload.id, upload.filename)}
+                            disabled={deletingId === upload.id}
+                            title="Delete this upload and its shipments"
+                            className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50 p-2 rounded-lg hover:bg-red-50"
+                          >
+                            {deletingId === upload.id
+                              ? <Loader2 size={16} className="animate-spin" />
+                              : <Trash2 size={16} />
+                            }
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

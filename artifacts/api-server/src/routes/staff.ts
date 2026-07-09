@@ -34,6 +34,22 @@ const templateUpload = multer({ storage: templateStorage, limits: { fileSize: 10
 
 const router = Router();
 
+function safeDownloadName(value: string): string {
+  return value.replace(/[\/\\?%*:|"<>]/g, "-").trim() || "download.xlsx";
+}
+
+function contentDispositionFilename(filename: string): string {
+  return `attachment; filename="${safeDownloadName(filename).replace(/"/g, "")}"`;
+}
+
+async function saveOriginalUploadFile(uploadId: number, file: Express.Multer.File): Promise<void> {
+  const fileData = await fs.promises.readFile(file.path);
+  await pool.query(
+    "UPDATE uploads SET file_data = $1, mime_type = $2, file_size = $3 WHERE id = $4",
+    [fileData, file.mimetype || "application/octet-stream", file.size ?? fileData.length, uploadId],
+  );
+}
+
 // Expanded field map — covers many real-world Excel column name variations
 const FIELD_MAP: Record<string, string> = {
   // IFS Ref
@@ -489,6 +505,7 @@ router.post("/staff/upload", requireAuth, requireStaff, upload.array("files"), a
       updatedRecords: 0,
       uploadedBy: authReq.user.email,
     }).returning();
+    await saveOriginalUploadFile(uploadRecord.id, file);
 
     const filenameCompany = companyFromFilename(file.originalname);
     let result: { totalRows: number; newRecords: number; updatedRecords: number; failedRows: number; failureReasons: string[] };
@@ -581,6 +598,7 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
     updatedRecords: 0,
     uploadedBy: authReq.user.email,
   }).returning();
+  await saveOriginalUploadFile(uploadRecord.id, file);
 
   const result = await parseMasterWorksheet(ws, uploadRecord.id);
 
@@ -607,6 +625,56 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
 router.get("/staff/uploads", requireAuth, requireStaff, async (_req, res) => {
   const uploads = await db.select().from(uploadsTable).orderBy(uploadsTable.uploadedAt);
   res.json(uploads);
+});
+
+router.get("/staff/uploads/:id/download", requireAuth, requireStaff, async (req, res) => {
+  const id = parseInt(req.params["id"] as string, 10);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: "Invalid upload id" });
+    return;
+  }
+
+  const result = await pool.query<{
+    filename: string;
+    file_data: Buffer | null;
+    mime_type: string | null;
+  }>("SELECT filename, file_data, mime_type FROM uploads WHERE id = $1 LIMIT 1", [id]);
+  const uploadRecord = result.rows[0];
+  if (!uploadRecord) {
+    res.status(404).json({ error: "Upload not found" });
+    return;
+  }
+
+  if (!uploadRecord.file_data) {
+    const candidates = await fs.promises.readdir(uploadsDir).catch(() => []);
+    const storedName = candidates
+      .filter((name) => name.endsWith(`-${uploadRecord.filename}`))
+      .sort()
+      .at(-1);
+
+    if (!storedName) {
+      res.status(404).json({ error: "Original uploaded file is not available. Please re-upload the tracking master once, then it can be downloaded here." });
+      return;
+    }
+
+    const fallbackPath = path.resolve(uploadsDir, storedName);
+    const fallbackData = await fs.promises.readFile(fallbackPath).catch(() => null);
+    if (!fallbackData) {
+      res.status(404).json({ error: "Original uploaded file is not available. Please re-upload the tracking master once, then it can be downloaded here." });
+      return;
+    }
+
+    res.setHeader("Content-Type", uploadRecord.mime_type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", contentDispositionFilename(uploadRecord.filename));
+    res.setHeader("Content-Length", String(fallbackData.length));
+    res.end(fallbackData);
+    return;
+  }
+
+  res.setHeader("Content-Type", uploadRecord.mime_type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", contentDispositionFilename(uploadRecord.filename));
+  res.setHeader("Content-Length", String(uploadRecord.file_data.length));
+  res.end(uploadRecord.file_data);
 });
 
 // ── Delete ALL uploads + all shipments (staff only) ──────────────────────────
