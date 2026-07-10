@@ -5,8 +5,8 @@ import { ZipArchive } from "archiver";
 import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs";
-import { db, pool, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable, sessionsTable } from "@workspace/db";
-import { eq, asc, desc, and, or, isNull, sql } from "drizzle-orm";
+import { db, pool, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable, sessionsTable, pendingSignupsTable } from "@workspace/db";
+import { eq, asc, desc, and, or, isNull, ilike, sql } from "drizzle-orm";
 import { requireAuth, requireStaff, requireAdmin } from "../middlewares/auth";
 import { logger } from "../lib/logger";
 
@@ -40,6 +40,14 @@ function safeDownloadName(value: string): string {
 
 function contentDispositionFilename(filename: string): string {
   return `attachment; filename="${safeDownloadName(filename).replace(/"/g, "")}"`;
+}
+
+function appendDateToFilename(filename: string, date: Date | string): string {
+  const stamp = new Date(date).toISOString().slice(0, 10);
+  const safe = safeDownloadName(filename);
+  const dot = safe.lastIndexOf(".");
+  if (dot <= 0) return `${safe}-${stamp}`;
+  return `${safe.slice(0, dot)}-${stamp}${safe.slice(dot)}`;
 }
 
 async function saveOriginalUploadFile(uploadId: number, file: Express.Multer.File): Promise<void> {
@@ -951,7 +959,8 @@ router.get("/staff/uploads/:id/download", requireAuth, requireStaff, async (req,
     filename: string;
     file_data: Buffer | null;
     mime_type: string | null;
-  }>("SELECT filename, file_data, mime_type FROM uploads WHERE id = $1 LIMIT 1", [id]);
+    uploaded_at: Date;
+  }>("SELECT filename, file_data, mime_type, uploaded_at FROM uploads WHERE id = $1 LIMIT 1", [id]);
   const uploadRecord = result.rows[0];
   if (!uploadRecord) {
     res.status(404).json({ error: "Upload not found" });
@@ -978,14 +987,14 @@ router.get("/staff/uploads/:id/download", requireAuth, requireStaff, async (req,
     }
 
     res.setHeader("Content-Type", uploadRecord.mime_type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", contentDispositionFilename(uploadRecord.filename));
+    res.setHeader("Content-Disposition", contentDispositionFilename(appendDateToFilename(uploadRecord.filename, uploadRecord.uploaded_at)));
     res.setHeader("Content-Length", String(fallbackData.length));
     res.end(fallbackData);
     return;
   }
 
   res.setHeader("Content-Type", uploadRecord.mime_type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", contentDispositionFilename(uploadRecord.filename));
+  res.setHeader("Content-Disposition", contentDispositionFilename(appendDateToFilename(uploadRecord.filename, uploadRecord.uploaded_at)));
   res.setHeader("Content-Length", String(uploadRecord.file_data.length));
   res.end(uploadRecord.file_data);
 });
@@ -1884,9 +1893,82 @@ router.get("/staff/all-reports-zip", requireAuth, requireStaff, async (_req, res
 
 // ── List all users (admin only) ───────────────────────────────────────────────
 
+router.get("/staff/pending-signups", requireAuth, requireStaff, async (_req, res) => {
+  const rows = await db
+    .select({
+      id: pendingSignupsTable.id,
+      fullName: pendingSignupsTable.fullName,
+      companyName: pendingSignupsTable.companyName,
+      email: pendingSignupsTable.email,
+      phoneNumber: pendingSignupsTable.phoneNumber,
+      role: pendingSignupsTable.role,
+      status: pendingSignupsTable.status,
+      createdAt: pendingSignupsTable.createdAt,
+    })
+    .from(pendingSignupsTable)
+    .where(eq(pendingSignupsTable.status, "pending"))
+    .orderBy(desc(pendingSignupsTable.createdAt));
+
+  res.json(rows);
+});
+
+router.post("/staff/pending-signups/:id/approve", requireAuth, requireStaff, async (req, res) => {
+  const authReq = req as typeof req & { user: { email: string } };
+  const id = Number(req.params["id"]);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid pending signup id" }); return; }
+
+  const [pending] = await db.select().from(pendingSignupsTable).where(eq(pendingSignupsTable.id, id)).limit(1);
+  if (!pending || pending.status !== "pending") { res.status(404).json({ error: "Pending signup not found" }); return; }
+
+  const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(ilike(usersTable.email, pending.email)).limit(1);
+  if (existing) {
+    await db
+      .update(pendingSignupsTable)
+      .set({ status: "rejected", reviewedBy: authReq.user.email, reviewedAt: new Date() })
+      .where(eq(pendingSignupsTable.id, id));
+    res.status(409).json({ error: "A user with this email already exists" });
+    return;
+  }
+
+  const [user] = await db
+    .insert(usersTable)
+    .values({
+      fullName: pending.fullName,
+      companyName: pending.companyName,
+      email: pending.email.toLowerCase(),
+      phoneNumber: pending.phoneNumber,
+      passwordHash: pending.passwordHash,
+      role: pending.role,
+    })
+    .returning({ id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email, role: usersTable.role });
+
+  await db
+    .update(pendingSignupsTable)
+    .set({ status: "approved", reviewedBy: authReq.user.email, reviewedAt: new Date() })
+    .where(eq(pendingSignupsTable.id, id));
+
+  res.status(201).json(user);
+});
+
+router.post("/staff/pending-signups/:id/reject", requireAuth, requireStaff, async (req, res) => {
+  const authReq = req as typeof req & { user: { email: string } };
+  const id = Number(req.params["id"]);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid pending signup id" }); return; }
+
+  const [pending] = await db.select().from(pendingSignupsTable).where(eq(pendingSignupsTable.id, id)).limit(1);
+  if (!pending || pending.status !== "pending") { res.status(404).json({ error: "Pending signup not found" }); return; }
+
+  await db
+    .update(pendingSignupsTable)
+    .set({ status: "rejected", reviewedBy: authReq.user.email, reviewedAt: new Date() })
+    .where(eq(pendingSignupsTable.id, id));
+
+  res.status(204).send();
+});
+
 router.get("/staff/users", requireAuth, requireAdmin, async (_req, res) => {
   const users = await db
-    .select({ id: usersTable.id, fullName: usersTable.fullName, companyName: usersTable.companyName, email: usersTable.email, role: usersTable.role })
+    .select({ id: usersTable.id, fullName: usersTable.fullName, companyName: usersTable.companyName, email: usersTable.email, phoneNumber: usersTable.phoneNumber, role: usersTable.role })
     .from(usersTable);
   res.json(users);
 });

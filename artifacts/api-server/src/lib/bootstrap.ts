@@ -10,8 +10,25 @@ async function createTables() {
       full_name text NOT NULL,
       company_name text NOT NULL DEFAULT '',
       email text NOT NULL UNIQUE,
+      phone_number text,
       password_hash text NOT NULL,
       role text NOT NULL DEFAULT 'customer',
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number text;
+
+    CREATE TABLE IF NOT EXISTS pending_signups (
+      id serial PRIMARY KEY,
+      full_name text NOT NULL,
+      company_name text NOT NULL DEFAULT '',
+      email text NOT NULL UNIQUE,
+      phone_number text,
+      password_hash text NOT NULL,
+      role text NOT NULL DEFAULT 'customer',
+      status text NOT NULL DEFAULT 'pending',
+      reviewed_by text,
+      reviewed_at timestamptz,
       created_at timestamptz NOT NULL DEFAULT now()
     );
 

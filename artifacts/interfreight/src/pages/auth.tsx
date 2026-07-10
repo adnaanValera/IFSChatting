@@ -3,8 +3,7 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Lock, Mail, Loader2, ArrowRight, User, Building2 } from "lucide-react";
-import { useStaffLogin } from "@workspace/api-client-react";
+import { Lock, Mail, Loader2, ArrowRight, User, Building2, Phone, Clock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
@@ -14,11 +13,13 @@ import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(1, "Password is required"),
+  sessionDays: z.coerce.number().pipe(z.union([z.literal(1), z.literal(7), z.literal(30), z.literal(90), z.literal(180)])),
 });
 
 const registerSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   companyName: z.string().min(1, "Company name is required"),
+  phoneNumber: z.string().min(6, "Phone number is required"),
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
@@ -56,19 +57,31 @@ function FieldInput({
 
 function LoginForm({ onSuccess }: { onSuccess: (user: any) => void }) {
   const { toast } = useToast();
-  const loginMutation = useStaffLogin();
-  const form = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
+  const [isLoading, setIsLoading] = useState(false);
+  const form = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { sessionDays: 30 },
+  });
 
-  const onSubmit = (data: LoginValues) => {
-    loginMutation.mutate({ data }, {
-      onSuccess: (res) => {
-        localStorage.setItem("intf_token", res.token);
-        onSuccess(res.user);
-      },
-      onError: (err: any) => {
-        toast({ variant: "destructive", title: "Login failed", description: err?.message || "Invalid credentials" });
-      },
-    });
+  const onSubmit = async (data: LoginValues) => {
+    setIsLoading(true);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Invalid credentials");
+      localStorage.setItem("intf_token", json.token);
+      localStorage.setItem("intf_session_duration_confirmed", "1");
+      onSuccess(json.user);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Login failed", description: err?.message || "Invalid credentials" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -87,12 +100,29 @@ function LoginForm({ onSuccess }: { onSuccess: (user: any) => void }) {
         error={form.formState.errors.password?.message}
         {...form.register("password")}
       />
+      <div>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Clock className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <select
+            {...form.register("sessionDays")}
+            className="block w-full pl-10 pr-3 py-2.5 border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm bg-white"
+          >
+            <option value={1}>Stay signed in for today</option>
+            <option value={7}>Stay signed in for 7 days</option>
+            <option value={30}>Stay signed in for 30 days</option>
+            <option value={90}>Stay signed in for 90 days</option>
+            <option value={180}>Stay signed in for 180 days</option>
+          </select>
+        </div>
+      </div>
       <button
         type="submit"
-        disabled={loginMutation.isPending}
+        disabled={isLoading}
         className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-primary hover:bg-primary/90 text-white font-semibold rounded-md transition-colors disabled:opacity-60"
       >
-        {loginMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <><span>Sign In</span><ArrowRight size={16} /></>}
+        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><span>Sign In</span><ArrowRight size={16} /></>}
       </button>
     </form>
   );
@@ -103,6 +133,7 @@ function LoginForm({ onSuccess }: { onSuccess: (user: any) => void }) {
 function RegisterForm({ onSuccess }: { onSuccess: (user: any) => void }) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState("");
   const form = useForm<RegisterValues>({ resolver: zodResolver(registerSchema) });
 
   const onSubmit = async (data: RegisterValues) => {
@@ -116,6 +147,11 @@ function RegisterForm({ onSuccess }: { onSuccess: (user: any) => void }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Registration failed");
+      if (res.status === 202 || json.status === "pending") {
+        setPendingMessage(json.message || "Your signup request has been sent. Please wait for staff approval.");
+        form.reset();
+        return;
+      }
       localStorage.setItem("intf_token", json.token);
       onSuccess(json.user);
     } catch (err: any) {
@@ -127,6 +163,11 @@ function RegisterForm({ onSuccess }: { onSuccess: (user: any) => void }) {
 
   return (
     <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+      {pendingMessage && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {pendingMessage}
+        </div>
+      )}
       <FieldInput
         icon={User}
         type="text"
@@ -140,6 +181,13 @@ function RegisterForm({ onSuccess }: { onSuccess: (user: any) => void }) {
         placeholder="Company Name"
         error={form.formState.errors.companyName?.message}
         {...form.register("companyName")}
+      />
+      <FieldInput
+        icon={Phone}
+        type="tel"
+        placeholder="Phone Number"
+        error={form.formState.errors.phoneNumber?.message}
+        {...form.register("phoneNumber")}
       />
       <FieldInput
         icon={Mail}

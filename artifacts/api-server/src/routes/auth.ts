@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
-import { db, sessionsTable, usersTable } from "@workspace/db";
+import { db, pendingSignupsTable, sessionsTable, usersTable } from "@workspace/db";
 import { eq, ilike } from "drizzle-orm";
 import { signToken, requireAuth } from "../middlewares/auth";
 
@@ -14,11 +14,18 @@ function roleFromCompanyName(companyName: string): "admin" | "staff" | "customer
   return "customer";
 }
 
-const SESSION_DAYS = 180;
+const SESSION_DAYS = 30;
+const ALLOWED_SESSION_DAYS = new Set([1, 7, 30, 90, 180]);
 
-async function createDeviceSession(user: typeof usersTable.$inferSelect, userAgent?: string): Promise<string> {
+function sessionDaysFromInput(value: unknown): number {
+  if (value === "browser") return 1;
+  const days = Number(value);
+  return ALLOWED_SESSION_DAYS.has(days) ? days : SESSION_DAYS;
+}
+
+async function createDeviceSession(user: typeof usersTable.$inferSelect, userAgent?: string, sessionDays = SESSION_DAYS): Promise<string> {
   const tokenId = randomUUID();
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + sessionDays * 24 * 60 * 60 * 1000);
   await db.insert(sessionsTable).values({
     userId: user.id,
     tokenId,
@@ -38,11 +45,11 @@ async function createDeviceSession(user: typeof usersTable.$inferSelect, userAge
 // ── Register ──────────────────────────────────────────────────────────────────
 
 router.post("/auth/register", async (req, res) => {
-  const { fullName, companyName, email, password } = req.body as {
-    fullName?: string; companyName?: string; email?: string; password?: string;
+  const { fullName, companyName, email, phoneNumber, password } = req.body as {
+    fullName?: string; companyName?: string; email?: string; phoneNumber?: string; password?: string;
   };
 
-  if (!fullName?.trim() || !companyName?.trim() || !email?.trim() || !password) {
+  if (!fullName?.trim() || !companyName?.trim() || !email?.trim() || !phoneNumber?.trim() || !password) {
     res.status(400).json({ error: "All fields are required" });
     return;
   }
@@ -62,12 +69,62 @@ router.post("/auth/register", async (req, res) => {
   const role = roleFromCompanyName(companyName);
   const passwordHash = await bcrypt.hash(password, 12);
 
+  const [pending] = await db
+    .select()
+    .from(pendingSignupsTable)
+    .where(ilike(pendingSignupsTable.email, email.trim()))
+    .limit(1);
+
+  if (pending?.status === "pending") {
+    res.status(202).json({ status: "pending", message: "Your signup is waiting for staff approval." });
+    return;
+  }
+
+  if (pending?.status === "rejected") {
+    res.status(403).json({ status: "rejected", error: "Your signup request was rejected. Please contact InterFreight Solutions." });
+    return;
+  }
+
+  if (role !== "admin") {
+    if (pending) {
+      await db
+        .update(pendingSignupsTable)
+        .set({
+          fullName: fullName.trim(),
+          companyName: companyName.trim(),
+          phoneNumber: phoneNumber.trim(),
+          passwordHash,
+          role,
+          status: "pending",
+          reviewedBy: null,
+          reviewedAt: null,
+        })
+        .where(eq(pendingSignupsTable.id, pending.id));
+    } else {
+      await db
+        .insert(pendingSignupsTable)
+        .values({
+          fullName: fullName.trim(),
+          companyName: companyName.trim(),
+          email: email.trim().toLowerCase(),
+          phoneNumber: phoneNumber.trim(),
+          passwordHash,
+          role,
+          status: "pending",
+        });
+    }
+
+    res.status(202).json({ status: "pending", message: "Your signup request has been sent. Please wait for staff approval." });
+    return;
+  }
+
   const [user] = await db
     .insert(usersTable)
     .values({
       fullName: fullName.trim(),
       companyName: companyName.trim(),
       email: email.trim().toLowerCase(),
+      phoneNumber: phoneNumber.trim(),
       passwordHash,
       role,
     })
@@ -90,7 +147,7 @@ router.post("/auth/register", async (req, res) => {
 // ── Login ─────────────────────────────────────────────────────────────────────
 
 router.post("/auth/login", async (req, res) => {
-  const { email, password } = req.body as { email?: string; password?: string };
+  const { email, password, sessionDays } = req.body as { email?: string; password?: string; sessionDays?: number | string };
   if (!email || !password) {
     res.status(400).json({ error: "Email and password required" });
     return;
@@ -103,6 +160,19 @@ router.post("/auth/login", async (req, res) => {
     .limit(1);
 
   if (!user) {
+    const [pending] = await db
+      .select({ status: pendingSignupsTable.status })
+      .from(pendingSignupsTable)
+      .where(ilike(pendingSignupsTable.email, email.trim()))
+      .limit(1);
+    if (pending?.status === "pending") {
+      res.status(403).json({ error: "Your signup is still waiting for staff approval." });
+      return;
+    }
+    if (pending?.status === "rejected") {
+      res.status(403).json({ error: "Your signup request was rejected. Please contact InterFreight Solutions." });
+      return;
+    }
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
@@ -113,7 +183,7 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
 
-  const token = await createDeviceSession(user, req.get("user-agent"));
+  const token = await createDeviceSession(user, req.get("user-agent"), sessionDaysFromInput(sessionDays));
 
   res.json({
     token,
@@ -142,6 +212,23 @@ router.post("/auth/logout", requireAuth, async (req, res) => {
 
 // ── Me ────────────────────────────────────────────────────────────────────────
 
+router.patch("/auth/session-duration", requireAuth, async (req, res) => {
+  const authReq = req as typeof req & { user: { tokenId?: string } };
+  const { sessionDays } = req.body as { sessionDays?: number | string };
+  if (!authReq.user.tokenId) {
+    res.status(400).json({ error: "This session cannot be updated. Please log in again." });
+    return;
+  }
+
+  const expiresAt = new Date(Date.now() + sessionDaysFromInput(sessionDays) * 24 * 60 * 60 * 1000);
+  await db
+    .update(sessionsTable)
+    .set({ expiresAt, lastSeenAt: new Date() })
+    .where(eq(sessionsTable.tokenId, authReq.user.tokenId));
+
+  res.json({ expiresAt });
+});
+
 router.get("/auth/me", requireAuth, async (req, res) => {
   const authReq = req as typeof req & { user: { userId: number } };
   const [user] = await db
@@ -160,6 +247,7 @@ router.get("/auth/me", requireAuth, async (req, res) => {
     fullName: user.fullName,
     companyName: user.companyName,
     email: user.email,
+    phoneNumber: user.phoneNumber,
     role: user.role,
   });
 });

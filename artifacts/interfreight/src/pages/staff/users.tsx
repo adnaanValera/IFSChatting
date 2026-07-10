@@ -16,6 +16,7 @@ export default function UsersList() {
     logoutMutation.mutate(undefined, {
       onSettled: () => {
         localStorage.removeItem("intf_token");
+        localStorage.removeItem("intf_session_duration_confirmed");
         queryClient.clear();
         setLocation("/auth");
       }

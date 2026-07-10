@@ -13,14 +13,14 @@ import {
   UploadCloud, Loader2, Clock, CheckCircle2, AlertTriangle, Ship,
   Truck, Trash2, MessageSquare, ChevronDown, ChevronUp, Send, Mail, Home, History,
   Building2, Download, Search, ChevronRight,
-  Menu, X,
+  Menu, X, UserCheck, UserX,
 } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/utils";
 
-type Tab = "overview" | "import" | "history" | "messages" | "cards";
+type Tab = "overview" | "import" | "history" | "messages" | "cards" | "authorize";
 
 type Announcement = {
   id: number;
@@ -31,6 +31,15 @@ type Announcement = {
 };
 
 type CompanyItem = { id: number; companyName: string; shipmentCount: number };
+type PendingSignup = {
+  id: number;
+  fullName: string;
+  companyName: string;
+  email: string;
+  phoneNumber?: string | null;
+  role: string;
+  createdAt: string;
+};
 type Shipment = {
   id: number; ifsRef: string; mraRef?: string; containerNo?: string;
   shipper?: string; consignee?: string; cargoDescription?: string;
@@ -307,6 +316,9 @@ export default function Dashboard() {
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementMessage, setAnnouncementMessage] = useState("");
   const [announcementSaving, setAnnouncementSaving] = useState(false);
+  const [pendingSignups, setPendingSignups] = useState<PendingSignup[]>([]);
+  const [pendingSignupsLoading, setPendingSignupsLoading] = useState(false);
+  const [pendingSignupAction, setPendingSignupAction] = useState<string | null>(null);
 
   const { data: user } = useGetMe();
   const logoutMutation = useStaffLogout();
@@ -324,6 +336,48 @@ export default function Dashboard() {
     needsChecking: OperationalAlert[];
   } | null>(null);
   const [operationalAlertsLoading, setOperationalAlertsLoading] = useState(false);
+
+  const loadPendingSignups = async () => {
+    setPendingSignupsLoading(true);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/pending-signups`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to load pending signups");
+      setPendingSignups(await res.json());
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Could not load signups", description: err.message });
+    } finally {
+      setPendingSignupsLoading(false);
+    }
+  };
+
+  const handlePendingSignup = async (id: number, action: "approve" | "reject") => {
+    setPendingSignupAction(`${action}-${id}`);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/pending-signups/${id}/${action}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok && res.status !== 204) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || `${action} failed`);
+      }
+      toast({
+        title: action === "approve" ? "Signup approved" : "Signup rejected",
+        description: action === "approve" ? "The user can now log in." : "The request was rejected.",
+      });
+      await loadPendingSignups();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Action failed", description: err.message });
+    } finally {
+      setPendingSignupAction(null);
+    }
+  };
 
   // ── Company Cards state ───────────────────────────────────────────────────
   const [companiesList, setCompaniesList] = useState<CompanyItem[]>([]);
@@ -359,6 +413,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadOperationalAlerts();
+    loadPendingSignups();
   }, []);
 
   const loadAnnouncement = async () => {
@@ -576,6 +631,7 @@ export default function Dashboard() {
     logoutMutation.mutate(undefined, {
       onSettled: () => {
         localStorage.removeItem("intf_token");
+        localStorage.removeItem("intf_session_duration_confirmed");
         queryClient.clear();
         setLocation("/auth");
       },
@@ -741,10 +797,12 @@ export default function Dashboard() {
       }
 
       const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = disposition.match(/filename="([^"]+)"/);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = filename;
+      a.download = filenameMatch?.[1] || `${safeReportName(filename)}-${reportDateStamp()}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -907,6 +965,7 @@ export default function Dashboard() {
     { id: "import", label: "Data Import", icon: <UploadCloud size={18} /> },
     { id: "cards", label: "Company Cards", icon: <Building2 size={18} />, badge: companiesLoaded ? companiesList.length : undefined },
     { id: "history", label: "Upload History", icon: <History size={18} />, badge: uploads?.length },
+    { id: "authorize", label: "Authorize Sign Up", icon: <UserCheck size={18} />, badge: pendingSignups.length || undefined },
     { id: "messages", label: "Messages", icon: <MessageSquare size={18} />, badge: unreadCount || undefined },
   ];
 
@@ -1839,6 +1898,75 @@ export default function Dashboard() {
           )}
 
           {/* ── MESSAGES ──────────────────────────────────── */}
+          {activeTab === "authorize" && (
+            <div className="space-y-6 max-w-5xl">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-secondary mb-1">Authorize Sign Up</h2>
+                  <p className="text-sm text-muted-foreground">Approve or reject new account requests before they can access tracking.</p>
+                </div>
+                <button onClick={loadPendingSignups} className="text-sm text-primary hover:underline">
+                  Refresh
+                </button>
+              </div>
+
+              {pendingSignupsLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : pendingSignups.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-border shadow-sm py-20 text-center">
+                  <UserCheck className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
+                  <p className="text-lg font-semibold text-secondary mb-2">No pending signups</p>
+                  <p className="text-sm text-muted-foreground">New requests will appear here before accounts are created.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {pendingSignups.map((signup) => {
+                    const approving = pendingSignupAction === `approve-${signup.id}`;
+                    const rejecting = pendingSignupAction === `reject-${signup.id}`;
+                    return (
+                      <div key={signup.id} className="bg-white rounded-xl border border-border shadow-sm p-5">
+                        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-2">
+                              <span className="font-bold text-secondary text-lg">{signup.fullName}</span>
+                              <span className="text-xs font-semibold uppercase tracking-wide bg-muted text-muted-foreground px-2 py-1 rounded-full">{signup.role}</span>
+                            </div>
+                            <div className="grid sm:grid-cols-2 gap-2 text-sm">
+                              <p><span className="text-muted-foreground">Company:</span> <span className="font-semibold text-secondary">{signup.companyName}</span></p>
+                              <p><span className="text-muted-foreground">Phone:</span> <span className="font-semibold text-secondary">{signup.phoneNumber || "N/A"}</span></p>
+                              <p><span className="text-muted-foreground">Email:</span> <span className="font-semibold text-secondary break-all">{signup.email}</span></p>
+                              <p><span className="text-muted-foreground">Requested:</span> <span className="font-semibold text-secondary">{formatDate(signup.createdAt)}</span></p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <button
+                              onClick={() => handlePendingSignup(signup.id, "approve")}
+                              disabled={!!pendingSignupAction}
+                              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {approving ? <Loader2 size={15} className="animate-spin" /> : <UserCheck size={15} />}
+                              Yes
+                            </button>
+                            <button
+                              onClick={() => handlePendingSignup(signup.id, "reject")}
+                              disabled={!!pendingSignupAction}
+                              className="inline-flex items-center gap-2 bg-destructive hover:bg-destructive/90 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {rejecting ? <Loader2 size={15} className="animate-spin" /> : <UserX size={15} />}
+                              No
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === "messages" && (
             <div className="space-y-6 max-w-3xl">
               <div className="flex items-center justify-between">

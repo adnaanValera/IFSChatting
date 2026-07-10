@@ -509,7 +509,7 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, ind
                   />
                 </div>
 
-              <ShipmentJourney status={s.status} theme={theme} />
+              {variant === "container" && <ShipmentJourney status={s.status} theme={theme} />}
 
               {/* STATUS footer */}
               <div
