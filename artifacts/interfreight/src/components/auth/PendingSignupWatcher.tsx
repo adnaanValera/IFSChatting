@@ -7,6 +7,23 @@ type Notice =
   | { type: "approved"; title: string; message: string; destination: string }
   | { type: "rejected"; title: string; message: string };
 
+function saveLoggedInAccount(token: string, user: any) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem("intf_saved_accounts") || "[]");
+    const accounts = Array.isArray(parsed) ? parsed.filter((account) => account?.token !== token && account?.email !== user?.email) : [];
+    accounts.unshift({
+      token,
+      fullName: user?.fullName || user?.name,
+      companyName: user?.companyName,
+      email: user?.email,
+      role: user?.role,
+    });
+    localStorage.setItem("intf_saved_accounts", JSON.stringify(accounts.slice(0, 8)));
+  } catch {
+    // Ignore local account-switch cache errors.
+  }
+}
+
 export function PendingSignupWatcher() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -35,6 +52,7 @@ export function PendingSignupWatcher() {
         if (res.ok && json.status === "approved" && json.token) {
           localStorage.setItem("intf_token", json.token);
           localStorage.setItem("intf_session_duration_confirmed", "1");
+          saveLoggedInAccount(json.token, json.user);
           localStorage.removeItem("intf_pending_signup_token");
           localStorage.removeItem("intf_pending_signup_email");
           localStorage.removeItem("intf_pending_session_days");

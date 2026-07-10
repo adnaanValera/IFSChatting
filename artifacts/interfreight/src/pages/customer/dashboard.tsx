@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import {
   Loader2, LogOut, Package, Ship, MapPin,
   CheckCircle, Home, Download, Megaphone, Bell, ArrowRight,
-  AlertTriangle, Search, Moon, Sun, LayoutGrid, FileText, Eye,
+  AlertTriangle, Search, Moon, Sun, LayoutGrid, FileText, Eye, Users,
 } from "lucide-react";
 import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
 import { Link } from "wouter";
@@ -56,6 +56,14 @@ type Announcement = {
   title: string;
   message: string;
   updatedAt?: string;
+};
+
+type SavedAccount = {
+  token: string;
+  fullName?: string;
+  companyName?: string;
+  email?: string;
+  role?: string;
 };
 
 function authFetch(path: string, options: RequestInit = {}) {
@@ -132,6 +140,28 @@ function searchableText(shipment: any): string {
   ].join(" ").toLowerCase();
 }
 
+function savedAccounts(): SavedAccount[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem("intf_saved_accounts") || "[]");
+    return Array.isArray(parsed) ? parsed.filter((account) => account?.token) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveAccount(token: string | null, user: any) {
+  if (!token || !user) return;
+  const accounts = savedAccounts().filter((account) => account.token !== token && account.email !== user.email);
+  accounts.unshift({
+    token,
+    fullName: user.fullName || user.name,
+    companyName: user.companyName,
+    email: user.email,
+    role: user.role,
+  });
+  localStorage.setItem("intf_saved_accounts", JSON.stringify(accounts.slice(0, 8)));
+}
+
 export default function CustomerDashboard() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -162,6 +192,8 @@ export default function CustomerDashboard() {
     return (localStorage.getItem("intf_customer_view") as "cards" | "documents" | null) || "cards";
   });
   const [selectedShipmentId, setSelectedShipmentId] = useState<number | null>(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("intf_theme");
     return saved ? saved === "dark" : window.matchMedia?.("(prefers-color-scheme: dark)").matches;
@@ -175,6 +207,19 @@ export default function CustomerDashboard() {
   useEffect(() => {
     localStorage.setItem("intf_customer_view", viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    if (!user) return;
+    saveAccount(localStorage.getItem("intf_token"), user);
+    setAccounts(savedAccounts());
+  }, [user]);
+
+  const switchAccount = (account: SavedAccount) => {
+    localStorage.setItem("intf_token", account.token);
+    localStorage.setItem("intf_session_duration_confirmed", "1");
+    queryClient.clear();
+    window.location.href = account.role === "staff" || account.role === "admin" ? "/staff/dashboard" : "/dashboard";
+  };
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -241,17 +286,12 @@ export default function CustomerDashboard() {
     ...section,
     rows: filteredShipments.filter((shipment: any) => shipmentSectionLabel(shipment) === section.reportLabel),
   }));
-  const inTransitCount = shipments.filter((shipment: any) => statusGroup(String(shipment.status ?? "")) === "transit").length;
-  const awaitingClearanceCount = shipments.filter((shipment: any) => statusGroup(String(shipment.status ?? "")) === "clearance").length;
-  const deliveredCount = shipments.filter((shipment: any) => statusGroup(String(shipment.status ?? "")) === "delivered").length;
-  const attentionCount = shipments.filter((shipment: any) => isAttentionRequired(shipment)).length;
-  const recentShipments = [...filteredShipments].slice(0, 4);
   const statCards = [
-    { icon: Package, label: "Total Shipments", value: shipments.length, tone: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200" },
-    { icon: Ship, label: "In Transit", value: inTransitCount, tone: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200" },
-    { icon: MapPin, label: "Awaiting Clearance", value: awaitingClearanceCount, tone: "bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-200" },
-    { icon: CheckCircle, label: "Delivered", value: deliveredCount, tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200" },
-    { icon: AlertTriangle, label: "Attention Required", value: attentionCount, tone: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200" },
+    { icon: Package, label: "Total", value: shipments.length, tone: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200" },
+    { icon: CheckCircle, label: "Shipments In Malawi", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS IN MALAWI").length, tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200" },
+    { icon: Ship, label: "Shipments Enroute", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS ENROUTE").length, tone: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200" },
+    { icon: MapPin, label: "Shipments At POD", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS AT POD").length, tone: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200" },
+    { icon: AlertTriangle, label: "Shipments On Sea", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS ON SEA").length, tone: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200" },
   ];
 
   if (userLoading) {
@@ -293,6 +333,48 @@ export default function CustomerDashboard() {
             >
               {isDark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setAccountMenuOpen((value) => !value)}
+                className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                <Users size={16} />
+                <span className="hidden sm:inline">Switch</span>
+              </button>
+              {accountMenuOpen && (
+                <div className="absolute right-0 mt-3 w-72 max-w-[calc(100vw-1.5rem)] rounded-xl border border-white/10 bg-white text-secondary shadow-2xl overflow-hidden z-50">
+                  <div className="px-4 py-3 border-b border-border">
+                    <p className="text-sm font-extrabold">Switch Account</p>
+                    <p className="text-xs text-muted-foreground">Accounts saved on this device</p>
+                  </div>
+                  {accounts.length === 0 ? (
+                    <div className="px-4 py-5 text-sm text-muted-foreground">No other accounts saved yet.</div>
+                  ) : (
+                    <div className="max-h-72 overflow-y-auto">
+                      {accounts.map((account) => {
+                        const current = account.token === localStorage.getItem("intf_token");
+                        return (
+                          <button
+                            key={account.token}
+                            type="button"
+                            onClick={() => {
+                              setAccountMenuOpen(false);
+                              if (!current) switchAccount(account);
+                            }}
+                            className={`w-full text-left px-4 py-3 hover:bg-muted transition-colors ${current ? "bg-primary/10" : ""}`}
+                          >
+                            <p className="text-sm font-bold text-secondary truncate">{account.companyName || account.fullName || "Saved account"}</p>
+                            <p className="text-xs text-muted-foreground truncate">{account.email || account.role || "No email saved"}</p>
+                            {current && <p className="text-[11px] font-bold text-primary mt-1">Current account</p>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <button
               onClick={handleLogout}
               disabled={logoutMutation.isPending}
@@ -387,37 +469,6 @@ export default function CustomerDashboard() {
             </div>
           ))}
         </div>
-
-        {recentShipments.length > 0 && (
-          <div className="mb-5 sm:mb-8 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-            <div className="px-4 sm:px-5 py-4 border-b border-border">
-              <h3 className="font-extrabold text-secondary dark:text-white">Recent Shipments</h3>
-              <p className="text-xs text-muted-foreground">Latest records available to your company</p>
-            </div>
-            <div className="divide-y divide-border">
-              {recentShipments.map((shipment: any) => (
-                <button
-                  key={`recent-${shipment.id}`}
-                  type="button"
-                  onClick={() => {
-                    setSelectedShipmentId(shipment.id);
-                    setViewMode("documents");
-                  }}
-                  className="w-full px-4 sm:px-5 py-3 text-left hover:bg-muted/50 transition-colors grid gap-2 sm:grid-cols-[1.2fr_1fr_auto] sm:items-center"
-                >
-                  <div className="min-w-0">
-                    <p className="font-bold text-secondary dark:text-white truncate">{shipmentIdentifier(shipment)}</p>
-                    <p className="text-xs text-muted-foreground truncate">{shipment.cargoDescription || "No cargo description"}</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {shipment.shipper || "N/A"} {"->"} {shipment.consignee || companyName}
-                  </p>
-                  <StatusBadge status={shipment.status || "N/A"} />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="bg-card rounded-2xl border border-border shadow-sm p-3 sm:p-4 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center gap-3">

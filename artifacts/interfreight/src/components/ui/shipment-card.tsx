@@ -192,7 +192,13 @@ function extraText(extraFields: Record<string, unknown> | null | undefined, ...k
 const containerJourneySteps = ["On Sea", "At POD", "Enroute", "In Malawi"];
 const inlandJourneySteps = ["At POD", "Enroute", "In Malawi"];
 
-function journeyIndex(status: string, steps: string[]): number {
+function journeyIndex(status: string, steps: string[], sourceSection?: string): number {
+  const section = sourceSection.toLowerCase();
+  if (section.includes("malawi")) return steps.length - 1;
+  if (section.includes("enroute")) return Math.max(0, steps.length - 2);
+  if (section.includes("pod")) return steps[0] === "On Sea" ? 1 : 0;
+  if (section.includes("sea")) return 0;
+
   const text = status.toLowerCase();
   if (text.includes("delivered") || text.includes("malawi") || text.includes("clearance")) return steps.length - 1;
   if (text.includes("enroute") || text.includes("transit")) return Math.max(0, steps.length - 2);
@@ -200,9 +206,9 @@ function journeyIndex(status: string, steps: string[]): number {
   return 0;
 }
 
-function ShipmentJourney({ status, theme, variant }: { status: string; theme: typeof T[Variant]; variant: Variant }) {
+function ShipmentJourney({ status, theme, variant, sourceSection = "" }: { status: string; theme: typeof T[Variant]; variant: Variant; sourceSection?: string }) {
   const steps = variant === "container" ? containerJourneySteps : inlandJourneySteps;
-  const activeIndex = journeyIndex(status, steps);
+  const activeIndex = journeyIndex(status, steps, sourceSection);
   const progress = steps.length <= 1 ? 0 : (activeIndex / (steps.length - 1)) * 100;
   return (
     <div className="px-4 sm:px-5 py-4">
@@ -277,6 +283,7 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, ind
   // Extra fields helpers
   const ef = s.extraFields ?? {};
   const typeLabel = String(ef["Type"] ?? ef["type"] ?? "").toUpperCase() || null;
+  const sourceSection = String(ef["Source Section"] ?? ef["sourceSection"] ?? ef["Section"] ?? "").trim();
   const blManifestNo = extraText(s.extraFields, "BL / Manifest No.", "BL/Manifest No.", "BL", "bl", "Manifest No.", "manifestNo");
   const collapsedIdentifier = variant === "container" ? (s.containerNo || "N/A") : (blManifestNo || "N/A");
 
@@ -512,7 +519,7 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, ind
                   />
                 </div>
 
-              <ShipmentJourney status={s.status} theme={theme} variant={variant} />
+              <ShipmentJourney status={s.status} theme={theme} variant={variant} sourceSection={sourceSection} />
 
               {/* STATUS footer */}
               <div

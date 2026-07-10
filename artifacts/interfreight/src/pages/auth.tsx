@@ -27,6 +27,23 @@ const registerSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 type RegisterValues = z.infer<typeof registerSchema>;
 
+function saveLoggedInAccount(token: string, user: any) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem("intf_saved_accounts") || "[]");
+    const accounts = Array.isArray(parsed) ? parsed.filter((account) => account?.token !== token && account?.email !== user?.email) : [];
+    accounts.unshift({
+      token,
+      fullName: user?.fullName || user?.name,
+      companyName: user?.companyName,
+      email: user?.email,
+      role: user?.role,
+    });
+    localStorage.setItem("intf_saved_accounts", JSON.stringify(accounts.slice(0, 8)));
+  } catch {
+    // Ignore local account-switch cache errors.
+  }
+}
+
 // ── Shared input style ────────────────────────────────────────────────────────
 
 function FieldInput({
@@ -76,6 +93,7 @@ function LoginForm({ onSuccess }: { onSuccess: (user: any) => void }) {
       if (!res.ok) throw new Error(json.error || "Invalid credentials");
       localStorage.setItem("intf_token", json.token);
       localStorage.setItem("intf_session_duration_confirmed", "1");
+      saveLoggedInAccount(json.token, json.user);
       onSuccess(json.user);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Login failed", description: err?.message || "Invalid credentials" });
@@ -160,6 +178,7 @@ function RegisterForm({ onSuccess }: { onSuccess: (user: any) => void }) {
         return;
       }
       localStorage.setItem("intf_token", json.token);
+      saveLoggedInAccount(json.token, json.user);
       onSuccess(json.user);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Registration failed", description: err.message });
