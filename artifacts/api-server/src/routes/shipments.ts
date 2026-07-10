@@ -50,14 +50,18 @@ router.get("/shipments", optionalAuth, async (req, res) => {
   }
 
   if (search) {
+    const term = `%${search}%`;
     conditions.push(
       or(
-        ilike(shipmentsTable.ifsRef, `%${search}%`),
-        ilike(shipmentsTable.mraRef, `%${search}%`),
-        ilike(shipmentsTable.containerNo, `%${search}%`),
-        ilike(shipmentsTable.consignee, `%${search}%`),
-        ilike(shipmentsTable.shipper, `%${search}%`),
-        ilike(shipmentsTable.invoiceNo, `%${search}%`),
+        ilike(shipmentsTable.ifsRef, term),
+        ilike(shipmentsTable.mraRef, term),
+        ilike(shipmentsTable.containerNo, term),
+        ilike(shipmentsTable.consignee, term),
+        ilike(shipmentsTable.shipper, term),
+        ilike(shipmentsTable.invoiceNo, term),
+        ilike(shipmentsTable.entry, term),
+        ilike(shipmentsTable.cargoDescription, term),
+        sql`${shipmentsTable.extraFields}::text ILIKE ${term}`,
       )!
     );
   }
@@ -100,11 +104,16 @@ router.post("/shipments", requireAuth, requireStaff, async (req, res) => {
 // Public — anyone with the ID can view it (public tracking page).
 
 router.get("/shipments/:id", optionalAuth, async (req, res) => {
+  const authReq = req as typeof req & { user?: AuthPayload };
   const id = parseInt(req.params["id"] as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [shipment] = await db.select().from(shipmentsTable).where(eq(shipmentsTable.id, id)).limit(1);
   if (!shipment || isIgnoredShipmentStatus(shipment.status)) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  if (authReq.user?.role === "customer" && authReq.user.companyName.toLowerCase() !== shipment.companyName.toLowerCase()) {
     res.status(404).json({ error: "Not found" });
     return;
   }
