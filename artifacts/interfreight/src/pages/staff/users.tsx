@@ -1,18 +1,26 @@
-import { useState } from "react";
-import { useListStaffUsers, useStaffLogout } from "@workspace/api-client-react";
+import { useEffect, useState } from "react";
+import { useGetMe, useListStaffUsers, useStaffLogout } from "@workspace/api-client-react";
 import { Loader2, Users, Shield, LogOut, ArrowLeft, Trash2, KeyRound, Save } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
+import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
+import { saveAccount } from "@/lib/saved-accounts";
 
 export default function UsersList() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const logoutMutation = useStaffLogout();
+  const { data: me } = useGetMe();
   const { data: users, isLoading } = useListStaffUsers();
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [changingPasswordId, setChangingPasswordId] = useState<number | null>(null);
   const [savingPictureId, setSavingPictureId] = useState<number | null>(null);
   const [pictureDrafts, setPictureDrafts] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    if (!me) return;
+    saveAccount(localStorage.getItem("intf_token"), me);
+  }, [me]);
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -136,12 +144,15 @@ export default function UsersList() {
               </Link>
             </div>
           </div>
-          <button 
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-white transition-colors"
-          >
-            <LogOut size={16} /> Sign Out
-          </button>
+          <div className="flex items-center gap-3">
+            <AccountSwitcher currentToken={localStorage.getItem("intf_token")} />
+            <button 
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-white transition-colors"
+            >
+              <LogOut size={16} /> Sign Out
+            </button>
+          </div>
         </div>
       </div>
 

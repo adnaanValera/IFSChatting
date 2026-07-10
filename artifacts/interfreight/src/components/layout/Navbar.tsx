@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useGetMe } from "@workspace/api-client-react";
 import { LayoutDashboard, LogIn, Menu, X, MapPin } from "lucide-react";
-import logoUrl from "@assets/Inter_freight_logo_nobg.png";
+import miniLogoUrl from "@assets/IFS_mini_logo.png";
 import { NotificationBell } from "./NotificationBell";
 
 export function Navbar() {
@@ -22,9 +22,9 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/">
             <img
-              src={logoUrl}
+              src={miniLogoUrl}
               alt="InterFreight"
-              className="h-14 w-auto cursor-pointer"
+              className="h-11 w-11 object-contain cursor-pointer"
             />
           </Link>
 

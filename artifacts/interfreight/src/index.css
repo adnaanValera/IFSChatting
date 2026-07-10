@@ -136,31 +136,31 @@
   --elevate-2: rgba(255,255,255, .09);
 
   /* We default to light mode, but provide sensible dark mode just in case */
-  --background: 0 0% 10%;
-  --foreground: 0 0% 95%;
+  --background: 210 22% 9%;
+  --foreground: 0 0% 96%;
 
-  --border: 0 0% 20%;
-  --input: 0 0% 25%;
+  --border: 210 18% 22%;
+  --input: 210 18% 26%;
   --ring: 0 83% 41%;
 
-  --card: 0 0% 13%;
-  --card-foreground: 0 0% 95%;
-  --card-border: 0 0% 20%;
+  --card: 210 20% 12%;
+  --card-foreground: 0 0% 96%;
+  --card-border: 210 18% 22%;
 
-  --popover: 0 0% 13%;
-  --popover-foreground: 0 0% 95%;
-  --popover-border: 0 0% 20%;
+  --popover: 210 20% 12%;
+  --popover-foreground: 0 0% 96%;
+  --popover-border: 210 18% 22%;
 
   --primary: 0 83% 41%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 0 0% 20%;
+  --secondary: 210 19% 15%;
   --secondary-foreground: 0 0% 100%;
 
-  --muted: 0 0% 16%;
-  --muted-foreground: 0 0% 65%;
+  --muted: 210 16% 16%;
+  --muted-foreground: 210 8% 72%;
 
-  --accent: 0 0% 16%;
+  --accent: 210 16% 16%;
   --accent-foreground: 0 0% 95%;
 
   --destructive: 0 84% 60%;
@@ -177,6 +177,28 @@
 }
 
 @layer utilities {
+  .glow-card {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.05),
+      0 0 22px rgba(183, 28, 28, 0.08),
+      0 18px 42px rgba(15, 23, 42, 0.08);
+  }
+  .dark .glow-card {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.05),
+      0 0 26px rgba(249, 115, 22, 0.14),
+      0 18px 46px rgba(0, 0, 0, 0.35);
+  }
+  .glow-primary {
+    box-shadow:
+      0 0 0 1px rgba(183, 28, 28, 0.12),
+      0 0 20px rgba(183, 28, 28, 0.16);
+  }
+  .dark .glow-primary {
+    box-shadow:
+      0 0 0 1px rgba(249, 115, 22, 0.16),
+      0 0 24px rgba(249, 115, 22, 0.2);
+  }
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
   }

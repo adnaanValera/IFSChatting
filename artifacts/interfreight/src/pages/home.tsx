@@ -288,10 +288,13 @@ export default function Home() {
             initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="rounded-3xl border border-white/15 bg-secondary/70 px-6 py-10 shadow-2xl backdrop-blur-md sm:px-10 md:px-14"
+            className="rounded-3xl border border-white/15 bg-secondary/70 px-6 py-10 shadow-2xl backdrop-blur-md glow-card sm:px-10 md:px-14"
           >
             <p className="text-primary font-semibold tracking-[0.2em] uppercase text-sm mb-5">
               InterFreight Solutions — Malawi
+            </p>
+            <p className="text-white/60 text-sm sm:text-base font-semibold uppercase tracking-[0.3em] mb-4">
+              Shipping made simple
             </p>
             <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-[1.08] mb-6">
               Moving Africa{" "}

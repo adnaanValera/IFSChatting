@@ -19,6 +19,8 @@ import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/utils";
+import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
+import { saveAccount } from "@/lib/saved-accounts";
 
 type Tab = "overview" | "import" | "history" | "messages" | "cards" | "authorize";
 
@@ -342,6 +344,11 @@ export default function Dashboard() {
     needsChecking: OperationalAlert[];
   } | null>(null);
   const [operationalAlertsLoading, setOperationalAlertsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    saveAccount(localStorage.getItem("intf_token"), user);
+  }, [user]);
 
   const loadPendingSignups = async () => {
     setPendingSignupsLoading(true);
@@ -1036,6 +1043,7 @@ export default function Dashboard() {
               )}
             </span>
           )}
+          <AccountSwitcher currentToken={localStorage.getItem("intf_token")} />
           <button
             onClick={handleLogout}
             className="flex items-center gap-1.5 text-sm text-white/60 hover:text-white transition-colors"
