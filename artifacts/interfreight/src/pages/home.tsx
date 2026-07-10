@@ -4,10 +4,11 @@ import {
   Truck, Ship, Plane, Warehouse, ShieldCheck, Clock, Globe, Award,
   ChevronRight, LogIn, LayoutDashboard, LogOut, ArrowRight,
   Phone, Mail, MapPin, Send, CheckCircle2, AlertCircle,
-  Search, Building2, SearchX, Loader2, X,
+  Search, Building2, SearchX, X,
   TrainFront, Boxes, ClipboardCheck,
 } from "lucide-react";
 import { ShipmentCard } from "@/components/ui/shipment-card";
+import { Spinner } from "@/components/ui/spinner";
 import consolidationImg from "@assets/WhatsApp_Image_2026-06-30_at_13.47.05_1783091673424.jpeg";
 import warehouseImg from "@assets/WhatsApp_Image_2026-06-30_at_13.47.25_1783091673421.jpeg";
 import { Link } from "wouter";
@@ -175,7 +176,7 @@ function StaffTracker() {
           </div>
         ) : isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-            <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+            <Spinner className="w-10 h-10 text-primary mb-4" />
             <p>Searching...</p>
           </div>
         ) : shipments.length === 0 ? (

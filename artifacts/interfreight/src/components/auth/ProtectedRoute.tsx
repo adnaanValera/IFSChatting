@@ -1,12 +1,13 @@
 import { ReactNode, useState } from "react";
 import { Redirect } from "wouter";
 import { useGetMe } from "@workspace/api-client-react";
-import { Clock, Loader2 } from "lucide-react";
+import { Clock } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 function Loading() {
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <Loader2 className="animate-spin text-primary w-8 h-8" />
+      <Spinner className="w-12 h-12" />
     </div>
   );
 }
@@ -72,7 +73,7 @@ function SessionDurationGate({ children, user }: { children: ReactNode; user: an
           disabled={saving}
           className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-colors disabled:opacity-60"
         >
-          {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue"}
+          {saving ? <Spinner className="w-5 h-5" /> : "Continue"}
         </button>
       </div>
     </div>

@@ -1,8 +1,9 @@
 import { useRoute } from "wouter";
 import { useGetShipment } from "@workspace/api-client-react";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 import { ShipmentCard } from "@/components/ui/shipment-card";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ContainerDetail() {
   const [, params] = useRoute("/containers/:id");
@@ -13,7 +14,7 @@ export default function ContainerDetail() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center pt-24" style={{ background: "#0d0f11" }}>
-        <Loader2 className="w-12 h-12 animate-spin text-red-500 mb-4" />
+        <Spinner className="w-12 h-12 text-red-500 mb-4" />
         <p className="text-zinc-400">Loading shipment details...</p>
       </div>
     );

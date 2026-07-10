@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, SearchX, Loader2, Building2, X } from "lucide-react";
+import { Search, SearchX, Building2, X } from "lucide-react";
 import { useListShipments } from "@workspace/api-client-react";
 import { ShipmentCard } from "@/components/ui/shipment-card";
 import { motion, AnimatePresence } from "framer-motion";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function Containers() {
   const [input, setInput] = useState("");
@@ -125,7 +126,7 @@ export default function Containers() {
           </div>
         ) : isLoading ? (
           <div className="flex flex-col items-center justify-center py-24 text-zinc-500">
-            <Loader2 className="w-10 h-10 animate-spin text-red-500 mb-4" />
+            <Spinner className="w-10 h-10 text-red-500 mb-4" />
             <p>Searching...</p>
           </div>
         ) : shipments.length === 0 ? (

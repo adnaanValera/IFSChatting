@@ -5,14 +5,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStaffLogout } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import {
-  Loader2, LogOut, Package, Ship, MapPin,
+  LogOut, Package, Ship, MapPin,
   CheckCircle, Home, Download, Megaphone, Bell, ArrowRight,
   AlertTriangle, Search, Moon, Sun, LayoutGrid, FileText, Eye, Users, UserCircle2,
 } from "lucide-react";
 import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
+import miniLogoUrl from "@assets/IFS_mini_logo.png";
 import { Link } from "wouter";
 import { ShipmentCard } from "@/components/ui/shipment-card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Spinner } from "@/components/ui/spinner";
 
 const STATUS_SECTIONS = [
   { label: "Shipments In Malawi", reportLabel: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
@@ -299,7 +301,7 @@ export default function CustomerDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="space-y-4 text-center">
-          <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
+          <Spinner className="w-14 h-14 mx-auto" />
           <p className="text-sm text-muted-foreground">Preparing your consignee portal...</p>
         </div>
       </div>
@@ -319,6 +321,7 @@ export default function CustomerDashboard() {
                 <UserCircle2 size={20} />
               </div>
             )}
+            <img src={miniLogoUrl} alt="IFS mini logo" className="h-9 w-9 object-contain shrink-0" />
             <img src={logoUrl} alt="InterFreight" className="h-9 sm:h-10 w-auto bg-white rounded p-1 shrink-0" />
             <div className="min-w-0">
               <p className="text-xs text-gray-400 uppercase tracking-widest">My Tracking</p>
@@ -422,7 +425,7 @@ export default function CustomerDashboard() {
               disabled={isDownloadingPdf || shipmentsLoading || shipments.length === 0}
               className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-60"
             >
-              {isDownloadingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+              {isDownloadingPdf ? <Spinner className="w-4 h-4" /> : <Download size={16} />}
               Download PDF Report
             </button>
           </div>
@@ -621,7 +624,7 @@ export default function CustomerDashboard() {
                         disabled={isDownloadingPdf}
                         className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-bold px-4 py-3 rounded-xl disabled:opacity-60"
                       >
-                        {isDownloadingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                        {isDownloadingPdf ? <Spinner className="w-4 h-4" /> : <Download size={16} />}
                         Download Company PDF
                       </button>
                       <button

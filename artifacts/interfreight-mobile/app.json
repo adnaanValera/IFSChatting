@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "InterFreightSolutions",
+    "slug": "interfreightsolutions",
+    "scheme": "interfreightsolutions",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/ifs-mini-logo.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/ifs-mini-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f1419"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.interfreightsolutions.customer",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/ifs-mini-logo.png",
+        "backgroundColor": "#ffffff"
+      }
+    }
+  }
+}

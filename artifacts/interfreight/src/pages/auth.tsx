@@ -3,10 +3,12 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Lock, Mail, Loader2, ArrowRight, User, Building2, Phone, Clock } from "lucide-react";
+import { Lock, Mail, ArrowRight, User, Building2, Phone, Clock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
+import miniLogoUrl from "@assets/IFS_mini_logo.png";
+import { Spinner } from "@/components/ui/spinner";
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
@@ -140,7 +142,7 @@ function LoginForm({ onSuccess }: { onSuccess: (user: any) => void }) {
         disabled={isLoading}
         className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-primary hover:bg-primary/90 text-white font-semibold rounded-md transition-colors disabled:opacity-60"
       >
-        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><span>Sign In</span><ArrowRight size={16} /></>}
+        {isLoading ? <Spinner className="w-5 h-5" /> : <><span>Sign In</span><ArrowRight size={16} /></>}
       </button>
     </form>
   );
@@ -234,7 +236,7 @@ function RegisterForm({ onSuccess }: { onSuccess: (user: any) => void }) {
         disabled={isLoading}
         className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-primary hover:bg-primary/90 text-white font-semibold rounded-md transition-colors disabled:opacity-60"
       >
-        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><span>Create Account</span><ArrowRight size={16} /></>}
+        {isLoading ? <Spinner className="w-5 h-5" /> : <><span>Create Account</span><ArrowRight size={16} /></>}
       </button>
     </form>
   );
@@ -260,7 +262,10 @@ export default function AuthPage() {
     <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <img src={logoUrl} alt="InterFreight Logo" className="h-16 w-auto bg-white rounded p-1 shadow-sm mx-auto mb-4" />
+        <div className="mx-auto mb-4 flex items-center justify-center gap-3">
+          <img src={miniLogoUrl} alt="IFS mini logo" className="h-14 w-14 object-contain" />
+          <img src={logoUrl} alt="InterFreight Logo" className="h-16 w-auto bg-white rounded p-1 shadow-sm" />
+        </div>
         <h2 className="text-3xl font-extrabold text-secondary">
           {tab === "login" ? "Sign In to Your Account" : "Create an Account"}
         </h2>

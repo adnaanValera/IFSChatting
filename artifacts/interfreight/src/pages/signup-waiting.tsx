@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Home, Loader2 } from "lucide-react";
+import { Home } from "lucide-react";
 import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
+import miniLogoUrl from "@assets/IFS_mini_logo.png";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function SignupWaitingPage() {
   const [sessionDays, setSessionDays] = useState("30");
@@ -14,9 +16,12 @@ export default function SignupWaitingPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col justify-center px-4 py-12">
       <div className="mx-auto w-full max-w-md bg-white rounded-2xl border border-border shadow-xl p-6 text-center">
-        <img src={logoUrl} alt="InterFreight Logo" className="h-16 w-auto bg-white rounded p-1 shadow-sm mx-auto mb-5" />
+        <div className="mx-auto mb-5 flex items-center justify-center gap-3">
+          <img src={miniLogoUrl} alt="IFS mini logo" className="h-14 w-14 object-contain" />
+          <img src={logoUrl} alt="InterFreight Logo" className="h-16 w-auto bg-white rounded p-1 shadow-sm" />
+        </div>
         <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-          <Loader2 className="animate-spin" size={24} />
+          <Spinner className="w-8 h-8" />
         </div>
         <h1 className="text-2xl font-extrabold text-secondary mb-2">Waiting for Approval</h1>
         <p className="text-sm text-muted-foreground mb-3">

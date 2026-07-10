@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Home, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, Home, XCircle } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 type Notice =
   | { type: "approved"; title: string; message: string; destination: string }
@@ -122,7 +123,7 @@ export function PendingSignupWatcher() {
             onClick={() => setLocation(notice.destination)}
             className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-5 py-3 rounded-lg"
           >
-            {checking ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+            {checking ? <Spinner className="w-4 h-4" /> : <CheckCircle2 size={16} />}
             Open Dashboard
           </button>
         ) : (
