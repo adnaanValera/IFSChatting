@@ -9,7 +9,6 @@ import {
   CheckCircle, Home, Download, Megaphone, Bell, ArrowRight,
   AlertTriangle, Search, Moon, Sun,
 } from "lucide-react";
-import miniLogoUrl from "@assets/IFS_mini_logo.png";
 import { Link } from "wouter";
 import { ShipmentCard } from "@/components/ui/shipment-card";
 import { Spinner } from "@/components/ui/spinner";
@@ -270,7 +269,6 @@ export default function CustomerDashboard() {
                 {initials(companyName)}
               </div>
             )}
-            <img src={miniLogoUrl} alt="IFS mini logo" className="h-9 w-9 object-contain shrink-0" />
             <div className="min-w-0">
               <p className="text-xs text-gray-400 uppercase tracking-widest">My Tracking</p>
               <h1 className="text-sm sm:text-lg font-bold text-white leading-tight truncate">

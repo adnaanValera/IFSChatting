@@ -7,7 +7,6 @@ import { Lock, Mail, ArrowRight, User, Building2, Phone, Clock } from "lucide-re
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
-import miniLogoUrl from "@assets/IFS_mini_logo.png";
 import { Spinner } from "@/components/ui/spinner";
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
@@ -259,36 +258,36 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="relative min-h-screen bg-[#121417] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(163,30,44,0.16),transparent_22%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] pointer-events-none" />
       {/* Header */}
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+      <div className="relative sm:mx-auto sm:w-full sm:max-w-md text-center">
         <div className="mx-auto mb-4 flex items-center justify-center gap-3">
-          <img src={miniLogoUrl} alt="IFS mini logo" className="h-14 w-14 object-contain" />
-          <img src={logoUrl} alt="InterFreight Logo" className="h-16 w-auto bg-white rounded p-1 shadow-sm" />
+          <img src={logoUrl} alt="InterFreight Logo" className="h-16 w-auto" />
         </div>
-        <h2 className="text-3xl font-extrabold text-secondary">
+        <h2 className="text-3xl font-extrabold text-white">
           {tab === "login" ? "Sign In to Your Account" : "Create an Account"}
         </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-sm text-white/55">
           {tab === "login" ? "Track your shipments and reports" : "Register to access your company's reports"}
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-xl rounded-lg border border-border">
+      <div className="relative mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="premium-card py-8 px-6 shadow-xl rounded-[24px]">
           {/* Tab Toggle */}
-          <div className="flex rounded-md bg-muted p-1 mb-6">
+          <div className="flex rounded-xl bg-white/[0.04] p-1 mb-6 border border-white/10">
             <button
               type="button"
               onClick={() => setTab("login")}
-              className={`flex-1 py-2 text-sm font-medium rounded transition-colors ${tab === "login" ? "bg-white text-secondary shadow-sm" : "text-muted-foreground hover:text-secondary"}`}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${tab === "login" ? "bg-white text-secondary shadow-sm" : "text-white/45 hover:text-white"}`}
             >
               Sign In
             </button>
             <button
               type="button"
               onClick={() => setTab("register")}
-              className={`flex-1 py-2 text-sm font-medium rounded transition-colors ${tab === "register" ? "bg-white text-secondary shadow-sm" : "text-muted-foreground hover:text-secondary"}`}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${tab === "register" ? "bg-white text-secondary shadow-sm" : "text-white/45 hover:text-white"}`}
             >
               Sign Up
             </button>
