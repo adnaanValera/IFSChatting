@@ -19,6 +19,7 @@ export const pendingSignupsTable = pgTable("pending_signups", {
   companyName: text("company_name").notNull().default(""),
   email: text("email").notNull().unique(),
   phoneNumber: text("phone_number"),
+  approvalToken: text("approval_token"),
   passwordHash: text("password_hash").notNull(),
   role: text("role").notNull().default("customer"),
   status: text("status").notNull().default("pending"),

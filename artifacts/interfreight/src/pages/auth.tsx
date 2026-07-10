@@ -135,6 +135,7 @@ function RegisterForm({ onSuccess }: { onSuccess: (user: any) => void }) {
   const [isLoading, setIsLoading] = useState(false);
   const [pendingMessage, setPendingMessage] = useState("");
   const form = useForm<RegisterValues>({ resolver: zodResolver(registerSchema) });
+  const [, setLocation] = useLocation();
 
   const onSubmit = async (data: RegisterValues) => {
     setIsLoading(true);
@@ -148,6 +149,12 @@ function RegisterForm({ onSuccess }: { onSuccess: (user: any) => void }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Registration failed");
       if (res.status === 202 || json.status === "pending") {
+        if (json.approvalToken) {
+          localStorage.setItem("intf_pending_signup_token", json.approvalToken);
+          localStorage.setItem("intf_pending_signup_email", json.email || data.email);
+          setLocation("/auth/waiting");
+          return;
+        }
         setPendingMessage(json.message || "Your signup request has been sent. Please wait for staff approval.");
         form.reset();
         return;

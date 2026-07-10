@@ -8,6 +8,7 @@ import { setupApiClient } from "@/lib/api-setup";
 // Pages
 import Home from "@/pages/home";
 import AuthPage from "@/pages/auth";
+import SignupWaitingPage from "@/pages/signup-waiting";
 import Containers from "@/pages/containers";
 import ContainerDetail from "@/pages/container-detail";
 import CustomerDashboard from "@/pages/customer/dashboard";
@@ -25,6 +26,7 @@ function Router() {
       {/* Public */}
       <Route path="/" component={Home} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/auth/waiting" component={SignupWaitingPage} />
       <Route path="/containers" component={Containers} />
       <Route path="/containers/:id" component={ContainerDetail} />
 

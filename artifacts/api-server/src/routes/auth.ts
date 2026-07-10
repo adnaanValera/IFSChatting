@@ -15,6 +15,7 @@ function roleFromCompanyName(companyName: string): "admin" | "staff" | "customer
 }
 
 const SESSION_DAYS = 30;
+const ADMIN_SESSION_DAYS = 3650;
 const ALLOWED_SESSION_DAYS = new Set([1, 7, 30, 90, 180]);
 
 function sessionDaysFromInput(value: unknown): number {
@@ -25,7 +26,8 @@ function sessionDaysFromInput(value: unknown): number {
 
 async function createDeviceSession(user: typeof usersTable.$inferSelect, userAgent?: string, sessionDays = SESSION_DAYS): Promise<string> {
   const tokenId = randomUUID();
-  const expiresAt = new Date(Date.now() + sessionDays * 24 * 60 * 60 * 1000);
+  const days = user.role === "admin" ? ADMIN_SESSION_DAYS : sessionDays;
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   await db.insert(sessionsTable).values({
     userId: user.id,
     tokenId,
@@ -68,6 +70,7 @@ router.post("/auth/register", async (req, res) => {
 
   const role = roleFromCompanyName(companyName);
   const passwordHash = await bcrypt.hash(password, 12);
+  const approvalToken = randomUUID();
 
   const [pending] = await db
     .select()
@@ -76,7 +79,16 @@ router.post("/auth/register", async (req, res) => {
     .limit(1);
 
   if (pending?.status === "pending") {
-    res.status(202).json({ status: "pending", message: "Your signup is waiting for staff approval." });
+    await db
+      .update(pendingSignupsTable)
+      .set({ approvalToken })
+      .where(eq(pendingSignupsTable.id, pending.id));
+    res.status(202).json({
+      status: "pending",
+      approvalToken,
+      email: email.trim().toLowerCase(),
+      message: "Your signup is waiting for staff approval.",
+    });
     return;
   }
 
@@ -93,6 +105,7 @@ router.post("/auth/register", async (req, res) => {
           fullName: fullName.trim(),
           companyName: companyName.trim(),
           phoneNumber: phoneNumber.trim(),
+          approvalToken,
           passwordHash,
           role,
           status: "pending",
@@ -108,13 +121,19 @@ router.post("/auth/register", async (req, res) => {
           companyName: companyName.trim(),
           email: email.trim().toLowerCase(),
           phoneNumber: phoneNumber.trim(),
+          approvalToken,
           passwordHash,
           role,
           status: "pending",
         });
     }
 
-    res.status(202).json({ status: "pending", message: "Your signup request has been sent. Please wait for staff approval." });
+    res.status(202).json({
+      status: "pending",
+      approvalToken,
+      email: email.trim().toLowerCase(),
+      message: "Your signup request has been sent. Please wait for staff approval.",
+    });
     return;
   }
 
@@ -130,7 +149,7 @@ router.post("/auth/register", async (req, res) => {
     })
     .returning();
 
-  const token = await createDeviceSession(user, req.get("user-agent"));
+  const token = await createDeviceSession(user, req.get("user-agent"), ADMIN_SESSION_DAYS);
 
   res.status(201).json({
     token,
@@ -213,20 +232,76 @@ router.post("/auth/logout", requireAuth, async (req, res) => {
 // ── Me ────────────────────────────────────────────────────────────────────────
 
 router.patch("/auth/session-duration", requireAuth, async (req, res) => {
-  const authReq = req as typeof req & { user: { tokenId?: string } };
+  const authReq = req as typeof req & { user: { userId: number; tokenId?: string } };
   const { sessionDays } = req.body as { sessionDays?: number | string };
   if (!authReq.user.tokenId) {
     res.status(400).json({ error: "This session cannot be updated. Please log in again." });
     return;
   }
 
-  const expiresAt = new Date(Date.now() + sessionDaysFromInput(sessionDays) * 24 * 60 * 60 * 1000);
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, authReq.user.userId)).limit(1);
+  const days = user?.role === "admin" ? ADMIN_SESSION_DAYS : sessionDaysFromInput(sessionDays);
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   await db
     .update(sessionsTable)
     .set({ expiresAt, lastSeenAt: new Date() })
     .where(eq(sessionsTable.tokenId, authReq.user.tokenId));
 
   res.json({ expiresAt });
+});
+
+router.post("/auth/pending-signup/status", async (req, res) => {
+  const { approvalToken, sessionDays } = req.body as { approvalToken?: string; sessionDays?: number | string };
+  if (!approvalToken) {
+    res.status(400).json({ error: "Approval token is required" });
+    return;
+  }
+
+  const [pending] = await db
+    .select()
+    .from(pendingSignupsTable)
+    .where(eq(pendingSignupsTable.approvalToken, approvalToken))
+    .limit(1);
+
+  if (!pending) {
+    res.status(404).json({ error: "Signup request not found" });
+    return;
+  }
+
+  if (pending.status === "rejected") {
+    res.status(403).json({ status: "rejected", error: "Your signup request was rejected. Please contact InterFreight Solutions." });
+    return;
+  }
+
+  if (pending.status !== "approved") {
+    res.json({ status: pending.status });
+    return;
+  }
+
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(ilike(usersTable.email, pending.email))
+    .limit(1);
+
+  if (!user) {
+    res.json({ status: "pending" });
+    return;
+  }
+
+  const token = await createDeviceSession(user, req.get("user-agent"), sessionDaysFromInput(sessionDays));
+  res.json({
+    status: "approved",
+    token,
+    user: {
+      id: user.id,
+      fullName: user.fullName,
+      companyName: user.companyName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+    },
+  });
 });
 
 router.get("/auth/me", requireAuth, async (req, res) => {

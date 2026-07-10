@@ -1912,6 +1912,26 @@ router.get("/staff/pending-signups", requireAuth, requireStaff, async (_req, res
   res.json(rows);
 });
 
+router.get("/staff/signup-history", requireAuth, requireStaff, async (_req, res) => {
+  const rows = await db
+    .select({
+      id: pendingSignupsTable.id,
+      fullName: pendingSignupsTable.fullName,
+      companyName: pendingSignupsTable.companyName,
+      email: pendingSignupsTable.email,
+      phoneNumber: pendingSignupsTable.phoneNumber,
+      role: pendingSignupsTable.role,
+      status: pendingSignupsTable.status,
+      reviewedBy: pendingSignupsTable.reviewedBy,
+      reviewedAt: pendingSignupsTable.reviewedAt,
+      createdAt: pendingSignupsTable.createdAt,
+    })
+    .from(pendingSignupsTable)
+    .orderBy(desc(pendingSignupsTable.createdAt));
+
+  res.json(rows);
+});
+
 router.post("/staff/pending-signups/:id/approve", requireAuth, requireStaff, async (req, res) => {
   const authReq = req as typeof req & { user: { email: string } };
   const id = Number(req.params["id"]);

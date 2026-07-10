@@ -24,6 +24,7 @@ async function createTables() {
       company_name text NOT NULL DEFAULT '',
       email text NOT NULL UNIQUE,
       phone_number text,
+      approval_token text,
       password_hash text NOT NULL,
       role text NOT NULL DEFAULT 'customer',
       status text NOT NULL DEFAULT 'pending',
@@ -31,6 +32,8 @@ async function createTables() {
       reviewed_at timestamptz,
       created_at timestamptz NOT NULL DEFAULT now()
     );
+
+    ALTER TABLE pending_signups ADD COLUMN IF NOT EXISTS approval_token text;
 
     CREATE TABLE IF NOT EXISTS companies (
       id serial PRIMARY KEY,

@@ -189,30 +189,33 @@ function extraText(extraFields: Record<string, unknown> | null | undefined, ...k
 
 /* ── Main component ───────────────────────────────────────────────────────── */
 
-const journeySteps = ["On Sea", "At POD", "Enroute", "In Malawi"];
+const containerJourneySteps = ["On Sea", "At POD", "Enroute", "In Malawi"];
+const inlandJourneySteps = ["At POD", "Enroute", "In Malawi"];
 
-function journeyIndex(status: string): number {
+function journeyIndex(status: string, steps: string[]): number {
   const text = status.toLowerCase();
-  if (text.includes("delivered") || text.includes("malawi") || text.includes("clearance")) return 3;
-  if (text.includes("enroute") || text.includes("transit")) return 2;
-  if (text.includes("pod") || text.includes("port") || text.includes("offloading")) return 1;
+  if (text.includes("delivered") || text.includes("malawi") || text.includes("clearance")) return steps.length - 1;
+  if (text.includes("enroute") || text.includes("transit")) return Math.max(0, steps.length - 2);
+  if (text.includes("pod") || text.includes("port") || text.includes("offloading")) return steps[0] === "On Sea" ? 1 : 0;
   return 0;
 }
 
-function ShipmentJourney({ status, theme }: { status: string; theme: typeof T[Variant] }) {
-  const activeIndex = journeyIndex(status);
+function ShipmentJourney({ status, theme, variant }: { status: string; theme: typeof T[Variant]; variant: Variant }) {
+  const steps = variant === "container" ? containerJourneySteps : inlandJourneySteps;
+  const activeIndex = journeyIndex(status, steps);
+  const progress = steps.length <= 1 ? 0 : (activeIndex / (steps.length - 1)) * 100;
   return (
     <div className="px-4 sm:px-5 py-4">
-      <div className="relative grid grid-cols-4 gap-2">
+      <div className={`relative grid gap-2 ${steps.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
         <div className="absolute left-0 right-0 top-3 h-px bg-white/10" />
         <motion.div
           className="absolute left-0 top-3 h-px"
           style={{ background: theme.dividerColor }}
           initial={{ width: 0 }}
-          animate={{ width: `${Math.max(0, activeIndex) * 33.33}%` }}
+          animate={{ width: `${progress}%` }}
           transition={{ duration: 0.55, ease: "easeOut" }}
         />
-        {journeySteps.map((step, i) => {
+        {steps.map((step, i) => {
           const reached = i <= activeIndex;
           return (
             <div key={step} className="relative flex flex-col items-center gap-2">
@@ -509,7 +512,7 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, ind
                   />
                 </div>
 
-              {variant === "container" && <ShipmentJourney status={s.status} theme={theme} />}
+              <ShipmentJourney status={s.status} theme={theme} variant={variant} />
 
               {/* STATUS footer */}
               <div

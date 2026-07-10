@@ -11,14 +11,14 @@ function Loading() {
   );
 }
 
-function SessionDurationGate({ children }: { children: ReactNode }) {
+function SessionDurationGate({ children, user }: { children: ReactNode; user: any }) {
   const key = "intf_session_duration_confirmed";
   const [confirmed, setConfirmed] = useState(() => localStorage.getItem(key) === "1");
   const [sessionDays, setSessionDays] = useState("30");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  if (confirmed) return <>{children}</>;
+  if (user?.role === "admin" || confirmed) return <>{children}</>;
 
   const save = async () => {
     setSaving(true);
@@ -83,7 +83,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { data: user, isLoading, error } = useGetMe();
   if (isLoading) return <Loading />;
   if (error || !user) return <Redirect to="/auth" />;
-  return <SessionDurationGate>{children}</SessionDurationGate>;
+  return <SessionDurationGate user={user}>{children}</SessionDurationGate>;
 }
 
 export function StaffRoute({ children }: { children: ReactNode }) {
@@ -92,7 +92,7 @@ export function StaffRoute({ children }: { children: ReactNode }) {
   if (error || !user) return <Redirect to="/auth" />;
   const role = (user as any).role;
   if (role !== "staff" && role !== "admin") return <Redirect to="/dashboard" />;
-  return <SessionDurationGate>{children}</SessionDurationGate>;
+  return <SessionDurationGate user={user}>{children}</SessionDurationGate>;
 }
 
 export function AdminRoute({ children }: { children: ReactNode }) {
@@ -100,7 +100,7 @@ export function AdminRoute({ children }: { children: ReactNode }) {
   if (isLoading) return <Loading />;
   if (error || !user) return <Redirect to="/auth" />;
   if ((user as any).role !== "admin") return <Redirect to="/staff/dashboard" />;
-  return <SessionDurationGate>{children}</SessionDurationGate>;
+  return <SessionDurationGate user={user}>{children}</SessionDurationGate>;
 }
 
 export function CustomerRoute({ children }: { children: ReactNode }) {
@@ -109,5 +109,5 @@ export function CustomerRoute({ children }: { children: ReactNode }) {
   if (error || !user) return <Redirect to="/auth" />;
   const role = (user as any).role;
   if (role === "staff" || role === "admin") return <Redirect to="/staff/dashboard" />;
-  return <SessionDurationGate>{children}</SessionDurationGate>;
+  return <SessionDurationGate user={user}>{children}</SessionDurationGate>;
 }

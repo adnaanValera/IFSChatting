@@ -38,6 +38,9 @@ type PendingSignup = {
   email: string;
   phoneNumber?: string | null;
   role: string;
+  status?: string;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
   createdAt: string;
 };
 type Shipment = {
@@ -317,6 +320,7 @@ export default function Dashboard() {
   const [announcementMessage, setAnnouncementMessage] = useState("");
   const [announcementSaving, setAnnouncementSaving] = useState(false);
   const [pendingSignups, setPendingSignups] = useState<PendingSignup[]>([]);
+  const [signupHistory, setSignupHistory] = useState<PendingSignup[]>([]);
   const [pendingSignupsLoading, setPendingSignupsLoading] = useState(false);
   const [pendingSignupAction, setPendingSignupAction] = useState<string | null>(null);
 
@@ -354,6 +358,20 @@ export default function Dashboard() {
     }
   };
 
+  const loadSignupHistory = async () => {
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/signup-history`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to load signup history");
+      setSignupHistory(await res.json());
+    } catch {
+      setSignupHistory([]);
+    }
+  };
+
   const handlePendingSignup = async (id: number, action: "approve" | "reject") => {
     setPendingSignupAction(`${action}-${id}`);
     try {
@@ -372,6 +390,7 @@ export default function Dashboard() {
         description: action === "approve" ? "The user can now log in." : "The request was rejected.",
       });
       await loadPendingSignups();
+      await loadSignupHistory();
     } catch (err: any) {
       toast({ variant: "destructive", title: "Action failed", description: err.message });
     } finally {
@@ -414,6 +433,7 @@ export default function Dashboard() {
   useEffect(() => {
     loadOperationalAlerts();
     loadPendingSignups();
+    loadSignupHistory();
   }, []);
 
   const loadAnnouncement = async () => {
@@ -1905,7 +1925,7 @@ export default function Dashboard() {
                   <h2 className="text-2xl font-extrabold text-secondary mb-1">Authorize Sign Up</h2>
                   <p className="text-sm text-muted-foreground">Approve or reject new account requests before they can access tracking.</p>
                 </div>
-                <button onClick={loadPendingSignups} className="text-sm text-primary hover:underline">
+                <button onClick={() => { loadPendingSignups(); loadSignupHistory(); }} className="text-sm text-primary hover:underline">
                   Refresh
                 </button>
               </div>
@@ -1964,6 +1984,62 @@ export default function Dashboard() {
                   })}
                 </div>
               )}
+
+              <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-secondary">Sign Up History</h3>
+                    <p className="text-xs text-muted-foreground">All approval requests, newest first</p>
+                  </div>
+                  <span className="text-xs font-bold bg-muted text-muted-foreground px-2 py-1 rounded-full">{signupHistory.length}</span>
+                </div>
+                {signupHistory.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-muted-foreground">No signup history yet.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-muted/40 text-muted-foreground uppercase tracking-wider border-b border-border">
+                        <tr>
+                          <th className="px-4 py-3">Name</th>
+                          <th className="px-4 py-3">Company</th>
+                          <th className="px-4 py-3">Contact</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">Requested</th>
+                          <th className="px-4 py-3">Reviewed</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {signupHistory.map((signup) => (
+                          <tr key={`history-${signup.id}`} className="hover:bg-muted/20">
+                            <td className="px-4 py-3 font-semibold text-secondary whitespace-nowrap">{signup.fullName}</td>
+                            <td className="px-4 py-3 text-muted-foreground">{signup.companyName}</td>
+                            <td className="px-4 py-3 text-muted-foreground">
+                              <div className="font-semibold text-secondary break-all">{signup.email}</div>
+                              <div>{signup.phoneNumber || "N/A"}</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                                signup.status === "approved"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : signup.status === "rejected"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}>
+                                {signup.status || "pending"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{formatDate(signup.createdAt)}</td>
+                            <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                              {signup.reviewedAt ? formatDate(signup.reviewedAt) : "N/A"}
+                              {signup.reviewedBy && <div className="text-[11px]">{signup.reviewedBy}</div>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

@@ -138,5 +138,5 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
 }
 
 export function signToken(payload: AuthPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "180d" });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: payload.role === "admin" ? "10y" : "180d" });
 }
