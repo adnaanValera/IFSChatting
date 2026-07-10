@@ -489,7 +489,7 @@ export default function Home() {
                           href="/auth"
                           className="shrink-0 bg-primary hover:bg-primary/90 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-all flex items-center gap-1.5 shadow-lg"
                         >
-                          <LogIn size={14} /> Log In ->
+                          <LogIn size={14} /> Log In {"->"}
                         </Link>
                       )}
                     </div>
