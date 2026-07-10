@@ -409,7 +409,9 @@ export default function CustomerDashboard() {
                     <p className="font-bold text-secondary dark:text-white truncate">{shipmentIdentifier(shipment)}</p>
                     <p className="text-xs text-muted-foreground truncate">{shipment.cargoDescription || "No cargo description"}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">{shipment.shipper || "N/A"} -> {shipment.consignee || companyName}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {shipment.shipper || "N/A"} {"->"} {shipment.consignee || companyName}
+                  </p>
                   <StatusBadge status={shipment.status || "N/A"} />
                 </button>
               ))}
