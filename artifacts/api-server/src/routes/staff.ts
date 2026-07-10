@@ -1768,8 +1768,9 @@ async function convertWorkbookToPdfBuffer(wb: ExcelJS.Workbook, fileName: string
   const timeout = setTimeout(() => controller.abort(), 55_000);
   let response: Response;
   try {
-    response = await fetch(`https://v2.convertapi.com/convert/xlsx/to/pdf?Secret=${encodeURIComponent(secret)}`, {
+    response = await fetch("https://v2.convertapi.com/convert/xlsx/to/pdf", {
       method: "POST",
+      headers: { Authorization: `Bearer ${secret}` },
       body: form,
       signal: controller.signal,
     });
