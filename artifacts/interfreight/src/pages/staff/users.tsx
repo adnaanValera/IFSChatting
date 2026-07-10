@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useListStaffUsers, useStaffLogout } from "@workspace/api-client-react";
-import { Loader2, Users, Shield, LogOut, ArrowLeft, Trash2, KeyRound } from "lucide-react";
+import { Loader2, Users, Shield, LogOut, ArrowLeft, Trash2, KeyRound, Save } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -11,6 +11,8 @@ export default function UsersList() {
   const { data: users, isLoading } = useListStaffUsers();
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [changingPasswordId, setChangingPasswordId] = useState<number | null>(null);
+  const [savingPictureId, setSavingPictureId] = useState<number | null>(null);
+  const [pictureDrafts, setPictureDrafts] = useState<Record<number, string>>({});
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -86,6 +88,31 @@ export default function UsersList() {
     }
   };
 
+  const handleSaveProfilePicture = async (user: any) => {
+    setSavingPictureId(user.id);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/users/${user.id}/profile-picture`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ profilePictureUrl: pictureDrafts[user.id] ?? "" }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Failed to update profile picture");
+      }
+      queryClient.invalidateQueries();
+    } catch (err: any) {
+      alert(err.message || "Failed to update profile picture");
+    } finally {
+      setSavingPictureId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -135,6 +162,7 @@ export default function UsersList() {
                   <th className="px-6 py-4">Company</th>
                   <th className="px-6 py-4">Email</th>
                   <th className="px-6 py-4">Role</th>
+                  <th className="px-6 py-4">Profile Picture</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -143,9 +171,13 @@ export default function UsersList() {
                   <tr key={user.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-6 py-4 font-semibold text-secondary">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
-                          {(user.fullName || user.name || "?").charAt(0).toUpperCase()}
-                        </div>
+                        {user.profilePictureUrl ? (
+                          <img src={user.profilePictureUrl} alt={user.fullName || user.name || "User"} className="w-8 h-8 rounded-full object-cover border border-border shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                            {(user.fullName || user.name || "?").charAt(0).toUpperCase()}
+                          </div>
+                        )}
                         {user.fullName || user.name}
                       </div>
                     </td>
@@ -160,6 +192,25 @@ export default function UsersList() {
                         <Shield size={12} />
                         {user.role}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          placeholder="https://..."
+                          value={pictureDrafts[user.id] ?? user.profilePictureUrl ?? ""}
+                          onChange={(e) => setPictureDrafts((current) => ({ ...current, [user.id]: e.target.value }))}
+                          className="w-56 max-w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                        />
+                        <button
+                          onClick={() => handleSaveProfilePicture(user)}
+                          disabled={savingPictureId === user.id}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/90 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {savingPictureId === user.id ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                          Save
+                        </button>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
@@ -185,7 +236,7 @@ export default function UsersList() {
                 ))}
                 {!users?.length && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No users found</td>
+                    <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">No users found</td>
                   </tr>
                 )}
               </tbody>

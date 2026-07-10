@@ -105,6 +105,7 @@ router.post("/auth/register", async (req, res) => {
           fullName: fullName.trim(),
           companyName: companyName.trim(),
           phoneNumber: phoneNumber.trim(),
+          profilePictureUrl: null,
           approvalToken,
           passwordHash,
           role,
@@ -121,6 +122,7 @@ router.post("/auth/register", async (req, res) => {
           companyName: companyName.trim(),
           email: email.trim().toLowerCase(),
           phoneNumber: phoneNumber.trim(),
+          profilePictureUrl: null,
           approvalToken,
           passwordHash,
           role,
@@ -159,6 +161,7 @@ router.post("/auth/register", async (req, res) => {
       companyName: user.companyName,
       email: user.email,
       role: user.role,
+      profilePictureUrl: user.profilePictureUrl,
     },
   });
 });
@@ -212,6 +215,7 @@ router.post("/auth/login", async (req, res) => {
       companyName: user.companyName,
       email: user.email,
       role: user.role,
+      profilePictureUrl: user.profilePictureUrl,
     },
   });
 });
@@ -300,6 +304,7 @@ router.post("/auth/pending-signup/status", async (req, res) => {
       email: user.email,
       phoneNumber: user.phoneNumber,
       role: user.role,
+      profilePictureUrl: user.profilePictureUrl,
     },
   });
 });
@@ -324,6 +329,7 @@ router.get("/auth/me", requireAuth, async (req, res) => {
     email: user.email,
     phoneNumber: user.phoneNumber,
     role: user.role,
+    profilePictureUrl: user.profilePictureUrl,
   });
 });
 

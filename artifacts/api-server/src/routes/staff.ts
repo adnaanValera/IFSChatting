@@ -1988,6 +1988,7 @@ router.get("/staff/pending-signups", requireAuth, requireStaff, async (_req, res
       companyName: pendingSignupsTable.companyName,
       email: pendingSignupsTable.email,
       phoneNumber: pendingSignupsTable.phoneNumber,
+      profilePictureUrl: pendingSignupsTable.profilePictureUrl,
       role: pendingSignupsTable.role,
       status: pendingSignupsTable.status,
       createdAt: pendingSignupsTable.createdAt,
@@ -2007,6 +2008,7 @@ router.get("/staff/signup-history", requireAuth, requireStaff, async (_req, res)
       companyName: pendingSignupsTable.companyName,
       email: pendingSignupsTable.email,
       phoneNumber: pendingSignupsTable.phoneNumber,
+      profilePictureUrl: pendingSignupsTable.profilePictureUrl,
       role: pendingSignupsTable.role,
       status: pendingSignupsTable.status,
       reviewedBy: pendingSignupsTable.reviewedBy,
@@ -2022,6 +2024,7 @@ router.get("/staff/signup-history", requireAuth, requireStaff, async (_req, res)
 router.post("/staff/pending-signups/:id/approve", requireAuth, requireStaff, async (req, res) => {
   const authReq = req as typeof req & { user: { email: string } };
   const id = Number(req.params["id"]);
+  const profilePictureUrl = typeof req.body?.profilePictureUrl === "string" ? req.body.profilePictureUrl.trim() : "";
   if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid pending signup id" }); return; }
 
   const [pending] = await db.select().from(pendingSignupsTable).where(eq(pendingSignupsTable.id, id)).limit(1);
@@ -2044,10 +2047,11 @@ router.post("/staff/pending-signups/:id/approve", requireAuth, requireStaff, asy
       companyName: pending.companyName,
       email: pending.email.toLowerCase(),
       phoneNumber: pending.phoneNumber,
+      profilePictureUrl: profilePictureUrl || pending.profilePictureUrl || null,
       passwordHash: pending.passwordHash,
       role: pending.role,
     })
-    .returning({ id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email, role: usersTable.role });
+    .returning({ id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email, role: usersTable.role, profilePictureUrl: usersTable.profilePictureUrl });
 
   await db
     .update(pendingSignupsTable)
@@ -2075,9 +2079,41 @@ router.post("/staff/pending-signups/:id/reject", requireAuth, requireStaff, asyn
 
 router.get("/staff/users", requireAuth, requireAdmin, async (_req, res) => {
   const users = await db
-    .select({ id: usersTable.id, fullName: usersTable.fullName, companyName: usersTable.companyName, email: usersTable.email, phoneNumber: usersTable.phoneNumber, role: usersTable.role })
+    .select({
+      id: usersTable.id,
+      fullName: usersTable.fullName,
+      companyName: usersTable.companyName,
+      email: usersTable.email,
+      phoneNumber: usersTable.phoneNumber,
+      role: usersTable.role,
+      profilePictureUrl: usersTable.profilePictureUrl,
+    })
     .from(usersTable);
   res.json(users);
+});
+
+router.patch("/staff/users/:id/profile-picture", requireAuth, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params["id"] as string, 10);
+  const profilePictureUrl = typeof req.body?.profilePictureUrl === "string" ? req.body.profilePictureUrl.trim() : "";
+
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid user id" }); return; }
+
+  const updated = await db
+    .update(usersTable)
+    .set({ profilePictureUrl: profilePictureUrl || null })
+    .where(eq(usersTable.id, id))
+    .returning({
+      id: usersTable.id,
+      fullName: usersTable.fullName,
+      companyName: usersTable.companyName,
+      email: usersTable.email,
+      phoneNumber: usersTable.phoneNumber,
+      role: usersTable.role,
+      profilePictureUrl: usersTable.profilePictureUrl,
+    });
+
+  if (updated.length === 0) { res.status(404).json({ error: "User not found" }); return; }
+  res.json({ user: updated[0] });
 });
 
 router.delete("/staff/users/:id", requireAuth, requireAdmin, async (req, res) => {

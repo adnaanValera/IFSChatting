@@ -37,6 +37,7 @@ type PendingSignup = {
   companyName: string;
   email: string;
   phoneNumber?: string | null;
+  profilePictureUrl?: string | null;
   role: string;
   status?: string;
   reviewedBy?: string | null;
@@ -323,6 +324,7 @@ export default function Dashboard() {
   const [signupHistory, setSignupHistory] = useState<PendingSignup[]>([]);
   const [pendingSignupsLoading, setPendingSignupsLoading] = useState(false);
   const [pendingSignupAction, setPendingSignupAction] = useState<string | null>(null);
+  const [pendingSignupPictures, setPendingSignupPictures] = useState<Record<number, string>>({});
 
   const { data: user } = useGetMe();
   const logoutMutation = useStaffLogout();
@@ -350,7 +352,15 @@ export default function Dashboard() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to load pending signups");
-      setPendingSignups(await res.json());
+      const rows = await res.json();
+      setPendingSignups(rows);
+      setPendingSignupPictures((current) => {
+        const next = { ...current };
+        for (const row of rows as PendingSignup[]) {
+          if (next[row.id] === undefined) next[row.id] = row.profilePictureUrl || "";
+        }
+        return next;
+      });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Could not load signups", description: err.message });
     } finally {
@@ -379,7 +389,13 @@ export default function Dashboard() {
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
       const res = await fetch(`${base}/api/staff/pending-signups/${id}/${action}`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          profilePictureUrl: action === "approve" ? (pendingSignupPictures[id] ?? "").trim() : undefined,
+        }),
       });
       if (!res.ok && res.status !== 204) {
         const json = await res.json().catch(() => ({}));
@@ -1958,6 +1974,29 @@ export default function Dashboard() {
                               <p><span className="text-muted-foreground">Phone:</span> <span className="font-semibold text-secondary">{signup.phoneNumber || "N/A"}</span></p>
                               <p><span className="text-muted-foreground">Email:</span> <span className="font-semibold text-secondary break-all">{signup.email}</span></p>
                               <p><span className="text-muted-foreground">Requested:</span> <span className="font-semibold text-secondary">{formatDate(signup.createdAt)}</span></p>
+                            </div>
+                            <div className="mt-4">
+                              <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                                Profile picture URL
+                              </label>
+                              <div className="flex flex-col sm:flex-row gap-3">
+                                <input
+                                  type="url"
+                                  value={pendingSignupPictures[signup.id] ?? ""}
+                                  onChange={(e) => setPendingSignupPictures((current) => ({ ...current, [signup.id]: e.target.value }))}
+                                  placeholder="https://..."
+                                  className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                />
+                                {(pendingSignupPictures[signup.id] ?? "").trim() ? (
+                                  <img
+                                    src={pendingSignupPictures[signup.id]}
+                                    alt={signup.fullName}
+                                    className="h-14 w-14 rounded-full object-cover border border-border shrink-0"
+                                  />
+                                ) : (
+                                  <div className="h-14 w-14 rounded-full border border-dashed border-border bg-muted/30 shrink-0" />
+                                )}
+                              </div>
                             </div>
                           </div>
                           <div className="flex gap-2 shrink-0">

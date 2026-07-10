@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import {
   Loader2, LogOut, Package, Ship, MapPin,
   CheckCircle, Home, Download, Megaphone, Bell, ArrowRight,
-  AlertTriangle, Search, Moon, Sun, LayoutGrid, FileText, Eye, Users,
+  AlertTriangle, Search, Moon, Sun, LayoutGrid, FileText, Eye, Users, UserCircle2,
 } from "lucide-react";
 import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
 import { Link } from "wouter";
@@ -262,6 +262,7 @@ export default function CustomerDashboard() {
   };
 
   const typedUser = user as any;
+  const profilePictureUrl = typedUser?.profilePictureUrl as string | undefined;
   const shipments = shipmentsPage?.items ?? [];
   const filteredShipments = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -311,6 +312,13 @@ export default function CustomerDashboard() {
       <div className="bg-secondary text-secondary-foreground shadow-lg sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
+            {profilePictureUrl ? (
+              <img src={profilePictureUrl} alt={typedUser?.fullName || typedUser?.name || "Profile"} className="h-10 w-10 rounded-full object-cover border border-white/15 shrink-0" />
+            ) : (
+              <div className="h-10 w-10 rounded-full bg-primary/10 border border-white/10 flex items-center justify-center text-primary shrink-0">
+                <UserCircle2 size={20} />
+              </div>
+            )}
             <img src={logoUrl} alt="InterFreight" className="h-9 sm:h-10 w-auto bg-white rounded p-1 shrink-0" />
             <div className="min-w-0">
               <p className="text-xs text-gray-400 uppercase tracking-widest">My Tracking</p>
@@ -391,9 +399,13 @@ export default function CustomerDashboard() {
         <div className="mb-5 sm:mb-8 rounded-2xl border border-border bg-card text-card-foreground shadow-sm p-4 sm:p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
             <div className="flex items-center gap-4 min-w-0">
-              <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-extrabold text-lg shrink-0">
-                {initials(companyName)}
-              </div>
+              {profilePictureUrl ? (
+                <img src={profilePictureUrl} alt={companyName} className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover border border-primary/20 shrink-0" />
+              ) : (
+                <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-extrabold text-lg shrink-0">
+                  {initials(companyName)}
+                </div>
+              )}
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Secure Consignee Portal</p>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-secondary dark:text-white leading-tight">

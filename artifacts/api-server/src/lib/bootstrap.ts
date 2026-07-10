@@ -11,12 +11,14 @@ async function createTables() {
       company_name text NOT NULL DEFAULT '',
       email text NOT NULL UNIQUE,
       phone_number text,
+      profile_picture_url text,
       password_hash text NOT NULL,
       role text NOT NULL DEFAULT 'customer',
       created_at timestamptz NOT NULL DEFAULT now()
     );
 
     ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number text;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture_url text;
 
     CREATE TABLE IF NOT EXISTS pending_signups (
       id serial PRIMARY KEY,
@@ -24,6 +26,7 @@ async function createTables() {
       company_name text NOT NULL DEFAULT '',
       email text NOT NULL UNIQUE,
       phone_number text,
+      profile_picture_url text,
       approval_token text,
       password_hash text NOT NULL,
       role text NOT NULL DEFAULT 'customer',
@@ -34,6 +37,7 @@ async function createTables() {
     );
 
     ALTER TABLE pending_signups ADD COLUMN IF NOT EXISTS approval_token text;
+    ALTER TABLE pending_signups ADD COLUMN IF NOT EXISTS profile_picture_url text;
 
     CREATE TABLE IF NOT EXISTS companies (
       id serial PRIMARY KEY,
