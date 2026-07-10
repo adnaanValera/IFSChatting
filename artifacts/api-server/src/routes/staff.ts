@@ -5,7 +5,6 @@ import { ZipArchive } from "archiver";
 import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs";
-import { Blob } from "node:buffer";
 import { db, pool, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable, sessionsTable, pendingSignupsTable } from "@workspace/db";
 import { eq, asc, desc, and, or, isNull, ilike, sql } from "drizzle-orm";
 import { requireAuth, requireStaff, requireAdmin } from "../middlewares/auth";
@@ -1742,9 +1741,15 @@ function streamCompanyReportPdf(
 }
 
 async function convertWorkbookToPdfBuffer(wb: ExcelJS.Workbook, fileName: string): Promise<Buffer> {
-  const secret = process.env.CONVERTAPI_SECRET?.trim();
+  const secret = (
+    process.env.CONVERTAPI_SECRET
+    ?? process.env.CONVERT_API_SECRET
+    ?? process.env.CONVERTAPI_TOKEN
+    ?? process.env.CONVERT_API_TOKEN
+    ?? ""
+  ).trim();
   if (!secret) {
-    throw new Error("CONVERTAPI_SECRET is not set in Vercel Environment Variables.");
+    throw new Error("ConvertAPI secret is not set. Add CONVERTAPI_SECRET in Vercel Environment Variables and redeploy.");
   }
 
   const workbookData = await wb.xlsx.writeBuffer();
@@ -1759,16 +1764,25 @@ async function convertWorkbookToPdfBuffer(wb: ExcelJS.Workbook, fileName: string
   );
   form.append("StoreFile", "false");
 
-  const response = await fetch(`https://v2.convertapi.com/convert/xlsx/to/pdf?Secret=${encodeURIComponent(secret)}`, {
-    method: "POST",
-    body: form,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 55_000);
+  let response: Response;
+  try {
+    response = await fetch(`https://v2.convertapi.com/convert/xlsx/to/pdf?Secret=${encodeURIComponent(secret)}`, {
+      method: "POST",
+      body: form,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
   const contentType = response.headers.get("content-type") ?? "";
   if (!response.ok) {
     const json = contentType.includes("application/json")
       ? await response.json().catch(() => ({})) as any
       : {};
-    const message = json?.Message || json?.message || `ConvertAPI failed with status ${response.status}`;
+    const text = contentType.includes("application/json") ? "" : await response.text().catch(() => "");
+    const message = json?.Message || json?.message || text || `ConvertAPI failed with status ${response.status}`;
     throw new Error(message);
   }
 
@@ -1806,6 +1820,12 @@ async function streamCompanyReportPdfFromExcel(
   res.end(pdf);
 }
 
+function handlePdfRouteError(res: any, err: unknown) {
+  const message = err instanceof Error ? err.message : "PDF generation failed";
+  logger.error({ err, message }, "PDF conversion failed");
+  res.status(500).json({ error: message });
+}
+
 router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, async (req, res) => {
   const companyName = decodeURIComponent(req.params["company"] as string);
   const shipments = await db.select().from(shipmentsTable).where(and(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`, activeShipmentSql)).orderBy(asc(shipmentsTable.ifsRef));
@@ -1823,7 +1843,7 @@ router.get("/staff/company-report/:company/pdf", requireAuth, requireStaff, asyn
     const shipments = await db.select().from(shipmentsTable).where(and(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`, activeShipmentSql)).orderBy(asc(shipmentsTable.ifsRef));
     await streamCompanyReportPdfFromExcel(res, companyName, `Status Report - ${companyName} (${todayString()}).pdf`, shipments);
   } catch (err) {
-    res.status(500).send(err instanceof Error ? err.message : "PDF generation failed");
+    handlePdfRouteError(res, err);
   }
 });
 
@@ -1844,7 +1864,7 @@ router.get("/customer/company-report/pdf", requireAuth, async (req, res) => {
 
     await streamCompanyReportPdfFromExcel(res, companyName, `Status Report - ${companyName} (${todayString()}).pdf`, shipments);
   } catch (err) {
-    res.status(500).send(err instanceof Error ? err.message : "PDF generation failed");
+    handlePdfRouteError(res, err);
   }
 });
 
@@ -1911,7 +1931,7 @@ router.get("/staff/company-report/:company/consignee/:consignee/pdf", requireAut
     const reportLabel = isUnspecified ? companyName : (shipments[0]?.consignee ?? consigneeName);
     await streamCompanyReportPdfFromExcel(res, reportLabel, `Status Report - ${companyName} - ${reportLabel} (${todayString()}).pdf`, shipments);
   } catch (err) {
-    res.status(500).send(err instanceof Error ? err.message : "PDF generation failed");
+    handlePdfRouteError(res, err);
   }
 });
 
