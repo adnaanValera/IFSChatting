@@ -11,7 +11,7 @@ type Props = {
 export function NotificationOptIn({ storageKey, scope }: Props) {
   const { toast } = useToast();
   const dismissed = typeof window !== "undefined" ? localStorage.getItem(storageKey) === "1" : true;
-  const { canEnable, enable, isLoading, isSubscribed, permission } = usePushNotifications(scope);
+  const { canEnable, enable, isLoading, isSubscribed, permission, unsupportedReason } = usePushNotifications(scope);
 
   if (dismissed || isSubscribed || permission === "denied" || !canEnable) return null;
 
@@ -26,7 +26,7 @@ export function NotificationOptIn({ storageKey, scope }: Props) {
       toast({
         variant: "destructive",
         title: "Notifications could not be enabled",
-        description: error?.message || "Please try again after refreshing the page.",
+        description: error?.message || unsupportedReason || "Please try again after refreshing the page.",
       });
     }
   }

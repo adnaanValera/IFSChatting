@@ -4,12 +4,14 @@ import { Bell, Home } from "lucide-react";
 import logoUrl from "@assets/Inter_freight_logo_nobg.png";
 import { Spinner } from "@/components/ui/spinner";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SignupWaitingPage() {
+  const { toast } = useToast();
   const [sessionDays, setSessionDays] = useState("30");
   const email = localStorage.getItem("intf_pending_signup_email") || "";
   const approvalToken = localStorage.getItem("intf_pending_signup_token") || "";
-  const { canEnable, enable, isLoading, isSubscribed } = usePushNotifications(
+  const { canEnable, enable, isLoading, isSubscribed, unsupportedReason } = usePushNotifications(
     approvalToken ? { type: "pending", approvalToken } : undefined,
   );
 
@@ -35,13 +37,24 @@ export default function SignupWaitingPage() {
           {canEnable && !isSubscribed && (
             <button
               type="button"
-              onClick={() => void enable()}
+              onClick={() => void enable().catch((error: any) => {
+                toast({
+                  variant: "destructive",
+                  title: "Notifications could not be enabled",
+                  description: error?.message || unsupportedReason || "Please open the installed app and try again.",
+                });
+              })}
               disabled={isLoading}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-secondary/10 bg-secondary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-secondary/92 disabled:opacity-60"
             >
               {isLoading ? <Spinner className="h-4 w-4" /> : <Bell size={15} />}
               Notify me when approved
             </button>
+          )}
+          {!canEnable && unsupportedReason && (
+            <div className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-left text-xs leading-relaxed text-muted-foreground">
+              {unsupportedReason}
+            </div>
           )}
         </div>
         <select

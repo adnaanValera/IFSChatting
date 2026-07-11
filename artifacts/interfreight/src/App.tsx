@@ -8,6 +8,7 @@ import { setupApiClient } from "@/lib/api-setup";
 
 // Pages
 import Home from "@/pages/home";
+import AppInstallPage from "@/pages/app-install";
 import AuthPage from "@/pages/auth";
 import SignupWaitingPage from "@/pages/signup-waiting";
 import Containers from "@/pages/containers";
@@ -26,6 +27,7 @@ function Router() {
     <Switch>
       {/* Public */}
       <Route path="/" component={Home} />
+      <Route path="/app-install" component={AppInstallPage} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/auth/waiting" component={SignupWaitingPage} />
       <Route path="/containers" component={Containers} />

@@ -2060,10 +2060,6 @@ router.post("/staff/pending-signups/:id/approve", requireAuth, requireStaff, asy
     })
     .returning({ id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email, role: usersTable.role, profilePictureUrl: usersTable.profilePictureUrl });
 
-  if (pending.approvalToken) {
-    await transferPendingPushSubscriptionsToUser(pending.approvalToken, user.id);
-  }
-
   await db
     .update(pendingSignupsTable)
     .set({ status: "approved", reviewedBy: authReq.user.email, reviewedAt: new Date() })
@@ -2076,6 +2072,7 @@ router.post("/staff/pending-signups/:id/approve", requireAuth, requireStaff, asy
       url: "/auth/waiting",
       tag: `signup-approved-${pending.id}`,
     });
+    await transferPendingPushSubscriptionsToUser(pending.approvalToken, user.id);
   }
 
   res.status(201).json(user);

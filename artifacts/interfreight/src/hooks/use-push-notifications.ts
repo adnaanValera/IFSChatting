@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { urlBase64ToUint8Array } from "@/lib/pwa";
+import { isStandaloneDisplay, urlBase64ToUint8Array } from "@/lib/pwa";
 
 type Scope = { type: "auth" } | { type: "pending"; approvalToken: string };
 
@@ -33,6 +33,9 @@ async function upsertSubscription(scope: Scope, subscription: PushSubscription) 
 }
 
 export function usePushNotifications(scope?: Scope) {
+  const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isIOS = /iPad|iPhone|iPod/i.test(userAgent);
+  const standalone = typeof window !== "undefined" ? isStandaloneDisplay() : false;
   const [permission, setPermission] = useState<NotificationPermission>(() =>
     typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default",
   );
@@ -43,6 +46,7 @@ export function usePushNotifications(scope?: Scope) {
   useEffect(() => {
     setIsSupported(
       typeof window !== "undefined" &&
+      window.isSecureContext &&
       "serviceWorker" in navigator &&
       "PushManager" in window &&
       "Notification" in window,
@@ -59,10 +63,28 @@ export function usePushNotifications(scope?: Scope) {
     void checkSubscription();
   }, [isSupported, scope]);
 
-  const canEnable = useMemo(() => isSupported && !!scope && permission !== "denied", [isSupported, scope, permission]);
+  const unsupportedReason = useMemo(() => {
+    if (!scope) return "";
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      return "Notifications need a secure HTTPS connection.";
+    }
+    if (isIOS && !standalone) {
+      return "On iPhone or iPad, install and open the app first, then enable notifications inside the app.";
+    }
+    if (!isSupported) {
+      return "This device does not support push notifications here yet.";
+    }
+    return "";
+  }, [isIOS, isSupported, scope, standalone]);
+
+  const canEnable = useMemo(
+    () => isSupported && !!scope && permission !== "denied" && !unsupportedReason,
+    [isSupported, scope, permission, unsupportedReason],
+  );
 
   async function enable() {
     if (!scope || !isSupported) return false;
+    if (unsupportedReason) throw new Error(unsupportedReason);
     setIsLoading(true);
     try {
       const nextPermission = await Notification.requestPermission();
@@ -89,10 +111,18 @@ export function usePushNotifications(scope?: Scope) {
         }
       }
 
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey,
-      });
+      try {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        if (isIOS && !standalone) {
+          throw new Error("Install and open the InterFreight app first, then enable notifications there.");
+        }
+        throw new Error(message || "Push registration failed on this device. Open the installed app and try again.");
+      }
 
       await upsertSubscription(scope, subscription);
       setIsSubscribed(true);
@@ -102,5 +132,5 @@ export function usePushNotifications(scope?: Scope) {
     }
   }
 
-  return { isSupported, isSubscribed, isLoading, permission, canEnable, enable };
+  return { isSupported, isSubscribed, isLoading, permission, canEnable, enable, unsupportedReason };
 }

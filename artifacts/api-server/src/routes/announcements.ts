@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { db, announcementsTable } from "@workspace/db";
+import { db, announcementsTable, notificationsTable, usersTable } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 import { requireAdmin, requireAuth } from "../middlewares/auth";
+import { sendPushToUser } from "../lib/push";
 
 const router = Router();
 
@@ -31,6 +32,33 @@ router.put("/staff/announcements/current", requireAuth, requireAdmin, async (req
     .insert(announcementsTable)
     .values({ title: cleanTitle, message: cleanMessage, active: true })
     .returning();
+
+  const customers = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.role, "customer"));
+
+  if (customers.length > 0) {
+    await db.insert(notificationsTable).values(
+      customers.map(({ id: userId }) => ({
+        userId,
+        title: cleanTitle,
+        message: cleanMessage,
+        companyName: "InterFreight Solutions",
+        status: "Announcement",
+      })),
+    );
+
+    await Promise.all(customers.map(({ id: userId }) =>
+      sendPushToUser(userId, {
+        title: cleanTitle,
+        body: cleanMessage,
+        url: "/dashboard",
+        tag: `announcement-${announcement.id}`,
+      }),
+    ));
+  }
+
   res.json(announcement);
 });
 
