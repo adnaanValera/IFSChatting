@@ -14,8 +14,13 @@ export default function AppInstallPage() {
   const isIOS = /iPad|iPhone|iPod/i.test(userAgent);
   const openedInApp = isStandaloneDisplay();
   const isWaitingForPrompt = !isIOS && !installed && !openedInApp && !canInstall;
+  const hasToken = typeof window !== "undefined" && !!localStorage.getItem("intf_token");
 
   useEffect(() => {
+    if (hasToken) {
+      window.location.replace("/dashboard");
+      return;
+    }
     if (openedInApp || installed) {
       window.location.replace("/auth");
       return;
@@ -33,7 +38,7 @@ export default function AppInstallPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [canInstall, installed, isIOS, openedInApp, promptInstall]);
+  }, [canInstall, hasToken, installed, isIOS, openedInApp, promptInstall]);
 
   const installHelpText = useMemo(() => {
     if (isIOS) {

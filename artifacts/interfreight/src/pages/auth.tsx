@@ -5,6 +5,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Lock, Mail, ArrowRight, User, Building2, Phone, Clock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useGetMe } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
 import { isStandaloneDisplay } from "@/lib/pwa";
@@ -239,10 +240,30 @@ export default function AuthPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const standalone = isStandaloneDisplay();
+  const hasToken = typeof window !== "undefined" && !!localStorage.getItem("intf_token");
+  const { data: me, isLoading: meLoading } = useGetMe(undefined, { enabled: hasToken });
+
+  if (hasToken && meLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Spinner className="w-12 h-12" />
+      </div>
+    );
+  }
+
+  if (me) {
+    const role = (me as any)?.role;
+    if (role === "staff" || role === "admin") {
+      setLocation("/staff/dashboard");
+    } else {
+      setLocation("/dashboard");
+    }
+    return null;
+  }
 
   const handleSuccess = (user: any) => {
     queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-    if (user.role === "staff") {
+    if (user.role === "staff" || user.role === "admin") {
       setLocation("/staff/dashboard");
     } else {
       setLocation("/dashboard");
