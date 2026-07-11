@@ -20,9 +20,9 @@ import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/utils";
 import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
+import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
 import { saveAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
-import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 type Tab = "overview" | "import" | "history" | "messages" | "cards" | "authorize";
 
@@ -304,7 +304,6 @@ export default function Dashboard() {
   const templateFileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const { canInstall, installed, promptInstall } = useInstallPrompt();
-  const { canEnable, enable, isLoading: enablingPush, isSubscribed } = usePushNotifications({ type: "auth" });
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [isMasterUploading, setIsMasterUploading] = useState(false);
@@ -1018,6 +1017,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#f5f6fa] flex flex-col">
+      <NotificationOptIn storageKey="intf_push_prompt_staff" scope={{ type: "auth" }} />
       {/* Top bar */}
       <header className="bg-secondary text-white h-14 flex items-center px-4 sm:px-6 border-b border-white/10 sticky top-0 z-40 shadow-md">
         <div className="flex items-center gap-3 flex-1">
@@ -1142,17 +1142,6 @@ export default function Dashboard() {
                   >
                     <Smartphone size={16} />
                     Download App
-                  </button>
-                )}
-                {canEnable && !isSubscribed && (
-                  <button
-                    type="button"
-                    onClick={() => void enable()}
-                    disabled={enablingPush}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-secondary/10 bg-secondary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-secondary/92 disabled:opacity-60"
-                  >
-                    {enablingPush ? <Loader2 size={16} className="animate-spin" /> : <Bell size={16} />}
-                    Enable push alerts
                   </button>
                 )}
               </div>

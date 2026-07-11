@@ -5,7 +5,10 @@ type Scope = { type: "auth" } | { type: "pending"; approvalToken: string };
 
 async function fetchPublicKey() {
   const response = await fetch("/api/push/public-key");
-  if (!response.ok) return "";
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(message || "Could not load the push notification key.");
+  }
   const data = await response.json().catch(() => ({}));
   return String(data.publicKey || "");
 }
@@ -13,7 +16,7 @@ async function fetchPublicKey() {
 async function upsertSubscription(scope: Scope, subscription: PushSubscription) {
   const token = localStorage.getItem("intf_token");
   const endpoint = scope.type === "auth" ? "/api/push/subscribe" : "/api/push/pending-subscribe";
-  await fetch(endpoint, {
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -23,6 +26,10 @@ async function upsertSubscription(scope: Scope, subscription: PushSubscription) 
       ? subscription.toJSON()
       : { approvalToken: scope.approvalToken, ...subscription.toJSON() }),
   });
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(message || "Could not save the push notification subscription.");
+  }
 }
 
 export function usePushNotifications(scope?: Scope) {

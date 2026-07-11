@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Bell, Home } from "lucide-react";
-import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
+import logoUrl from "@assets/Inter_freight_logo_nobg.png";
 import { Spinner } from "@/components/ui/spinner";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 

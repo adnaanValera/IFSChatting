@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Lock, Mail, ArrowRight, User, Building2, Phone, Clock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
+import logoUrl from "@assets/Inter_freight_logo_nobg.png";
 import { Spinner } from "@/components/ui/spinner";
 import { isStandaloneDisplay } from "@/lib/pwa";
 

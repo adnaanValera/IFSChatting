@@ -13,9 +13,9 @@ import { Link } from "wouter";
 import { ShipmentCard } from "@/components/ui/shipment-card";
 import { Spinner } from "@/components/ui/spinner";
 import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
+import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
 import { saveAccount, savedAccounts, type SavedAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
-import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 const STATUS_SECTIONS = [
   { label: "Shipments In Malawi", reportLabel: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
@@ -163,7 +163,6 @@ export default function CustomerDashboard() {
     return saved ? saved === "dark" : window.matchMedia?.("(prefers-color-scheme: dark)").matches;
   });
   const { canInstall, promptInstall } = useInstallPrompt();
-  usePushNotifications({ type: "auth" });
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
@@ -262,6 +261,7 @@ export default function CustomerDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      <NotificationOptIn storageKey="intf_push_prompt_customer" scope={{ type: "auth" }} />
       {/* Top bar */}
       <div className="bg-secondary text-secondary-foreground shadow-lg sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
@@ -340,8 +340,8 @@ export default function CustomerDashboard() {
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              {canInstall && (
+            {canInstall && (
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
                   onClick={() => void promptInstall()}
@@ -350,8 +350,8 @@ export default function CustomerDashboard() {
                   <Smartphone size={16} />
                   Download app
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 
