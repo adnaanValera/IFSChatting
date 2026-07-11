@@ -102,7 +102,7 @@ export function PendingSignupWatcher() {
   return (
     <div className="fixed inset-0 z-[100] bg-secondary/80 backdrop-blur-sm flex items-center justify-center px-4">
       <div
-        className={`w-full max-w-md rounded-2xl border-2 bg-white shadow-2xl p-6 text-center ${
+        className={`relative w-full max-w-md rounded-2xl border-2 bg-white p-6 text-center shadow-2xl ${
           approved ? "border-emerald-500" : "border-destructive"
         }`}
       >

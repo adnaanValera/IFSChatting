@@ -1144,11 +1144,6 @@ export default function Dashboard() {
                     Download App
                   </button>
                 )}
-                {!canInstall && installed && (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-                    App installed on this device
-                  </div>
-                )}
                 {canEnable && !isSubscribed && (
                   <button
                     type="button"
@@ -1159,11 +1154,6 @@ export default function Dashboard() {
                     {enablingPush ? <Loader2 size={16} className="animate-spin" /> : <Bell size={16} />}
                     Enable push alerts
                   </button>
-                )}
-                {isSubscribed && (
-                  <div className="rounded-xl border border-secondary/10 bg-secondary/5 px-4 py-3 text-sm font-semibold text-secondary">
-                    Push alerts are on for this device
-                  </div>
                 )}
               </div>
 

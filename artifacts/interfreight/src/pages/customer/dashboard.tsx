@@ -6,7 +6,7 @@ import { useStaffLogout } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import {
   LogOut, Package, Ship, MapPin,
-  CheckCircle, Home, Download, Megaphone, Bell, ArrowRight,
+  CheckCircle, Home, Download, Megaphone, ArrowRight,
   AlertTriangle, Search, Moon, Sun, Smartphone,
 } from "lucide-react";
 import { Link } from "wouter";
@@ -163,7 +163,7 @@ export default function CustomerDashboard() {
     return saved ? saved === "dark" : window.matchMedia?.("(prefers-color-scheme: dark)").matches;
   });
   const { canInstall, promptInstall } = useInstallPrompt();
-  const { canEnable, enable, isLoading: enablingPush, isSubscribed } = usePushNotifications({ type: "auth" });
+  usePushNotifications({ type: "auth" });
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
@@ -349,17 +349,6 @@ export default function CustomerDashboard() {
                 >
                   <Smartphone size={16} />
                   Download app
-                </button>
-              )}
-              {canEnable && !isSubscribed && (
-                <button
-                  type="button"
-                  onClick={() => void enable()}
-                  disabled={enablingPush}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-secondary/10 bg-secondary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-secondary/92 disabled:opacity-60"
-                >
-                  {enablingPush ? <Spinner className="h-4 w-4" /> : <Bell size={16} />}
-                  Enable push alerts
                 </button>
               )}
             </div>
