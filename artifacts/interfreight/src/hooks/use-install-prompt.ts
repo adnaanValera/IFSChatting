@@ -16,11 +16,21 @@ export function useInstallPrompt() {
       setPromptEvent(null);
     }
 
+    function syncInstalledState() {
+      setInstalled(isStandaloneDisplay());
+    }
+
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleInstalled);
+    window.addEventListener("focus", syncInstalledState);
+    window.addEventListener("pageshow", syncInstalledState);
+    document.addEventListener("visibilitychange", syncInstalledState);
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleInstalled);
+      window.removeEventListener("focus", syncInstalledState);
+      window.removeEventListener("pageshow", syncInstalledState);
+      document.removeEventListener("visibilitychange", syncInstalledState);
     };
   }, []);
 
