@@ -6,7 +6,7 @@ import { useStaffLogout } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import {
   LogOut, Package, Ship, MapPin,
-  CheckCircle, Home, Download, Megaphone, ArrowRight,
+  CheckCircle, Home, Download, Megaphone, ArrowRight, Bell,
   AlertTriangle, Search, Moon, Sun, Smartphone,
 } from "lucide-react";
 import { Link } from "wouter";
