@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useGetMe } from "@workspace/api-client-react";
 import { LayoutDashboard, LogIn, Menu, X, MapPin } from "lucide-react";
-import logoUrl from "@assets/Inter_freight_logo_nobg.png";
 import { NotificationBell } from "./NotificationBell";
+import { ThemeLogo } from "./ThemeLogo";
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -22,8 +22,7 @@ export function Navbar() {
 
           {/* Logo */}
           <Link href="/">
-            <img
-              src={logoUrl}
+            <ThemeLogo
               alt="InterFreight"
               className="h-14 w-auto object-contain cursor-pointer sm:h-16"
             />

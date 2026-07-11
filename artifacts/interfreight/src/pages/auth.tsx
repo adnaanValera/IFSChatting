@@ -6,9 +6,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Lock, Mail, ArrowRight, User, Building2, Phone, Clock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import logoUrl from "@assets/Inter_freight_logo_nobg.png";
 import { Spinner } from "@/components/ui/spinner";
 import { isStandaloneDisplay } from "@/lib/pwa";
+import { ThemeLogo } from "@/components/layout/ThemeLogo";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -253,8 +253,7 @@ export default function AuthPage() {
     <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <div className="mx-auto mb-4 flex items-center justify-center">
-          <img
-            src={logoUrl}
+          <ThemeLogo
             alt="InterFreight Logo"
             className="h-20 w-auto"
           />

@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Mail, MapPin, Phone, Globe } from "lucide-react";
-import logoUrl from "@assets/Inter_freight_logo_nobg.png";
+import { ThemeLogo } from "./ThemeLogo";
 
 export function Footer() {
   return (
@@ -10,7 +10,7 @@ export function Footer() {
 
           <div className="space-y-4">
             <Link href="/" className="inline-block">
-              <img src={logoUrl} alt="InterFreight Logo" className="h-16 w-auto mb-4" />
+              <ThemeLogo alt="InterFreight Logo" className="h-16 w-auto mb-4" />
             </Link>
             <p className="text-white/55 text-sm leading-relaxed">
               Premium logistics, freight forwarding, and customs clearance services designed to move valuable cargo with calm precision.

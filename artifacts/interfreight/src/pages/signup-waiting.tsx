@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Bell, Home } from "lucide-react";
-import logoUrl from "@assets/Inter_freight_logo_nobg.png";
 import { Spinner } from "@/components/ui/spinner";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { useToast } from "@/hooks/use-toast";
+import { ThemeLogo } from "@/components/layout/ThemeLogo";
 
 export default function SignupWaitingPage() {
   const { toast } = useToast();
@@ -23,7 +23,7 @@ export default function SignupWaitingPage() {
     <div className="min-h-screen bg-background flex flex-col justify-center px-4 py-12">
       <div className="mx-auto w-full max-w-md bg-white rounded-2xl border border-border shadow-xl p-6 text-center">
         <div className="mx-auto mb-5 flex items-center justify-center">
-          <img src={logoUrl} alt="InterFreight Logo" className="h-16 w-auto" />
+          <ThemeLogo alt="InterFreight Logo" className="h-16 w-auto" />
         </div>
         <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
           <Spinner className="w-8 h-8" />

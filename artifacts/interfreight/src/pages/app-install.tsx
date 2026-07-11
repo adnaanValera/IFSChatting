@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download, ExternalLink, Share2, Smartphone, X } from "lucide-react";
 import { Link } from "wouter";
-import logoUrl from "@assets/Inter_freight_logo_nobg.png";
 import { Spinner } from "@/components/ui/spinner";
 import { isStandaloneDisplay } from "@/lib/pwa";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
+import { ThemeLogo } from "@/components/layout/ThemeLogo";
 
 export default function AppInstallPage() {
   const { canInstall, installed, promptInstall } = useInstallPrompt();
@@ -49,7 +49,7 @@ export default function AppInstallPage() {
     <div className="min-h-screen bg-background px-4 py-10 sm:py-14">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-lg items-center justify-center">
         <div className="w-full rounded-[28px] border border-border bg-white p-7 text-center shadow-2xl sm:p-9">
-          <img src={logoUrl} alt="InterFreight Solutions" className="mx-auto mb-5 h-20 w-auto sm:h-24" />
+          <ThemeLogo alt="InterFreight Solutions" className="mx-auto mb-5 h-20 w-auto sm:h-24" />
 
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             {isPrompting || isWaitingForPrompt ? <Spinner className="h-8 w-8" /> : <Smartphone size={28} />}
