@@ -12,6 +12,7 @@ export default function AppInstallPage() {
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
   const isIOS = /iPad|iPhone|iPod/i.test(userAgent);
   const openedInApp = isStandaloneDisplay();
+  const isWaitingForPrompt = !isIOS && !installed && !openedInApp && !canInstall;
 
   useEffect(() => {
     if (openedInApp || installed) {
@@ -50,7 +51,7 @@ export default function AppInstallPage() {
           <img src={logoUrl} alt="InterFreight Solutions" className="mx-auto mb-5 h-20 w-auto sm:h-24" />
 
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            {isPrompting ? <Spinner className="h-8 w-8" /> : <Smartphone size={28} />}
+            {isPrompting || isWaitingForPrompt ? <Spinner className="h-8 w-8" /> : <Smartphone size={28} />}
           </div>
 
           <h1 className="text-2xl font-extrabold text-secondary sm:text-3xl">Wait a few seconds for it to be installed</h1>
@@ -71,8 +72,26 @@ export default function AppInstallPage() {
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-bold text-white transition-all hover:bg-primary/90 disabled:opacity-70"
               >
                 {isPrompting ? <Spinner className="h-4 w-4" /> : <Download size={16} />}
-                Install App
+                {isWaitingForPrompt ? "Please wait..." : "Install App"}
               </button>
+            )}
+
+            {isWaitingForPrompt && (
+              <div className="rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-left text-xs leading-relaxed text-muted-foreground">
+                <div className="flex items-center gap-2 text-primary">
+                  <Spinner className="h-5 w-5" />
+                  <p className="text-sm font-bold">Preparing the install prompt</p>
+                </div>
+                <p className="mt-2">
+                  Please wait a moment. If the button still does not wake up, use your browser menu and choose
+                  {" "}
+                  <span className="font-semibold text-secondary">Install App</span>
+                  {" "}
+                  or
+                  {" "}
+                  <span className="font-semibold text-secondary">Add to Home Screen</span>.
+                </p>
+              </div>
             )}
 
             {isIOS && !installed && (
