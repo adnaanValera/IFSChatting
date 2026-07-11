@@ -450,42 +450,52 @@ export default function Home() {
                 and cargo handling across key regional corridors.
               </p>
 
-              <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
-                <motion.a
-                  href="/#services"
-                  whileHover={{ y: -3 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="group inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3.5 text-base font-bold text-white shadow-xl transition-all hover:bg-primary/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
-                >
-                  Our Services
-                  <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                </motion.a>
-                <motion.a
-                  href="/#contact"
-                  whileHover={{ y: -3 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/30 bg-white/10 px-6 py-3.5 text-base font-semibold text-white transition-all backdrop-blur-sm hover:bg-white/20 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
-                >
-                  Contact Us
-                </motion.a>
-                {role === "customer" && (
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-base font-bold text-secondary shadow-xl transition-all hover:bg-white/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
+              <div className="flex flex-col items-center justify-center gap-3">
+                <div className="flex w-full flex-col justify-center gap-3 sm:flex-row sm:gap-4">
+                  <motion.a
+                    href="/#services"
+                    whileHover={{ y: -3 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="group inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3.5 text-base font-bold text-white shadow-xl transition-all hover:bg-primary/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
                   >
-                    <MapPin size={20} />
-                    My Tracking
-                  </Link>
-                )}
-                {(role === "staff" || role === "admin") && (
-                  <Link
-                    href="/staff/dashboard"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-base font-bold text-secondary shadow-xl transition-all hover:bg-white/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
+                    Our Services
+                    <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                  </motion.a>
+                  <motion.a
+                    href="/#contact"
+                    whileHover={{ y: -3 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/30 bg-white/10 px-6 py-3.5 text-base font-semibold text-white transition-all backdrop-blur-sm hover:bg-white/20 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
                   >
-                    <LayoutDashboard size={20} />
-                    Staff / Admin Dashboard
-                  </Link>
-                )}
+                    Contact Us
+                  </motion.a>
+                  {role === "customer" && (
+                    <Link
+                      href="/dashboard"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-base font-bold text-secondary shadow-xl transition-all hover:bg-white/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
+                    >
+                      <MapPin size={20} />
+                      My Tracking
+                    </Link>
+                  )}
+                  {(role === "staff" || role === "admin") && (
+                    <Link
+                      href="/staff/dashboard"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-base font-bold text-secondary shadow-xl transition-all hover:bg-white/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
+                    >
+                      <LayoutDashboard size={20} />
+                      Staff / Admin Dashboard
+                    </Link>
+                  )}
+                </div>
+
+                <Link
+                  href="/auth"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/12 px-6 py-3 text-sm font-semibold text-primary transition-all hover:bg-primary/18"
+                >
+                  <Download size={16} />
+                  Download Our App
+                </Link>
               </div>
 
               {(!role || role === "customer") && (
