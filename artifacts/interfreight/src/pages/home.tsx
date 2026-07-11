@@ -18,6 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { isStandaloneDisplay } from "@/lib/pwa";
+import { PremiumBrandAnimation } from "@/components/branding/PremiumBrandAnimation";
 
 const services = [
   {
@@ -464,6 +465,7 @@ export default function Home() {
               transition={{ duration: 0.6 }}
               className="rounded-[28px] border border-white/15 bg-secondary/72 px-4 py-8 shadow-2xl backdrop-blur-md glow-card sm:px-10 md:px-14"
             >
+              <PremiumBrandAnimation mode="hero" className="mb-5" />
               <p className="text-primary font-semibold tracking-[0.2em] uppercase text-sm mb-5">
                 InterFreight Solutions - Malawi
               </p>

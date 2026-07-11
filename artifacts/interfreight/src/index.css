@@ -304,6 +304,192 @@
   .ifs-loader__sweep {
     animation: ifs-metal-sweep 3.6s linear infinite;
   }
+  .ifs-splash {
+    animation: ifs-splash-fade-in 380ms ease-out both;
+  }
+  .ifs-splash--closing {
+    animation: ifs-splash-fade-out 650ms ease-in forwards;
+  }
+  .ifs-splash__stage {
+    position: relative;
+    width: min(86vw, 520px);
+    aspect-ratio: 1 / 1;
+    display: grid;
+    place-items: center;
+  }
+  .ifs-splash__full-phase,
+  .ifs-splash__icon-phase {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+  }
+  .ifs-splash__full-phase {
+    animation: ifs-full-logo-sequence 5.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .ifs-splash__full-logo {
+    width: min(84vw, 420px);
+    filter: drop-shadow(0 18px 35px rgba(0, 0, 0, 0.12));
+  }
+  .ifs-splash__icon-phase {
+    opacity: 0;
+    animation: ifs-icon-phase-sequence 5.6s ease both;
+  }
+  .ifs-splash__icon-shell {
+    position: relative;
+    width: min(80vw, 360px);
+    aspect-ratio: 1 / 1;
+    border-radius: 30px;
+    overflow: hidden;
+    box-shadow:
+      0 24px 60px rgba(0, 0, 0, 0.16),
+      0 0 0 1px rgba(18, 20, 23, 0.06);
+    background: #fff;
+  }
+  .ifs-splash__icon-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.16;
+    transform: scale(1.03);
+  }
+  .ifs-splash__map-layer,
+  .ifs-splash__ship-layer,
+  .ifs-splash__truck-layer {
+    position: absolute;
+    background-image: var(--ifs-app-icon);
+    background-size: cover;
+    background-repeat: no-repeat;
+    opacity: 0;
+  }
+  .ifs-splash__map-layer {
+    inset: 0;
+    animation: ifs-map-reveal 5.6s ease both;
+  }
+  .ifs-splash__ship-layer {
+    left: 0;
+    bottom: 0;
+    width: 42%;
+    height: 34%;
+    background-position: left bottom;
+    animation: ifs-ship-reveal 5.6s ease both;
+  }
+  .ifs-splash__truck-layer {
+    right: 0;
+    bottom: 0;
+    width: 36%;
+    height: 34%;
+    background-position: right bottom;
+    animation: ifs-truck-reveal 5.6s ease both;
+  }
+  .ifs-splash__letter-lock {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+  }
+  .ifs-splash__ifs-text {
+    position: relative;
+    z-index: 2;
+    font-family: Inter, sans-serif;
+    font-size: clamp(4rem, 13vw, 5.9rem);
+    font-style: italic;
+    font-weight: 900;
+    letter-spacing: 0;
+    background: linear-gradient(135deg, #f2f4f7 0%, #bcc2cb 45%, #575e68 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 10px 20px rgba(0, 0, 0, 0.16);
+  }
+  .ifs-splash__ifs-sweep {
+    position: absolute;
+    inset: 24% 18%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.92) 50%, transparent 100%);
+    mix-blend-mode: screen;
+    opacity: 0;
+    transform: translateX(-120%);
+    animation: ifs-splash-sweep 3.7s linear 2.2s infinite;
+  }
+  .ifs-splash__orbit {
+    position: absolute;
+    inset: 0;
+    animation: ifs-orbit 2.5s linear infinite;
+  }
+  .ifs-splash__arc {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    pointer-events: none;
+  }
+  .ifs-splash__arc--red {
+    top: 12%;
+    width: 76%;
+    height: 14%;
+    border-top: 7px solid #ff1b2f;
+    box-shadow:
+      0 0 14px rgba(255, 27, 47, 0.3),
+      0 0 28px rgba(163, 30, 44, 0.16);
+    animation: ifs-red-pulse 3.2s ease-in-out infinite;
+  }
+  .ifs-splash__arc--silver {
+    bottom: 12%;
+    width: 72%;
+    height: 12%;
+    border-bottom: 6px solid #c9cfd7;
+    box-shadow:
+      0 0 10px rgba(255, 255, 255, 0.18),
+      0 0 22px rgba(167, 173, 181, 0.12);
+  }
+  .ifs-hero-brand__frame {
+    position: relative;
+    width: min(82vw, 360px);
+    display: grid;
+    place-items: center;
+    padding: 0.75rem 1rem;
+  }
+  .ifs-hero-brand__full-logo {
+    width: 100%;
+    filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.22));
+  }
+  .ifs-hero-brand__orbit {
+    position: absolute;
+    inset: 2% 5%;
+    animation: ifs-orbit 2.5s linear infinite;
+  }
+  .ifs-hero-brand__arc {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 999px;
+  }
+  .ifs-hero-brand__arc--red {
+    top: 10%;
+    width: 82%;
+    height: 16%;
+    border-top: 5px solid rgba(255, 43, 59, 0.95);
+    box-shadow: 0 0 16px rgba(255, 43, 59, 0.22);
+    animation: ifs-red-pulse 3.2s ease-in-out infinite;
+  }
+  .ifs-hero-brand__arc--silver {
+    bottom: 10%;
+    width: 79%;
+    height: 13%;
+    border-bottom: 4px solid rgba(225, 229, 235, 0.9);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.12);
+  }
+  .ifs-hero-brand__shine {
+    position: absolute;
+    inset: 18% 20%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.85) 50%, transparent 100%);
+    transform: translateX(-135%);
+    opacity: 0;
+    mix-blend-mode: screen;
+    animation: ifs-splash-sweep 3.8s linear infinite;
+  }
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
   }
@@ -348,6 +534,103 @@
   }
   100% {
     transform: translateX(126px);
+    opacity: 0;
+  }
+}
+
+@keyframes ifs-splash-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ifs-splash-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; visibility: hidden; }
+}
+
+@keyframes ifs-full-logo-sequence {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  14% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  34% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+  52% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.32);
+  }
+}
+
+@keyframes ifs-icon-phase-sequence {
+  0%, 28% {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+  46% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ifs-map-reveal {
+  0%, 42% {
+    opacity: 0;
+  }
+  58%, 100% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes ifs-ship-reveal {
+  0%, 48% {
+    opacity: 0;
+    transform: translate(-16px, 12px);
+  }
+  66%, 100% {
+    opacity: 0.24;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes ifs-truck-reveal {
+  0%, 52% {
+    opacity: 0;
+    transform: translate(16px, 12px);
+  }
+  70%, 100% {
+    opacity: 0.24;
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes ifs-splash-sweep {
+  0%, 14% {
+    transform: translateX(-130%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.95;
+  }
+  34% {
+    transform: translateX(140%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(140%);
     opacity: 0;
   }
 }
