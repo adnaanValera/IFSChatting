@@ -115,6 +115,19 @@ const worldRoutes = continentPoints.flatMap((point, index) => ([
   },
 ]));
 
+const routeSummaryCards = [
+  {
+    title: "Import",
+    description: "We import from around the world.",
+    color: "#A31E2C",
+  },
+  {
+    title: "Export",
+    description: "We export around the world.",
+    color: "#F8F8F6",
+  },
+];
+
 function AnimatedStat({ value, label, index }: { value: string; label: string; index: number }) {
   return (
     <motion.div
@@ -144,7 +157,7 @@ function WorldMapNetwork() {
               Connected Beyond Borders
             </h2>
             <p className="text-white/65 text-lg max-w-3xl mx-auto">
-              We support import and export flows into Malawi and outward across Africa and global trade corridors.
+              We import from around the world and we export around the world.
             </p>
           </div>
 
@@ -228,9 +241,9 @@ function WorldMapNetwork() {
             </div>
 
             <div className="border-t lg:border-t-0 lg:border-l border-white/10 bg-white/[0.03] p-6 sm:p-8 space-y-4">
-              {worldRoutes.map((route, index) => (
+              {routeSummaryCards.map((card, index) => (
                 <motion.div
-                  key={route.mode}
+                  key={card.title}
                   initial={{ opacity: 0, x: 16 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
@@ -238,13 +251,13 @@ function WorldMapNetwork() {
                   className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 glow-card"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-bold tracking-[0.26em] uppercase" style={{ color: route.color }}>
-                      {route.mode}
+                    <span className="text-xs font-bold tracking-[0.26em] uppercase" style={{ color: card.color }}>
+                      {card.title}
                     </span>
                     <div className="h-px flex-1 bg-white/10" />
                   </div>
-                  <p className="text-white font-bold text-lg mt-3">{route.origin} to {route.destination}</p>
-                  <p className="text-white/58 text-sm mt-2">{route.note}</p>
+                  <p className="text-white font-bold text-lg mt-3">{card.title} Worldwide</p>
+                  <p className="text-white/58 text-sm mt-2">{card.description}</p>
                 </motion.div>
               ))}
             </div>
