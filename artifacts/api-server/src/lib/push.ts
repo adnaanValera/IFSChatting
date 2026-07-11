@@ -16,7 +16,7 @@ type StoredSubscription = {
 };
 
 function hasPushConfig() {
-  return Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+  return Boolean(process.env.VAPID_PUBLIC_KEY?.trim() && process.env.VAPID_PRIVATE_KEY?.trim());
 }
 
 let configured = false;
@@ -24,9 +24,9 @@ let configured = false;
 function ensureConfigured() {
   if (configured || !hasPushConfig()) return;
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || "mailto:info@interfreightsolutions.com",
-    process.env.VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY!,
+    process.env.VAPID_SUBJECT?.trim() || "mailto:info@interfreightsolutions.com",
+    process.env.VAPID_PUBLIC_KEY!.trim(),
+    process.env.VAPID_PRIVATE_KEY!.trim(),
   );
   configured = true;
 }
@@ -55,7 +55,7 @@ async function deliver(subscriptions: StoredSubscription[], payload: PushPayload
 }
 
 export function getPublicVapidKey() {
-  return process.env.VAPID_PUBLIC_KEY || "";
+  return process.env.VAPID_PUBLIC_KEY?.trim() || "";
 }
 
 export async function sendPushToUser(userId: number, payload: PushPayload) {

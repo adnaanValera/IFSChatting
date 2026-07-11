@@ -10,7 +10,7 @@ async function fetchPublicKey() {
     throw new Error(message || "Could not load the push notification key.");
   }
   const data = await response.json().catch(() => ({}));
-  return String(data.publicKey || "");
+  return String(data.publicKey || "").trim().replace(/\s+/g, "");
 }
 
 async function upsertSubscription(scope: Scope, subscription: PushSubscription) {
@@ -71,12 +71,27 @@ export function usePushNotifications(scope?: Scope) {
 
       const publicKey = await fetchPublicKey();
       if (!publicKey) throw new Error("Push notifications are not configured yet.");
+      const applicationServerKey = urlBase64ToUint8Array(publicKey);
+      if (applicationServerKey.length !== 65) {
+        throw new Error("The push public key is invalid. Please recheck the VAPID key in Vercel.");
+      }
 
       const registration = await navigator.serviceWorker.ready;
-      const existing = await registration.pushManager.getSubscription();
-      const subscription = existing || await registration.pushManager.subscribe({
+      let subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        try {
+          await upsertSubscription(scope, subscription);
+          setIsSubscribed(true);
+          return true;
+        } catch {
+          await subscription.unsubscribe().catch(() => undefined);
+          subscription = null;
+        }
+      }
+
+      subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
+        applicationServerKey,
       });
 
       await upsertSubscription(scope, subscription);
