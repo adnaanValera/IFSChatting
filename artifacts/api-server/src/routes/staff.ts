@@ -9,6 +9,7 @@ import { db, pool, shipmentsTable, companiesTable, uploadsTable, usersTable, not
 import { eq, asc, desc, and, or, isNull, ilike, sql } from "drizzle-orm";
 import { requireAuth, requireStaff, requireAdmin } from "../middlewares/auth";
 import { logger } from "../lib/logger";
+import { sendPushToPendingSignup, sendPushToUser, transferPendingPushSubscriptionsToUser } from "../lib/push";
 
 const workspaceRoot = process.cwd().endsWith(path.join("artifacts", "api-server"))
   ? path.resolve(process.cwd(), "../..")
@@ -381,6 +382,12 @@ async function notifyCustomersOfStatusChange(args: {
       ifsRef: args.ifsRef,
       companyName: args.companyName,
       status: args.change.newValue,
+    });
+    await sendPushToUser(userId, {
+      title: "Shipment Status Updated",
+      body: `${shipmentIdentifier(args)} status changed: ${args.change.oldValue} -> ${args.change.newValue}`,
+      url: "/dashboard",
+      tag: `shipment-${args.ifsRef}`,
     });
   }
 }
@@ -2053,10 +2060,23 @@ router.post("/staff/pending-signups/:id/approve", requireAuth, requireStaff, asy
     })
     .returning({ id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email, role: usersTable.role, profilePictureUrl: usersTable.profilePictureUrl });
 
+  if (pending.approvalToken) {
+    await transferPendingPushSubscriptionsToUser(pending.approvalToken, user.id);
+  }
+
   await db
     .update(pendingSignupsTable)
     .set({ status: "approved", reviewedBy: authReq.user.email, reviewedAt: new Date() })
     .where(eq(pendingSignupsTable.id, id));
+
+  if (pending.approvalToken) {
+    await sendPushToPendingSignup(pending.approvalToken, {
+      title: "Signup Approved",
+      body: "Your InterFreight account has been approved. Open the app to continue.",
+      url: "/auth/waiting",
+      tag: `signup-approved-${pending.id}`,
+    });
+  }
 
   res.status(201).json(user);
 });
@@ -2073,6 +2093,15 @@ router.post("/staff/pending-signups/:id/reject", requireAuth, requireStaff, asyn
     .update(pendingSignupsTable)
     .set({ status: "rejected", reviewedBy: authReq.user.email, reviewedAt: new Date() })
     .where(eq(pendingSignupsTable.id, id));
+
+  if (pending.approvalToken) {
+    await sendPushToPendingSignup(pending.approvalToken, {
+      title: "Signup Rejected",
+      body: "Your signup request was rejected. Please contact InterFreight Solutions.",
+      url: "/auth/waiting",
+      tag: `signup-rejected-${pending.id}`,
+    });
+  }
 
   res.status(204).send();
 });

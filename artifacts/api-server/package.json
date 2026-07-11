@@ -25,7 +25,8 @@
     "multer": "^2.2.0",
     "pino": "^9.14.0",
     "pino-http": "^10.5.0",
-    "tslib": "^2.8.1"
+    "tslib": "^2.8.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/archiver": "^8.0.0",
@@ -36,6 +37,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.1.0",
     "@types/node": "catalog:",
+    "@types/web-push": "^3.6.4",
     "esbuild": "0.27.3",
     "esbuild-plugin-pino": "^2.3.3",
     "pino-pretty": "^13.1.3",

@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { db, notificationsTable, pendingSignupsTable, sessionsTable, usersTable } from "@workspace/db";
 import { eq, ilike, inArray } from "drizzle-orm";
 import { signToken, requireAuth } from "../middlewares/auth";
+import { sendPushToUser, transferPendingPushSubscriptionsToUser } from "../lib/push";
 
 const router = Router();
 
@@ -66,6 +67,15 @@ async function notifyStaffAndAdminsOfPendingSignup(args: {
       status: role === "admin" ? "Admin review" : "Staff review",
     })),
   );
+
+  await Promise.all(reviewers.map(({ id: userId }) =>
+    sendPushToUser(userId, {
+      title: "Signup Waiting Approval",
+      body: `${args.fullName} from ${args.companyName} is waiting for approval.`,
+      url: "/staff/dashboard",
+      tag: `pending-signup-${args.email.toLowerCase()}`,
+    }),
+  ));
 }
 
 // ── Register ──────────────────────────────────────────────────────────────────
@@ -187,6 +197,8 @@ router.post("/auth/register", async (req, res) => {
       role,
     })
     .returning();
+
+  await transferPendingPushSubscriptionsToUser(approvalToken, user.id);
 
   const token = await createDeviceSession(user, req.get("user-agent"), ADMIN_SESSION_DAYS);
 

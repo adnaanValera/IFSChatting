@@ -13,7 +13,7 @@ import {
   UploadCloud, Loader2, Clock, CheckCircle2, AlertTriangle, Ship,
   Truck, Trash2, MessageSquare, ChevronDown, ChevronUp, Send, Mail, Home, History,
   Building2, Download, Search, ChevronRight,
-  Menu, X, UserCheck, UserX,
+  Menu, X, UserCheck, UserX, Bell, Smartphone,
 } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/utils";
 import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
 import { saveAccount } from "@/lib/saved-accounts";
+import { useInstallPrompt } from "@/hooks/use-install-prompt";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 type Tab = "overview" | "import" | "history" | "messages" | "cards" | "authorize";
 
@@ -301,6 +303,8 @@ export default function Dashboard() {
   const masterFileInputRef = useRef<HTMLInputElement>(null);
   const templateFileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const { canInstall, installed, promptInstall } = useInstallPrompt();
+  const { canEnable, enable, isLoading: enablingPush, isSubscribed } = usePushNotifications({ type: "auth" });
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [isMasterUploading, setIsMasterUploading] = useState(false);
@@ -1127,6 +1131,40 @@ export default function Dashboard() {
               <div>
                 <h2 className="text-2xl font-extrabold text-secondary mb-1">Dashboard</h2>
                 <p className="text-sm text-muted-foreground">Overview of all shipments and activity</p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {canInstall && (
+                  <button
+                    type="button"
+                    onClick={() => void promptInstall()}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
+                  >
+                    <Smartphone size={16} />
+                    Download App
+                  </button>
+                )}
+                {!canInstall && installed && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                    App installed on this device
+                  </div>
+                )}
+                {canEnable && !isSubscribed && (
+                  <button
+                    type="button"
+                    onClick={() => void enable()}
+                    disabled={enablingPush}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-secondary/10 bg-secondary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-secondary/92 disabled:opacity-60"
+                  >
+                    {enablingPush ? <Loader2 size={16} className="animate-spin" /> : <Bell size={16} />}
+                    Enable push alerts
+                  </button>
+                )}
+                {isSubscribed && (
+                  <div className="rounded-xl border border-secondary/10 bg-secondary/5 px-4 py-3 text-sm font-semibold text-secondary">
+                    Push alerts are on for this device
+                  </div>
+                )}
               </div>
 
               {isAdmin && (

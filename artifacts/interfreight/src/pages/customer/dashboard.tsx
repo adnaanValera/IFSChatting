@@ -7,13 +7,15 @@ import { motion } from "framer-motion";
 import {
   LogOut, Package, Ship, MapPin,
   CheckCircle, Home, Download, Megaphone, Bell, ArrowRight,
-  AlertTriangle, Search, Moon, Sun,
+  AlertTriangle, Search, Moon, Sun, Smartphone,
 } from "lucide-react";
 import { Link } from "wouter";
 import { ShipmentCard } from "@/components/ui/shipment-card";
 import { Spinner } from "@/components/ui/spinner";
 import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
 import { saveAccount, savedAccounts, type SavedAccount } from "@/lib/saved-accounts";
+import { useInstallPrompt } from "@/hooks/use-install-prompt";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 const STATUS_SECTIONS = [
   { label: "Shipments In Malawi", reportLabel: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
@@ -160,6 +162,8 @@ export default function CustomerDashboard() {
     const saved = localStorage.getItem("intf_theme");
     return saved ? saved === "dark" : window.matchMedia?.("(prefers-color-scheme: dark)").matches;
   });
+  const { canInstall, installed, promptInstall } = useInstallPrompt();
+  const { canEnable, enable, isLoading: enablingPush, isSubscribed } = usePushNotifications({ type: "auth" });
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
@@ -305,34 +309,70 @@ export default function CustomerDashboard() {
       <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-10 max-w-6xl">
 
         <div className="mb-5 sm:mb-8 rounded-2xl border border-border bg-card text-card-foreground shadow-sm glow-card p-4 sm:p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-            <div className="flex items-center gap-4 min-w-0">
-              {profilePictureUrl ? (
-                <img src={profilePictureUrl} alt={companyName} className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover border border-primary/20 shrink-0" />
-              ) : (
-                <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-extrabold text-lg shrink-0">
-                  {initials(companyName)}
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+              <div className="flex items-center gap-4 min-w-0">
+                {profilePictureUrl ? (
+                  <img src={profilePictureUrl} alt={companyName} className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover border border-primary/20 shrink-0" />
+                ) : (
+                  <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-extrabold text-lg shrink-0">
+                    {initials(companyName)}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Secure Consignee Portal</p>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-secondary dark:text-white leading-tight">
+                    Welcome back, {companyName}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Review your active consignments and latest shipment changes.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                disabled={isDownloadingPdf || shipmentsLoading || shipments.length === 0}
+                className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-60"
+              >
+                {isDownloadingPdf ? <Spinner className="w-4 h-4" /> : <Download size={16} />}
+                Download PDF Report
+              </button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {canInstall && (
+                <button
+                  type="button"
+                  onClick={() => void promptInstall()}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
+                >
+                  <Smartphone size={16} />
+                  Download app
+                </button>
+              )}
+              {!canInstall && installed && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                  App installed on this device
                 </div>
               )}
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Secure Consignee Portal</p>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-secondary dark:text-white leading-tight">
-                  Welcome back, {companyName}
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Review your active consignments and latest shipment changes.
-                </p>
-              </div>
+              {canEnable && !isSubscribed && (
+                <button
+                  type="button"
+                  onClick={() => void enable()}
+                  disabled={enablingPush}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-secondary/10 bg-secondary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-secondary/92 disabled:opacity-60"
+                >
+                  {enablingPush ? <Spinner className="h-4 w-4" /> : <Bell size={16} />}
+                  Enable push alerts
+                </button>
+              )}
+              {isSubscribed && (
+                <div className="rounded-xl border border-secondary/10 bg-secondary/5 px-4 py-3 text-sm font-semibold text-secondary">
+                  Push alerts are on for this device
+                </div>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={handleDownloadPdf}
-              disabled={isDownloadingPdf || shipmentsLoading || shipments.length === 0}
-              className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-60"
-            >
-              {isDownloadingPdf ? <Spinner className="w-4 h-4" /> : <Download size={16} />}
-              Download PDF Report
-            </button>
           </div>
         </div>
 

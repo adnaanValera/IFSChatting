@@ -138,12 +138,35 @@ async function createTables() {
       revoked_at timestamptz
     );
 
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id serial PRIMARY KEY,
+      user_id integer,
+      approval_token text,
+      endpoint text NOT NULL UNIQUE,
+      p256dh text NOT NULL,
+      auth text NOT NULL,
+      user_agent text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+
     CREATE TABLE IF NOT EXISTS report_templates (
       id integer PRIMARY KEY DEFAULT 1,
       content bytea NOT NULL,
       uploaded_at timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT single_report_template CHECK (id = 1)
     );
+  `);
+
+  await pool.query(`
+    ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_id integer;
+    ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS approval_token text;
+    ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS endpoint text;
+    ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS p256dh text;
+    ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS auth text;
+    ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_agent text;
+    ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+    ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
   `);
 }
 

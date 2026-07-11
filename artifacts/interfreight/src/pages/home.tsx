@@ -5,7 +5,7 @@ import {
   ChevronRight, LogIn, LayoutDashboard, LogOut, ArrowRight,
   Phone, Mail, MapPin, Send, CheckCircle2, AlertCircle,
   Search, Building2, SearchX, X,
-  TrainFront, Boxes, ClipboardCheck,
+  TrainFront, Boxes, ClipboardCheck, Download,
 } from "lucide-react";
 import { ShipmentCard } from "@/components/ui/shipment-card";
 import { Spinner } from "@/components/ui/spinner";
@@ -17,6 +17,7 @@ import { useGetMe, useStaffLogout, useListShipments } from "@workspace/api-clien
 import { useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
 const services = [
   {
@@ -356,6 +357,7 @@ function StaffTracker() {
 export default function Home() {
   const queryClient = useQueryClient();
   const { data: user } = useGetMe();
+  const { canInstall, installed, promptInstall } = useInstallPrompt();
   const logoutMutation = useStaffLogout();
 
   const [form, setForm] = useState({ name: "", email: "", company: "", message: "" });
@@ -773,6 +775,16 @@ export default function Home() {
                         <LogOut size={15} />
                         Sign Out
                       </button>
+                      {canInstall && (
+                        <button
+                          type="button"
+                          onClick={() => void promptInstall()}
+                          className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3 rounded-lg transition-all text-sm"
+                        >
+                          <Download size={15} />
+                          Download App
+                        </button>
+                      )}
                     </>
                   ) : (
                     <>
@@ -786,6 +798,21 @@ export default function Home() {
                       <p className="text-white/40 text-xs text-center">
                         Registered companies only
                       </p>
+                      {canInstall && (
+                        <button
+                          type="button"
+                          onClick={() => void promptInstall()}
+                          className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3 rounded-lg transition-all text-sm"
+                        >
+                          <Download size={15} />
+                          Download App
+                        </button>
+                      )}
+                      {!canInstall && installed && (
+                        <p className="text-emerald-300 text-xs text-center font-semibold">
+                          App installed on this device
+                        </p>
+                      )}
                     </>
                   )}
                 </div>
