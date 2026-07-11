@@ -364,15 +364,22 @@ function shipmentIdentifier(record: {
 
 async function notifyCustomersOfStatusChange(args: {
   companyName: string;
+  consignee?: string;
   ifsRef: string;
   containerNo?: string | null;
   extraFields?: Record<string, unknown>;
   change: ChangeLogEntry;
 }): Promise<void> {
-  const customers = await db
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(sql`lower(${usersTable.companyName}) = lower(${args.companyName})`);
+  const companyKey = matchText(args.companyName);
+  const consigneeKey = matchText(args.consignee);
+  const customers = (await db
+    .select({ id: usersTable.id, companyName: usersTable.companyName, role: usersTable.role })
+    .from(usersTable))
+    .filter((user) => user.role === "customer")
+    .filter((user) => {
+      const userKey = matchText(user.companyName);
+      return Boolean(userKey && (userKey === companyKey || (consigneeKey && userKey === consigneeKey)));
+    });
 
   for (const { id: userId } of customers) {
     await db.insert(notificationsTable).values({
@@ -388,6 +395,44 @@ async function notifyCustomersOfStatusChange(args: {
       body: `${shipmentIdentifier(args)} status changed: ${args.change.oldValue} -> ${args.change.newValue}`,
       url: "/dashboard",
       tag: `shipment-${args.ifsRef}`,
+    });
+  }
+}
+
+async function notifyCustomersOfNewShipment(args: {
+  companyName: string;
+  consignee?: string;
+  ifsRef: string;
+  containerNo?: string | null;
+  cargoDescription?: string;
+  status: string;
+  extraFields?: Record<string, unknown>;
+}): Promise<void> {
+  const companyKey = matchText(args.companyName);
+  const consigneeKey = matchText(args.consignee);
+  const customers = (await db
+    .select({ id: usersTable.id, companyName: usersTable.companyName, role: usersTable.role })
+    .from(usersTable))
+    .filter((user) => user.role === "customer")
+    .filter((user) => {
+      const userKey = matchText(user.companyName);
+      return Boolean(userKey && (userKey === companyKey || (consigneeKey && userKey === consigneeKey)));
+    });
+
+  for (const { id: userId } of customers) {
+    await db.insert(notificationsTable).values({
+      userId,
+      title: "New Shipment Added",
+      message: `${shipmentIdentifier(args)} was added to your dashboard with status ${displayText(args.status)}.`,
+      ifsRef: args.ifsRef,
+      companyName: args.companyName,
+      status: args.status,
+    });
+    await sendPushToUser(userId, {
+      title: "New Shipment Added",
+      body: `${shipmentIdentifier(args)} was added to your dashboard.`,
+      url: "/dashboard",
+      tag: `shipment-new-${args.ifsRef}`,
     });
   }
 }
@@ -540,6 +585,7 @@ async function upsertShipment(record: {
       try {
         await notifyCustomersOfStatusChange({
           companyName: record.companyName,
+          consignee: record.consignee,
           ifsRef: record.ifsRef,
           containerNo: record.containerNo,
           extraFields: record.extraFields,
@@ -568,6 +614,19 @@ async function upsertShipment(record: {
       { field: "Cargo Description", oldValue: "N/A", newValue: displayText(record.cargoDescription) },
     ],
   });
+  try {
+    await notifyCustomersOfNewShipment({
+      companyName: record.companyName,
+      consignee: record.consignee,
+      ifsRef: record.ifsRef,
+      containerNo: record.containerNo,
+      cargoDescription: record.cargoDescription,
+      status: record.status,
+      extraFields: record.extraFields,
+    });
+  } catch (notifErr) {
+    logger.warn({ notifErr, ifsRef: record.ifsRef }, "Failed to create new-shipment notification");
+  }
   return "new";
 }
 

@@ -87,12 +87,33 @@ const features = [
   },
 ];
 
-const worldRoutes = [
-  { mode: "AIR", color: "#ffffff", origin: "Europe", destination: "Malawi", note: "Time-sensitive imports and exports", path: "M396 120 C470 88, 604 105, 916 640" },
-  { mode: "SEA", color: "#d3d7dd", origin: "Asia", destination: "Malawi", note: "Ocean freight routed inland to Malawi", path: "M1308 298 C1230 370, 1120 488, 936 642" },
-  { mode: "ROAD", color: "#A31E2C", origin: "Southern Africa", destination: "Malawi", note: "Regional delivery corridors in and out", path: "M816 828 C850 760, 885 710, 925 642" },
-  { mode: "EXPORT", color: "#A31E2C", origin: "Malawi", destination: "Global Markets", note: "Exports moving outward from Malawi", path: "M918 644 C1010 560, 1120 470, 1348 330" },
+const continentPoints = [
+  { label: "North America", x: 178, y: 278 },
+  { label: "South America", x: 372, y: 662 },
+  { label: "Europe", x: 714, y: 220 },
+  { label: "Africa", x: 844, y: 516 },
+  { label: "Asia", x: 1230, y: 304 },
+  { label: "Australia", x: 1450, y: 742 },
 ];
+
+const worldRoutes = continentPoints.flatMap((point, index) => ([
+  {
+    mode: `${point.label} In`,
+    color: "#A31E2C",
+    origin: point.label,
+    destination: "Malawi",
+    note: `Imports and inbound cargo from ${point.label}.`,
+    path: `M${point.x} ${point.y} C${Math.round((point.x + 918) / 2)} ${Math.round(point.y - 48 + index * 8)}, ${Math.round((point.x + 918) / 2) + 48} ${Math.round((point.y + 644) / 2)}, 918 644`,
+  },
+  {
+    mode: `${point.label} Out`,
+    color: "#F8F8F6",
+    origin: "Malawi",
+    destination: point.label,
+    note: `Exports and outbound cargo to ${point.label}.`,
+    path: `M918 644 C${Math.round((point.x + 918) / 2) - 36} ${Math.round((point.y + 644) / 2)}, ${Math.round((point.x + 918) / 2)} ${Math.round(point.y + 56 - index * 7)}, ${point.x} ${point.y}`,
+  },
+]));
 
 function AnimatedStat({ value, label, index }: { value: string; label: string; index: number }) {
   return (
@@ -193,16 +214,11 @@ function WorldMapNetwork() {
                     />
                   ))}
 
-                  {[
-                    { x: 398, y: 119, label: "Europe", tone: "#F8F8F6" },
-                    { x: 1308, y: 300, label: "Asia", tone: "#F8F8F6" },
-                    { x: 819, y: 827, label: "Southern Africa", tone: "#F8F8F6" },
-                    { x: 918, y: 644, label: "Malawi", tone: "#A31E2C" },
-                  ].map((point) => (
+                  {[...continentPoints, { x: 918, y: 644, label: "Malawi", tone: "#A31E2C" }].map((point) => (
                     <g key={point.label}>
-                      <circle cx={point.x} cy={point.y} r="6" fill={point.tone} />
-                      <circle cx={point.x} cy={point.y} r="18" fill="none" stroke={point.tone} strokeOpacity="0.25" />
-                      <text x={point.x + 16} y={point.y - 14} fill={point.tone} fontSize="18" fontWeight="700">
+                      <circle cx={point.x} cy={point.y} r="6" fill={"tone" in point ? point.tone : "#F8F8F6"} />
+                      <circle cx={point.x} cy={point.y} r="18" fill="none" stroke={"tone" in point ? point.tone : "#F8F8F6"} strokeOpacity="0.25" />
+                      <text x={point.x + 16} y={point.y - 14} fill={"tone" in point ? point.tone : "#F8F8F6"} fontSize="18" fontWeight="700">
                         {point.label}
                       </text>
                     </g>
