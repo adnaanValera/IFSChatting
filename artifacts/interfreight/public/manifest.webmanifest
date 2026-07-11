@@ -2,13 +2,13 @@
   "name": "InterFreight Solutions",
   "short_name": "InterFreight",
   "description": "Shipment tracking and customer updates for InterFreight Solutions.",
-  "start_url": "/",
+  "start_url": "/auth",
   "display": "standalone",
   "background_color": "#121417",
   "theme_color": "#A31E2C",
   "icons": [
     {
-      "src": "/favicon.png",
+      "src": "/app-icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

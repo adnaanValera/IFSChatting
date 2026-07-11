@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Home, XCircle } from "lucide-react";
+import { CheckCircle2, Home, X, XCircle } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 
 type Notice =
@@ -63,10 +63,9 @@ export function PendingSignupWatcher() {
           setNotice({
             type: "approved",
             title: "Account Approved",
-            message: "Your InterFreight account is ready. Taking you to your dashboard now.",
+            message: "Your InterFreight account is ready. You can open your dashboard now.",
             destination,
           });
-          window.setTimeout(() => setLocation(destination), 2200);
           return;
         }
 
@@ -107,6 +106,14 @@ export function PendingSignupWatcher() {
           approved ? "border-emerald-500" : "border-destructive"
         }`}
       >
+        <button
+          type="button"
+          onClick={() => setNotice(null)}
+          className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-secondary"
+          aria-label="Close notice"
+        >
+          <X size={16} />
+        </button>
         <div
           className={`mx-auto mb-4 h-16 w-16 rounded-full flex items-center justify-center ${
             approved ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"

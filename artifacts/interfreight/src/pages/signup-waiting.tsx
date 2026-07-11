@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Bell, Download, Home } from "lucide-react";
 import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
-import miniLogoUrl from "@assets/IFS_mini_logo.png";
 import { Spinner } from "@/components/ui/spinner";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
@@ -23,9 +22,8 @@ export default function SignupWaitingPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col justify-center px-4 py-12">
       <div className="mx-auto w-full max-w-md bg-white rounded-2xl border border-border shadow-xl p-6 text-center">
-        <div className="mx-auto mb-5 flex items-center justify-center gap-3">
-          <img src={miniLogoUrl} alt="IFS mini logo" className="h-16 w-16 object-contain" />
-          <img src={logoUrl} alt="InterFreight Logo" className="h-16 w-auto bg-white rounded p-1 shadow-sm" />
+        <div className="mx-auto mb-5 flex items-center justify-center">
+          <img src={logoUrl} alt="InterFreight Logo" className="h-16 w-auto" />
         </div>
         <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
           <Spinner className="w-8 h-8" />

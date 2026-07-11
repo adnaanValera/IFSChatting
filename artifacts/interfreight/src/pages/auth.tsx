@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
 import { Spinner } from "@/components/ui/spinner";
+import { isStandaloneDisplay } from "@/lib/pwa";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -237,6 +238,7 @@ export default function AuthPage() {
   const [tab, setTab] = useState<"login" | "register">("login");
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const standalone = isStandaloneDisplay();
 
   const handleSuccess = (user: any) => {
     queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
@@ -254,7 +256,7 @@ export default function AuthPage() {
           <img
             src={logoUrl}
             alt="InterFreight Logo"
-            className="h-20 w-auto rounded-lg bg-white p-2 shadow-sm"
+            className="h-20 w-auto"
           />
         </div>
         <h2 className="text-3xl font-extrabold text-secondary">
@@ -291,9 +293,11 @@ export default function AuthPage() {
           )}
         </div>
 
-        <p className="mt-4 text-center text-sm text-muted-foreground">
-          <a href="/" className="text-primary hover:underline">Back to home</a>
-        </p>
+        {!standalone && (
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+            <a href="/" className="text-primary hover:underline">Back to home</a>
+          </p>
+        )}
       </div>
     </div>
   );

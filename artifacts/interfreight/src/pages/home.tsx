@@ -18,6 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
+import { isStandaloneDisplay } from "@/lib/pwa";
 
 const services = [
   {
@@ -356,7 +357,7 @@ function StaffTracker() {
 
 export default function Home() {
   const queryClient = useQueryClient();
-  const { data: user } = useGetMe();
+  const { data: user, isLoading: userLoading } = useGetMe();
   const { canInstall, installed, promptInstall } = useInstallPrompt();
   const logoutMutation = useStaffLogout();
 
@@ -403,6 +404,15 @@ export default function Home() {
   const role = (user as any)?.role;
   const dashboardHref = role === "staff" || role === "admin" ? "/staff/dashboard" : "/dashboard";
 
+  useEffect(() => {
+    if (!isStandaloneDisplay() || userLoading) return;
+    if (user) {
+      window.location.replace(dashboardHref);
+      return;
+    }
+    window.location.replace("/auth");
+  }, [dashboardHref, user, userLoading]);
+
   return (
     <div className="relative min-h-screen bg-secondary">
       <div className="fixed inset-0 z-0">
@@ -418,35 +428,35 @@ export default function Home() {
       <div className="relative z-10">
         <Navbar />
 
-        <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-          <div className="relative z-10 text-center px-6 max-w-4xl mx-auto pt-16">
+        <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-3 py-20 sm:px-6">
+          <div className="relative z-10 mx-auto max-w-4xl px-1 pt-12 text-center sm:px-6 sm:pt-16">
             <motion.div
               initial={{ opacity: 0, y: 28 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="rounded-3xl border border-white/15 bg-secondary/70 px-6 py-10 shadow-2xl backdrop-blur-md glow-card sm:px-10 md:px-14"
+              className="rounded-[28px] border border-white/15 bg-secondary/72 px-4 py-8 shadow-2xl backdrop-blur-md glow-card sm:px-10 md:px-14"
             >
               <p className="text-primary font-semibold tracking-[0.2em] uppercase text-sm mb-5">
                 InterFreight Solutions - Malawi
               </p>
-              <p className="text-white/60 text-sm sm:text-base font-semibold uppercase tracking-[0.3em] mb-4">
+              <p className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-white/60 sm:text-base sm:tracking-[0.3em]">
                 Shipping made simple
               </p>
-              <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-[1.08] mb-6">
+              <h1 className="mb-5 text-[2.6rem] font-extrabold leading-[1.02] text-white sm:text-5xl md:text-7xl">
                 Moving Africa{" "}
                 <span className="text-primary">Forward</span>
               </h1>
-              <p className="text-xl md:text-2xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
+              <p className="mx-auto mb-8 max-w-2xl text-base leading-relaxed text-white/72 sm:text-xl md:text-2xl">
                 Established in Blantyre, Malawi, with freight forwarding, customs clearance,
                 and cargo handling across key regional corridors.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
                 <motion.a
                   href="/#services"
                   whileHover={{ y: -3 }}
                   whileTap={{ scale: 0.98 }}
-                  className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold px-8 py-4 rounded-lg shadow-xl text-lg transition-all group"
+                  className="group inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3.5 text-base font-bold text-white shadow-xl transition-all hover:bg-primary/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
                 >
                   Our Services
                   <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
@@ -455,14 +465,14 @@ export default function Home() {
                   href="/#contact"
                   whileHover={{ y: -3 }}
                   whileTap={{ scale: 0.98 }}
-                  className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white font-semibold px-8 py-4 rounded-lg transition-all backdrop-blur-sm text-lg"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/30 bg-white/10 px-6 py-3.5 text-base font-semibold text-white transition-all backdrop-blur-sm hover:bg-white/20 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
                 >
                   Contact Us
                 </motion.a>
                 {role === "customer" && (
                   <Link
                     href="/dashboard"
-                    className="inline-flex items-center justify-center gap-2 bg-white hover:bg-white/90 text-secondary font-bold px-8 py-4 rounded-lg shadow-xl text-lg transition-all"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-base font-bold text-secondary shadow-xl transition-all hover:bg-white/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
                   >
                     <MapPin size={20} />
                     My Tracking
@@ -471,7 +481,7 @@ export default function Home() {
                 {(role === "staff" || role === "admin") && (
                   <Link
                     href="/staff/dashboard"
-                    className="inline-flex items-center justify-center gap-2 bg-white hover:bg-white/90 text-secondary font-bold px-8 py-4 rounded-lg shadow-xl text-lg transition-all"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-base font-bold text-secondary shadow-xl transition-all hover:bg-white/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
                   >
                     <LayoutDashboard size={20} />
                     Staff / Admin Dashboard
@@ -484,7 +494,7 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5, duration: 0.5 }}
-                  className="mt-10 max-w-lg mx-auto"
+                  className="mx-auto mt-8 max-w-lg"
                 >
                   <div
                     className="relative rounded-2xl overflow-hidden border border-white/20 shadow-2xl glow-card"
@@ -492,12 +502,12 @@ export default function Home() {
                   >
                     <div className="h-0.5 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
 
-                    <div className="flex items-center gap-4 px-6 py-5">
+                    <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:px-6">
                       <div className="w-11 h-11 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center shrink-0">
                         <Search size={20} className="text-primary" />
                       </div>
 
-                      <div className="flex-1 text-left min-w-0">
+                      <div className="min-w-0 flex-1 text-left">
                         <p className="text-white font-bold text-base leading-tight">Track Your Shipment</p>
                         <p className="text-white/50 text-sm mt-0.5">
                           {role === "customer"
@@ -509,14 +519,14 @@ export default function Home() {
                       {role === "customer" ? (
                         <Link
                           href="/dashboard"
-                          className="shrink-0 bg-primary hover:bg-primary/90 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-all flex items-center gap-1.5 shadow-lg"
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-primary/90 sm:w-auto sm:shrink-0"
                         >
                           <LogIn size={14} /> My Dashboard
                         </Link>
                       ) : (
                         <Link
                           href="/auth"
-                          className="shrink-0 bg-primary hover:bg-primary/90 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-all flex items-center gap-1.5 shadow-lg"
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-primary/90 sm:w-auto sm:shrink-0"
                         >
                           <LogIn size={14} /> Log In {"->"}
                         </Link>
