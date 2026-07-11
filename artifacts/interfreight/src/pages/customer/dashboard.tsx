@@ -162,7 +162,7 @@ export default function CustomerDashboard() {
     const saved = localStorage.getItem("intf_theme");
     return saved ? saved === "dark" : window.matchMedia?.("(prefers-color-scheme: dark)").matches;
   });
-  const { canInstall, installed, promptInstall } = useInstallPrompt();
+  const { canInstall, promptInstall } = useInstallPrompt();
   const { canEnable, enable, isLoading: enablingPush, isSubscribed } = usePushNotifications({ type: "auth" });
 
   useEffect(() => {
@@ -340,7 +340,7 @@ export default function CustomerDashboard() {
               </button>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="flex flex-wrap gap-3">
               {canInstall && (
                 <button
                   type="button"
@@ -350,11 +350,6 @@ export default function CustomerDashboard() {
                   <Smartphone size={16} />
                   Download app
                 </button>
-              )}
-              {!canInstall && installed && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-                  App installed on this device
-                </div>
               )}
               {canEnable && !isSubscribed && (
                 <button
@@ -366,11 +361,6 @@ export default function CustomerDashboard() {
                   {enablingPush ? <Spinner className="h-4 w-4" /> : <Bell size={16} />}
                   Enable push alerts
                 </button>
-              )}
-              {isSubscribed && (
-                <div className="rounded-xl border border-secondary/10 bg-secondary/5 px-4 py-3 text-sm font-semibold text-secondary">
-                  Push alerts are on for this device
-                </div>
               )}
             </div>
           </div>

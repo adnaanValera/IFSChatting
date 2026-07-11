@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Bell, Download, Home } from "lucide-react";
+import { Bell, Home } from "lucide-react";
 import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
 import { Spinner } from "@/components/ui/spinner";
-import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 
 export default function SignupWaitingPage() {
   const [sessionDays, setSessionDays] = useState("30");
   const email = localStorage.getItem("intf_pending_signup_email") || "";
   const approvalToken = localStorage.getItem("intf_pending_signup_token") || "";
-  const { canInstall, installed, promptInstall } = useInstallPrompt();
   const { canEnable, enable, isLoading, isSubscribed } = usePushNotifications(
     approvalToken ? { type: "pending", approvalToken } : undefined,
   );
@@ -34,21 +32,6 @@ export default function SignupWaitingPage() {
         </p>
         {email && <p className="text-xs text-muted-foreground mb-6">Request submitted for {email}</p>}
         <div className="grid gap-3 mb-5">
-          {canInstall && (
-            <button
-              type="button"
-              onClick={() => void promptInstall()}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
-            >
-              <Download size={15} />
-              Download the app
-            </button>
-          )}
-          {!canInstall && installed && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-              App installed on this device
-            </div>
-          )}
           {canEnable && !isSubscribed && (
             <button
               type="button"
@@ -59,11 +42,6 @@ export default function SignupWaitingPage() {
               {isLoading ? <Spinner className="h-4 w-4" /> : <Bell size={15} />}
               Notify me when approved
             </button>
-          )}
-          {isSubscribed && (
-            <div className="rounded-lg border border-secondary/10 bg-secondary/5 px-4 py-3 text-sm font-semibold text-secondary">
-              Approval notifications are turned on for this device
-            </div>
           )}
         </div>
         <select

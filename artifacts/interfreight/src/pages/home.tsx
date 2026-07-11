@@ -17,7 +17,6 @@ import { useGetMe, useStaffLogout, useListShipments } from "@workspace/api-clien
 import { useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { isStandaloneDisplay } from "@/lib/pwa";
 
 const services = [
@@ -92,6 +91,7 @@ const worldRoutes = [
   { mode: "AIR", color: "#ffffff", origin: "Europe", destination: "Malawi", note: "Time-sensitive imports and exports", path: "M396 120 C470 88, 604 105, 916 640" },
   { mode: "SEA", color: "#d3d7dd", origin: "Asia", destination: "Malawi", note: "Ocean freight routed inland to Malawi", path: "M1308 298 C1230 370, 1120 488, 936 642" },
   { mode: "ROAD", color: "#A31E2C", origin: "Southern Africa", destination: "Malawi", note: "Regional delivery corridors in and out", path: "M816 828 C850 760, 885 710, 925 642" },
+  { mode: "EXPORT", color: "#A31E2C", origin: "Malawi", destination: "Global Markets", note: "Exports moving outward from Malawi", path: "M918 644 C1010 560, 1120 470, 1348 330" },
 ];
 
 function AnimatedStat({ value, label, index }: { value: string; label: string; index: number }) {
@@ -358,7 +358,6 @@ function StaffTracker() {
 export default function Home() {
   const queryClient = useQueryClient();
   const { data: user, isLoading: userLoading } = useGetMe();
-  const { canInstall, installed, promptInstall } = useInstallPrompt();
   const logoutMutation = useStaffLogout();
 
   const [form, setForm] = useState({ name: "", email: "", company: "", message: "" });
@@ -785,16 +784,13 @@ export default function Home() {
                         <LogOut size={15} />
                         Sign Out
                       </button>
-                      {canInstall && (
-                        <button
-                          type="button"
-                          onClick={() => void promptInstall()}
-                          className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3 rounded-lg transition-all text-sm"
-                        >
-                          <Download size={15} />
-                          Download App
-                        </button>
-                      )}
+                      <Link
+                        href="/auth"
+                        className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3 rounded-lg transition-all text-sm"
+                      >
+                        <Download size={15} />
+                        Download Our App
+                      </Link>
                     </>
                   ) : (
                     <>
@@ -808,21 +804,13 @@ export default function Home() {
                       <p className="text-white/40 text-xs text-center">
                         Registered companies only
                       </p>
-                      {canInstall && (
-                        <button
-                          type="button"
-                          onClick={() => void promptInstall()}
-                          className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3 rounded-lg transition-all text-sm"
-                        >
-                          <Download size={15} />
-                          Download App
-                        </button>
-                      )}
-                      {!canInstall && installed && (
-                        <p className="text-emerald-300 text-xs text-center font-semibold">
-                          App installed on this device
-                        </p>
-                      )}
+                      <Link
+                        href="/auth"
+                        className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3 rounded-lg transition-all text-sm"
+                      >
+                        <Download size={15} />
+                        Download Our App
+                      </Link>
                     </>
                   )}
                 </div>
