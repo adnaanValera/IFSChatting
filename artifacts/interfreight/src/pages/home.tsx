@@ -18,6 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { isStandaloneDisplay } from "@/lib/pwa";
+import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
 const services = [
   {
@@ -358,6 +359,7 @@ function StaffTracker() {
 export default function Home() {
   const queryClient = useQueryClient();
   const { data: user, isLoading: userLoading } = useGetMe();
+  const { canInstall, promptInstall } = useInstallPrompt();
   const logoutMutation = useStaffLogout();
 
   const [form, setForm] = useState({ name: "", email: "", company: "", message: "" });
@@ -402,6 +404,17 @@ export default function Home() {
 
   const role = (user as any)?.role;
   const dashboardHref = role === "staff" || role === "admin" ? "/staff/dashboard" : "/dashboard";
+
+  const handleDownloadApp = async () => {
+    if (canInstall) {
+      const accepted = await promptInstall();
+      if (accepted) {
+        window.location.href = "/auth";
+        return;
+      }
+    }
+    window.location.href = "/auth";
+  };
 
   useEffect(() => {
     if (!isStandaloneDisplay() || userLoading) return;
@@ -489,13 +502,14 @@ export default function Home() {
                   )}
                 </div>
 
-                <Link
-                  href="/auth"
+                <button
+                  type="button"
+                  onClick={() => void handleDownloadApp()}
                   className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/12 px-6 py-3 text-sm font-semibold text-primary transition-all hover:bg-primary/18"
                 >
                   <Download size={16} />
                   Download Our App
-                </Link>
+                </button>
               </div>
 
               {(!role || role === "customer") && (
