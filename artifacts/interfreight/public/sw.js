@@ -11,8 +11,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "InterFreight Solutions";
   const options = {
     body: data.body || "You have a new update.",
-    icon: "/favicon.png",
-    badge: "/favicon.png",
+    icon: "/ifs-app-icon-2026.png",
+    badge: "/ifs-app-icon-2026.png",
     data: {
       url: data.url || "/dashboard",
     },
