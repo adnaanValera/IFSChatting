@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Bell, Package, X, ArrowRight, Building2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useGetMe } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Notification {
   id: number;
@@ -42,8 +44,13 @@ function notificationCompany(n: Notification) {
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const knownIdsRef = useRef<number[]>([]);
   const [, navigate] = useLocation();
   const qc = useQueryClient();
+  const { toast } = useToast();
+  const { data: user } = useGetMe();
+  const typedUser = user as any;
+  const dashboardHref = typedUser?.role === "staff" || typedUser?.role === "admin" ? "/staff/dashboard" : "/dashboard";
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["notifications"],
@@ -55,6 +62,25 @@ export function NotificationBell() {
     refetchInterval: 30_000,
     retry: false,
   });
+
+  useEffect(() => {
+    const currentIds = notifications.map((notification) => notification.id);
+    if (knownIdsRef.current.length === 0) {
+      knownIdsRef.current = currentIds;
+      return;
+    }
+
+    const newNotifications = notifications.filter((notification) => !knownIdsRef.current.includes(notification.id));
+    if (newNotifications.length > 0) {
+      const newest = newNotifications[0]!;
+      toast({
+        title: newest.title,
+        description: newest.message,
+      });
+    }
+
+    knownIdsRef.current = currentIds;
+  }, [notifications, toast]);
 
   const unread = notifications.filter((n) => !n.read).length;
   const statusUpdates = notifications.filter((n) => n.status).length;
@@ -86,7 +112,7 @@ export function NotificationBell() {
   function handleNotifClick(n: Notification) {
     markOne.mutate(n.id);
     setOpen(false);
-    navigate("/dashboard");
+    navigate(dashboardHref);
   }
 
   return (
@@ -205,7 +231,7 @@ export function NotificationBell() {
           {notifications.length > 0 && (
             <div className="px-4 py-2.5 border-t border-white/10">
               <button
-                onClick={() => { setOpen(false); navigate("/dashboard"); }}
+                onClick={() => { setOpen(false); navigate(dashboardHref); }}
                 className="w-full text-center text-primary text-xs font-semibold hover:text-primary/80 transition-colors py-1"
               >
                 View affected shipments <ArrowRight size={12} className="inline ml-1" />

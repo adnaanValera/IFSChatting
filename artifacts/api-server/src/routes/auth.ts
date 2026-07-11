@@ -1,8 +1,8 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
-import { db, pendingSignupsTable, sessionsTable, usersTable } from "@workspace/db";
-import { eq, ilike } from "drizzle-orm";
+import { db, notificationsTable, pendingSignupsTable, sessionsTable, usersTable } from "@workspace/db";
+import { eq, ilike, inArray } from "drizzle-orm";
 import { signToken, requireAuth } from "../middlewares/auth";
 
 const router = Router();
@@ -44,6 +44,30 @@ async function createDeviceSession(user: typeof usersTable.$inferSelect, userAge
   });
 }
 
+async function notifyStaffAndAdminsOfPendingSignup(args: {
+  fullName: string;
+  companyName: string;
+  email: string;
+  role: "admin" | "staff" | "customer";
+}): Promise<void> {
+  const reviewers = await db
+    .select({ id: usersTable.id, role: usersTable.role })
+    .from(usersTable)
+    .where(inArray(usersTable.role, ["admin", "staff"]));
+
+  if (reviewers.length === 0) return;
+
+  await db.insert(notificationsTable).values(
+    reviewers.map(({ id: userId, role }) => ({
+      userId,
+      title: "Signup Waiting Approval",
+      message: `${args.fullName} from ${args.companyName} is waiting for approval. (${args.email})`,
+      companyName: args.companyName,
+      status: role === "admin" ? "Admin review" : "Staff review",
+    })),
+  );
+}
+
 // ── Register ──────────────────────────────────────────────────────────────────
 
 router.post("/auth/register", async (req, res) => {
@@ -83,6 +107,12 @@ router.post("/auth/register", async (req, res) => {
       .update(pendingSignupsTable)
       .set({ approvalToken })
       .where(eq(pendingSignupsTable.id, pending.id));
+    await notifyStaffAndAdminsOfPendingSignup({
+      fullName: pending.fullName,
+      companyName: pending.companyName,
+      email: pending.email,
+      role: pending.role as "admin" | "staff" | "customer",
+    });
     res.status(202).json({
       status: "pending",
       approvalToken,
@@ -129,6 +159,13 @@ router.post("/auth/register", async (req, res) => {
           status: "pending",
         });
     }
+
+    await notifyStaffAndAdminsOfPendingSignup({
+      fullName: fullName.trim(),
+      companyName: companyName.trim(),
+      email: email.trim().toLowerCase(),
+      role,
+    });
 
     res.status(202).json({
       status: "pending",

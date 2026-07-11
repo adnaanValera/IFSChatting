@@ -9,8 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import logoUrl from "@assets/Inter_freight_logo_1782979832903.jpeg";
 import { Spinner } from "@/components/ui/spinner";
 
-// ── Schemas ───────────────────────────────────────────────────────────────────
-
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(1, "Password is required"),
@@ -45,8 +43,6 @@ function saveLoggedInAccount(token: string, user: any) {
   }
 }
 
-// ── Shared input style ────────────────────────────────────────────────────────
-
 function FieldInput({
   icon: Icon,
   error,
@@ -58,20 +54,18 @@ function FieldInput({
   return (
     <div>
       <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
           <Icon className="h-5 w-5 text-muted-foreground" />
         </div>
         <input
           {...props}
-          className={`block w-full pl-10 pr-3 py-2.5 border ${error ? "border-destructive" : "border-input"} rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm`}
+          className={`block w-full rounded-md border ${error ? "border-destructive" : "border-input"} py-2.5 pl-10 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary`}
         />
       </div>
       {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   );
 }
-
-// ── Login Form ────────────────────────────────────────────────────────────────
 
 function LoginForm({ onSuccess }: { onSuccess: (user: any) => void }) {
   const { toast } = useToast();
@@ -115,18 +109,18 @@ function LoginForm({ onSuccess }: { onSuccess: (user: any) => void }) {
       <FieldInput
         icon={Lock}
         type="password"
-        placeholder="••••••••"
+        placeholder="........"
         error={form.formState.errors.password?.message}
         {...form.register("password")}
       />
       <div>
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
             <Clock className="h-5 w-5 text-muted-foreground" />
           </div>
           <select
             {...form.register("sessionDays")}
-            className="block w-full pl-10 pr-3 py-2.5 border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm bg-white"
+            className="block w-full rounded-md border border-input bg-white py-2.5 pl-10 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value={1}>Stay signed in for today</option>
             <option value={7}>Stay signed in for 7 days</option>
@@ -139,15 +133,13 @@ function LoginForm({ onSuccess }: { onSuccess: (user: any) => void }) {
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-primary hover:bg-primary/90 text-white font-semibold rounded-md transition-colors disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
       >
-        {isLoading ? <Spinner className="w-5 h-5" /> : <><span>Sign In</span><ArrowRight size={16} /></>}
+        {isLoading ? <Spinner className="h-5 w-5" /> : <><span>Sign In</span><ArrowRight size={16} /></>}
       </button>
     </form>
   );
 }
-
-// ── Register Form ─────────────────────────────────────────────────────────────
 
 function RegisterForm({ onSuccess }: { onSuccess: (user: any) => void }) {
   const { toast } = useToast();
@@ -233,15 +225,13 @@ function RegisterForm({ onSuccess }: { onSuccess: (user: any) => void }) {
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-primary hover:bg-primary/90 text-white font-semibold rounded-md transition-colors disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
       >
-        {isLoading ? <Spinner className="w-5 h-5" /> : <><span>Create Account</span><ArrowRight size={16} /></>}
+        {isLoading ? <Spinner className="h-5 w-5" /> : <><span>Create Account</span><ArrowRight size={16} /></>}
       </button>
     </form>
   );
 }
-
-// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AuthPage() {
   const [tab, setTab] = useState<"login" | "register">("login");
@@ -258,36 +248,37 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#121417] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(163,30,44,0.16),transparent_22%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent)] pointer-events-none" />
-      {/* Header */}
-      <div className="relative sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="mx-auto mb-4 flex items-center justify-center gap-3">
-          <img src={logoUrl} alt="InterFreight Logo" className="h-16 w-auto" />
+    <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        <div className="mx-auto mb-4 flex items-center justify-center">
+          <img
+            src={logoUrl}
+            alt="InterFreight Logo"
+            className="h-20 w-auto rounded-lg bg-white p-2 shadow-sm"
+          />
         </div>
-        <h2 className="text-3xl font-extrabold text-white">
+        <h2 className="text-3xl font-extrabold text-secondary">
           {tab === "login" ? "Sign In to Your Account" : "Create an Account"}
         </h2>
-        <p className="mt-2 text-sm text-white/55">
+        <p className="mt-2 text-sm text-muted-foreground">
           {tab === "login" ? "Track your shipments and reports" : "Register to access your company's reports"}
         </p>
       </div>
 
-      <div className="relative mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="premium-card py-8 px-6 shadow-xl rounded-[24px]">
-          {/* Tab Toggle */}
-          <div className="flex rounded-xl bg-white/[0.04] p-1 mb-6 border border-white/10">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="rounded-2xl border border-border bg-white px-6 py-8 shadow-xl">
+          <div className="mb-6 flex rounded-xl bg-muted p-1">
             <button
               type="button"
               onClick={() => setTab("login")}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${tab === "login" ? "bg-white text-secondary shadow-sm" : "text-white/45 hover:text-white"}`}
+              className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${tab === "login" ? "bg-white text-secondary shadow-sm" : "text-muted-foreground hover:text-secondary"}`}
             >
               Sign In
             </button>
             <button
               type="button"
               onClick={() => setTab("register")}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${tab === "register" ? "bg-white text-secondary shadow-sm" : "text-white/45 hover:text-white"}`}
+              className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${tab === "register" ? "bg-white text-secondary shadow-sm" : "text-muted-foreground hover:text-secondary"}`}
             >
               Sign Up
             </button>
@@ -301,7 +292,7 @@ export default function AuthPage() {
         </div>
 
         <p className="mt-4 text-center text-sm text-muted-foreground">
-          <a href="/" className="text-primary hover:underline">← Back to home</a>
+          <a href="/" className="text-primary hover:underline">Back to home</a>
         </p>
       </div>
     </div>

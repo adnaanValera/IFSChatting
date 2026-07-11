@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useGetMe } from "@workspace/api-client-react";
 import { LayoutDashboard, LogIn, Menu, X, MapPin } from "lucide-react";
-import miniLogoUrl from "@assets/IFS_mini_logo.png";
+import logoUrl from "@assets/Inter_freight_logo_nobg.png";
 import { NotificationBell } from "./NotificationBell";
 
 export function Navbar() {
@@ -12,6 +12,7 @@ export function Navbar() {
   const typedUser = user as any;
   const role = typedUser?.role;
   const isCustomer = !!user && role !== "staff" && role !== "admin";
+  const isLoggedIn = !!user;
   const dashboardHref = role === "staff" || role === "admin" ? "/staff/dashboard" : "/dashboard";
 
   return (
@@ -22,9 +23,9 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/">
             <img
-              src={miniLogoUrl}
+              src={logoUrl}
               alt="InterFreight"
-              className="h-11 w-11 object-contain cursor-pointer"
+              className="h-14 w-auto object-contain cursor-pointer sm:h-16"
             />
           </Link>
 
@@ -53,7 +54,7 @@ export function Navbar() {
 
           {/* Right: notification bell + auth CTA */}
           <div className="hidden md:flex items-center gap-3">
-            {isCustomer && <NotificationBell />}
+            {isLoggedIn && <NotificationBell />}
             {user ? (
               <Link
                 href={dashboardHref}
@@ -73,14 +74,16 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            className="md:hidden text-white p-2 rounded"
-            onClick={() => setMobileOpen((v) => !v)}
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
+          <div className="flex items-center gap-1 md:hidden">
+            {isLoggedIn && <NotificationBell />}
+            <button
+              className="text-white p-2 rounded"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
+          </div>
         </div>
       </div>
 

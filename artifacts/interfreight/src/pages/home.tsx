@@ -11,6 +11,7 @@ import { ShipmentCard } from "@/components/ui/shipment-card";
 import { Spinner } from "@/components/ui/spinner";
 import consolidationImg from "@assets/WhatsApp_Image_2026-06-30_at_13.47.05_1783091673424.jpeg";
 import warehouseImg from "@assets/WhatsApp_Image_2026-06-30_at_13.47.25_1783091673421.jpeg";
+import worldMapImage from "@assets/premium_world_map.png";
 import { Link } from "wouter";
 import { useGetMe, useStaffLogout, useListShipments } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -86,9 +87,9 @@ const features = [
 ];
 
 const worldRoutes = [
-  { mode: "AIR", color: "#B71C1C", origin: "Europe", destination: "Africa", note: "Urgent imports & exports", path: "M140 120 C260 65, 410 60, 535 145" },
-  { mode: "SEA", color: "#7a8796", origin: "Asia", destination: "Africa", note: "Containerized ocean freight", path: "M620 148 C565 208, 515 250, 470 304" },
-  { mode: "ROAD", color: "#3f4e5e", origin: "Southern Africa", destination: "Malawi", note: "Regional cross-border delivery", path: "M410 335 C450 300, 500 264, 545 220" },
+  { mode: "AIR", color: "#ffffff", origin: "Europe", destination: "Malawi", note: "Time-sensitive imports and exports", path: "M396 120 C470 88, 604 105, 916 640" },
+  { mode: "SEA", color: "#d3d7dd", origin: "Asia", destination: "Malawi", note: "Ocean freight routed inland to Malawi", path: "M1308 298 C1230 370, 1120 488, 936 642" },
+  { mode: "ROAD", color: "#A31E2C", origin: "Southern Africa", destination: "Malawi", note: "Regional delivery corridors in and out", path: "M816 828 C850 760, 885 710, 925 642" },
 ];
 
 function AnimatedStat({ value, label, index }: { value: string; label: string; index: number }) {
@@ -126,54 +127,80 @@ function WorldMapNetwork() {
 
           <div className="grid lg:grid-cols-[1.35fr_0.65fr] gap-0">
             <div className="p-5 sm:p-8">
-              <div className="rounded-3xl border border-white/10 bg-black/15 px-3 py-4 sm:px-5 sm:py-6 shadow-inner">
-                <svg viewBox="0 0 840 420" className="w-full h-auto">
+              <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/35 shadow-inner">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(255,255,255,0.10),transparent_40%),radial-gradient(circle_at_55%_68%,rgba(163,30,44,0.24),transparent_18%)]" />
+                <div className="absolute inset-0 opacity-35 blur-2xl [background:radial-gradient(circle_at_56%_69%,rgba(163,30,44,0.45),transparent_10%),radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.18),transparent_35%)]" />
+                <img
+                  src={worldMapImage}
+                  alt="InterFreight global shipping network"
+                  className="relative z-10 w-full h-auto object-cover opacity-92 [filter:drop-shadow(0_0_18px_rgba(255,255,255,0.18))]"
+                />
+                <svg viewBox="0 0 1660 948" className="absolute inset-0 z-20 h-full w-full">
                   <defs>
-                    <filter id="softGlow">
-                      <feGaussianBlur stdDeviation="2.8" result="blur" />
+                    <filter id="routeGlow">
+                      <feGaussianBlur stdDeviation="3.6" result="blur" />
                       <feMerge>
                         <feMergeNode in="blur" />
                         <feMergeNode in="SourceGraphic" />
                       </feMerge>
                     </filter>
+                    <radialGradient id="malawiGlow" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="rgba(163,30,44,0.95)" />
+                      <stop offset="100%" stopColor="rgba(163,30,44,0)" />
+                    </radialGradient>
                   </defs>
 
-                  <g fill="rgba(248,248,246,0.07)" stroke="rgba(248,248,246,0.08)" strokeWidth="1">
-                    <path d="M96 115 C132 84, 198 74, 248 88 C298 101, 333 103, 375 95 C420 86, 470 82, 520 92 C568 101, 602 116, 633 133 C665 151, 709 159, 749 149 C726 109, 666 82, 587 74 C518 67, 432 63, 345 68 C257 73, 168 83, 96 115Z" />
-                    <path d="M118 248 C167 224, 230 215, 286 225 C344 235, 397 235, 449 225 C492 216, 535 212, 585 214 C631 216, 681 223, 728 236 C706 282, 653 307, 589 319 C525 331, 445 335, 366 332 C284 329, 205 318, 145 294 C126 286, 113 269, 118 248Z" />
-                    <path d="M336 335 C364 322, 398 316, 430 319 C454 321, 471 327, 490 336 C478 356, 451 370, 419 377 C392 383, 361 382, 337 371 C323 364, 321 348, 336 335Z" />
-                    <path d="M510 147 C548 128, 590 126, 628 137 C653 145, 674 160, 691 182 C664 193, 634 198, 601 197 C563 196, 527 188, 496 172 C487 167, 491 155, 510 147Z" />
-                  </g>
+                  <ellipse cx="918" cy="644" rx="42" ry="72" fill="url(#malawiGlow)" opacity="0.9" />
 
-                  <g>
-                    {worldRoutes.map((route, index) => (
-                      <g key={route.mode}>
-                        <path d={route.path} fill="none" stroke={route.color} strokeOpacity="0.22" strokeWidth="2" strokeDasharray="8 10" />
-                        <motion.path
-                          d={route.path}
-                          fill="none"
-                          stroke={route.color}
-                          strokeWidth="2.4"
-                          strokeLinecap="round"
-                          filter="url(#softGlow)"
-                          strokeDasharray="20 230"
-                          animate={{ strokeDashoffset: [0, -250] }}
-                          transition={{ duration: 3.6, repeat: Infinity, ease: "linear", delay: index * 0.5 }}
-                        />
-                      </g>
-                    ))}
-                  </g>
+                  {worldRoutes.map((route, index) => (
+                    <g key={route.mode}>
+                      <path
+                        d={route.path}
+                        fill="none"
+                        stroke={route.color}
+                        strokeOpacity="0.2"
+                        strokeWidth="2"
+                        strokeDasharray="8 10"
+                      />
+                      <motion.path
+                        d={route.path}
+                        fill="none"
+                        stroke={route.color}
+                        strokeWidth={route.mode === "ROAD" ? 2.8 : 2.4}
+                        strokeLinecap="round"
+                        filter="url(#routeGlow)"
+                        strokeDasharray="26 280"
+                        animate={{ strokeDashoffset: [0, -306] }}
+                        transition={{ duration: 3.8, repeat: Infinity, ease: "linear", delay: index * 0.45 }}
+                      />
+                    </g>
+                  ))}
+
+                  {[0, 1, 2].map((index) => (
+                    <motion.circle
+                      key={`malawi-pulse-${index}`}
+                      cx="918"
+                      cy="644"
+                      r="14"
+                      fill="none"
+                      stroke={index === 2 ? "#ffffff" : "#A31E2C"}
+                      strokeOpacity={index === 2 ? 0.18 : 0.32}
+                      strokeWidth={index === 2 ? 1.5 : 2}
+                      animate={{ r: [12, 30, 12], opacity: [0.25, 0.85, 0.25] }}
+                      transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: index * 0.3 }}
+                    />
+                  ))}
 
                   {[
-                    { x: 198, y: 108, label: "Europe" },
-                    { x: 630, y: 155, label: "Asia" },
-                    { x: 415, y: 280, label: "Africa" },
-                    { x: 540, y: 224, label: "Malawi" },
+                    { x: 398, y: 119, label: "Europe", tone: "#F8F8F6" },
+                    { x: 1308, y: 300, label: "Asia", tone: "#F8F8F6" },
+                    { x: 819, y: 827, label: "Southern Africa", tone: "#F8F8F6" },
+                    { x: 918, y: 644, label: "Malawi", tone: "#A31E2C" },
                   ].map((point) => (
                     <g key={point.label}>
-                      <circle cx={point.x} cy={point.y} r="5" fill="#F8F8F6" />
-                      <circle cx={point.x} cy={point.y} r="11" fill="none" stroke="rgba(248,248,246,0.15)" />
-                      <text x={point.x + 12} y={point.y - 10} fill="#F8F8F6" fontSize="12" fontWeight="700">
+                      <circle cx={point.x} cy={point.y} r="6" fill={point.tone} />
+                      <circle cx={point.x} cy={point.y} r="18" fill="none" stroke={point.tone} strokeOpacity="0.25" />
+                      <text x={point.x + 16} y={point.y - 14} fill={point.tone} fontSize="18" fontWeight="700">
                         {point.label}
                       </text>
                     </g>

@@ -17,7 +17,7 @@ export default function SignupWaitingPage() {
     <div className="min-h-screen bg-background flex flex-col justify-center px-4 py-12">
       <div className="mx-auto w-full max-w-md bg-white rounded-2xl border border-border shadow-xl p-6 text-center">
         <div className="mx-auto mb-5 flex items-center justify-center gap-3">
-          <img src={miniLogoUrl} alt="IFS mini logo" className="h-14 w-14 object-contain" />
+          <img src={miniLogoUrl} alt="IFS mini logo" className="h-16 w-16 object-contain" />
           <img src={logoUrl} alt="InterFreight Logo" className="h-16 w-auto bg-white rounded p-1 shadow-sm" />
         </div>
         <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
