@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import {
   LogOut, Package, Ship, MapPin,
   CheckCircle, Home, Download, Megaphone, ArrowRight, Bell,
-  AlertTriangle, Search, Moon, Sun, Smartphone,
+  AlertTriangle, Search, Smartphone,
 } from "lucide-react";
 import { Link } from "wouter";
 import { ShipmentCard } from "@/components/ui/shipment-card";
@@ -158,16 +158,7 @@ export default function CustomerDashboard() {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [search, setSearch] = useState("");
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
-  const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem("intf_theme");
-    return saved ? saved === "dark" : window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-  });
   const { canInstall, promptInstall } = useInstallPrompt();
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-    localStorage.setItem("intf_theme", isDark ? "dark" : "light");
-  }, [isDark]);
 
   useEffect(() => {
     if (!user) return;
@@ -285,15 +276,6 @@ export default function CustomerDashboard() {
             <Link href="/" className="hidden sm:flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors">
               <Home size={15} /> Home
             </Link>
-            <button
-              type="button"
-              onClick={() => setIsDark((value) => !value)}
-              className="h-9 w-9 rounded-lg bg-white/10 text-white/80 hover:text-white hover:bg-white/15 flex items-center justify-center transition-colors"
-              aria-label="Toggle theme"
-              title="Toggle theme"
-            >
-              {isDark ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
             {accounts.length > 0 && <AccountSwitcher currentToken={localStorage.getItem("intf_token")} />}
             <button
               onClick={handleLogout}
