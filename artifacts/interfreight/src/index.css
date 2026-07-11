@@ -333,80 +333,28 @@
   }
   .ifs-splash__icon-phase {
     opacity: 0;
-    animation: ifs-icon-phase-sequence 5.6s ease both;
+    animation: ifs-icon-phase-sequence 5.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
   .ifs-splash__icon-shell {
     position: relative;
     width: min(80vw, 360px);
     aspect-ratio: 1 / 1;
-    border-radius: 30px;
-    overflow: hidden;
-    box-shadow:
-      0 24px 60px rgba(0, 0, 0, 0.16),
-      0 0 0 1px rgba(18, 20, 23, 0.06);
-    background: #fff;
-  }
-  .ifs-splash__icon-image {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    opacity: 0.16;
-    transform: scale(1.03);
-  }
-  .ifs-splash__map-layer,
-  .ifs-splash__ship-layer,
-  .ifs-splash__truck-layer {
-    position: absolute;
-    background-image: var(--ifs-app-icon);
-    background-size: cover;
-    background-repeat: no-repeat;
-    opacity: 0;
-  }
-  .ifs-splash__map-layer {
-    inset: 0;
-    animation: ifs-map-reveal 5.6s ease both;
-  }
-  .ifs-splash__ship-layer {
-    left: 0;
-    bottom: 0;
-    width: 42%;
-    height: 34%;
-    background-position: left bottom;
-    animation: ifs-ship-reveal 5.6s ease both;
-  }
-  .ifs-splash__truck-layer {
-    right: 0;
-    bottom: 0;
-    width: 36%;
-    height: 34%;
-    background-position: right bottom;
-    animation: ifs-truck-reveal 5.6s ease both;
-  }
-  .ifs-splash__letter-lock {
-    position: absolute;
-    inset: 0;
     display: grid;
     place-items: center;
   }
-  .ifs-splash__ifs-text {
+  .ifs-splash__icon-image {
     position: relative;
     z-index: 2;
-    font-family: Inter, sans-serif;
-    font-size: clamp(4rem, 13vw, 5.9rem);
-    font-style: italic;
-    font-weight: 900;
-    letter-spacing: 0;
-    background: linear-gradient(135deg, #f2f4f7 0%, #bcc2cb 45%, #575e68 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    text-shadow: 0 10px 20px rgba(0, 0, 0, 0.16);
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: drop-shadow(0 24px 52px rgba(0, 0, 0, 0.14));
+    animation: ifs-icon-reveal 5.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
-  .ifs-splash__ifs-sweep {
+  .ifs-splash__icon-sweep {
     position: absolute;
-    inset: 24% 18%;
+    z-index: 3;
+    inset: 8%;
     background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.92) 50%, transparent 100%);
     mix-blend-mode: screen;
     opacity: 0;
@@ -420,6 +368,7 @@
   }
   .ifs-splash__arc {
     position: absolute;
+    z-index: 4;
     left: 50%;
     transform: translateX(-50%);
     border-radius: 999px;
@@ -551,32 +500,40 @@
 @keyframes ifs-full-logo-sequence {
   0% {
     opacity: 0;
-    transform: scale(0.94);
+    transform: translateY(10px) scale(0.94);
   }
-  14% {
+  12% {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
-  34% {
+  28% {
     opacity: 1;
     transform: scale(1.03);
   }
-  52% {
+  48% {
+    opacity: 0.82;
+    transform: scale(0.62);
+  }
+  60% {
     opacity: 0;
-    transform: scale(0.4);
+    transform: scale(0.28);
   }
   100% {
     opacity: 0;
-    transform: scale(0.32);
+    transform: scale(0.24);
   }
 }
 
 @keyframes ifs-icon-phase-sequence {
-  0%, 28% {
+  0%, 20% {
     opacity: 0;
-    transform: scale(0.75);
+    transform: scale(0.48);
   }
-  46% {
+  38% {
+    opacity: 0.28;
+    transform: scale(0.66);
+  }
+  56% {
     opacity: 1;
     transform: scale(1);
   }
@@ -586,34 +543,22 @@
   }
 }
 
-@keyframes ifs-map-reveal {
-  0%, 42% {
+@keyframes ifs-icon-reveal {
+  0%, 22% {
     opacity: 0;
+    transform: scale(0.46);
   }
-  58%, 100% {
-    opacity: 0.2;
+  42% {
+    opacity: 0.5;
+    transform: scale(0.72);
   }
-}
-
-@keyframes ifs-ship-reveal {
-  0%, 48% {
-    opacity: 0;
-    transform: translate(-16px, 12px);
+  58% {
+    opacity: 1;
+    transform: scale(1);
   }
-  66%, 100% {
-    opacity: 0.24;
-    transform: translate(0, 0);
-  }
-}
-
-@keyframes ifs-truck-reveal {
-  0%, 52% {
-    opacity: 0;
-    transform: translate(16px, 12px);
-  }
-  70%, 100% {
-    opacity: 0.24;
-    transform: translate(0, 0);
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
