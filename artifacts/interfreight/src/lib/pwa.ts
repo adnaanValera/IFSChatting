@@ -3,6 +3,8 @@ export type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
+const SW_UPDATE_INTERVAL_MS = 60_000;
+
 export function isStandaloneDisplay() {
   return window.matchMedia?.("(display-mode: standalone)")?.matches || (window.navigator as any).standalone === true;
 }
@@ -17,5 +19,28 @@ export function urlBase64ToUint8Array(base64String: string) {
 
 export async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return null;
-  return navigator.serviceWorker.register("/sw.js");
+
+  const registration = await navigator.serviceWorker.register("/sw.js", {
+    updateViaCache: "none",
+  });
+
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+
+  const checkForUpdate = () => {
+    void registration.update().catch(() => undefined);
+  };
+
+  checkForUpdate();
+  window.setInterval(checkForUpdate, SW_UPDATE_INTERVAL_MS);
+  window.addEventListener("focus", checkForUpdate);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkForUpdate();
+  });
+
+  return registration;
 }
