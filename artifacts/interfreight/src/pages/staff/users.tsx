@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useGetMe, useListStaffUsers, useStaffLogout } from "@workspace/api-client-react";
-import { Loader2, Users, Shield, LogOut, ArrowLeft, Trash2, KeyRound, Save } from "lucide-react";
+import { Users, Shield, LogOut, ArrowLeft, Trash2, KeyRound, Save } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
 import { saveAccount } from "@/lib/saved-accounts";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function UsersList() {
   const [, setLocation] = useLocation();
@@ -124,7 +125,7 @@ export default function UsersList() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        <Spinner className="w-10 h-10" />
       </div>
     );
   }
@@ -218,7 +219,7 @@ export default function UsersList() {
                           disabled={savingPictureId === user.id}
                           className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/90 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                         >
-                          {savingPictureId === user.id ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                          {savingPictureId === user.id ? <Spinner className="h-[13px] w-[13px]" /> : <Save size={13} />}
                           Save
                         </button>
                       </div>
@@ -230,7 +231,7 @@ export default function UsersList() {
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-secondary hover:text-primary border border-border hover:bg-primary/5 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 mr-2"
                         title="Change password"
                       >
-                        {changingPasswordId === user.id ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                        {changingPasswordId === user.id ? <Spinner className="h-[13px] w-[13px]" /> : <KeyRound size={13} />}
                         Password
                       </button>
                       <button
@@ -239,7 +240,7 @@ export default function UsersList() {
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 border border-red-200 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                         title="Delete user"
                       >
-                        {deletingId === user.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                        {deletingId === user.id ? <Spinner className="h-[13px] w-[13px]" /> : <Trash2 size={13} />}
                         Delete
                       </button>
                     </td>

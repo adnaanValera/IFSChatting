@@ -247,6 +247,63 @@
       0 0 0 1px rgba(249, 115, 22, 0.16),
       0 0 24px rgba(249, 115, 22, 0.2);
   }
+  .ifs-loader__svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .ifs-loader__backdrop {
+    fill: url(#ifsLoaderBackdrop);
+    fill: rgba(18, 20, 23, 0.95);
+    stroke: rgba(255, 255, 255, 0.12);
+    stroke-width: 1.15;
+  }
+  .dark .ifs-loader__backdrop {
+    fill: rgba(10, 12, 15, 0.98);
+    stroke: rgba(255, 255, 255, 0.12);
+  }
+  .ifs-loader__ambient {
+    pointer-events: none;
+    opacity: 0.4;
+    filter: blur(8px);
+  }
+  .ifs-loader__ambient--red {
+    fill: rgba(220, 38, 38, 0.25);
+    animation: ifs-red-pulse 3.2s ease-in-out infinite;
+  }
+  .ifs-loader__ambient--silver {
+    fill: rgba(255, 255, 255, 0.08);
+  }
+  .ifs-loader__text {
+    font-family: Inter, sans-serif;
+    font-size: 34px;
+    font-style: italic;
+    font-weight: 900;
+    letter-spacing: 1px;
+  }
+  .ifs-loader__text-fill {
+    fill: url(#ifsLetterGradient);
+  }
+  .ifs-loader__orbit {
+    transform-origin: 60px 60px;
+    animation: ifs-orbit 2.5s linear infinite;
+  }
+  .ifs-loader__arc {
+    opacity: 0.98;
+  }
+  .ifs-loader__arc--red {
+    filter:
+      drop-shadow(0 0 6px rgba(255, 61, 78, 0.38))
+      drop-shadow(0 0 12px rgba(163, 30, 44, 0.2));
+  }
+  .ifs-loader__arc--silver {
+    filter:
+      drop-shadow(0 0 5px rgba(255, 255, 255, 0.24))
+      drop-shadow(0 0 11px rgba(167, 173, 181, 0.16));
+  }
+  .ifs-loader__sweep {
+    animation: ifs-metal-sweep 3.6s linear infinite;
+  }
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
   }
@@ -254,5 +311,43 @@
     content: attr(data-placeholder);
     color: hsl(var(--muted-foreground));
     pointer-events: none;
+  }
+}
+
+@keyframes ifs-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ifs-red-pulse {
+  0%, 100% {
+    opacity: 0.28;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.48;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes ifs-metal-sweep {
+  0%, 18% {
+    transform: translateX(-66px);
+    opacity: 0;
+  }
+  24% {
+    opacity: 0.88;
+  }
+  42% {
+    transform: translateX(126px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(126px);
+    opacity: 0;
   }
 }

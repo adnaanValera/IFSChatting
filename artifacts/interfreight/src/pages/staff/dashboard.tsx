@@ -10,7 +10,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard, Users, Package, FileSpreadsheet, LogOut,
-  UploadCloud, Loader2, Clock, CheckCircle2, AlertTriangle, Ship,
+  UploadCloud, Clock, CheckCircle2, AlertTriangle, Ship,
   Truck, Trash2, MessageSquare, ChevronDown, ChevronUp, Send, Mail, Home, History,
   Building2, Download, Search, ChevronRight,
   Menu, X, UserCheck, UserX, Bell, Smartphone,
@@ -23,6 +23,7 @@ import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
 import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
 import { saveAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
+import { Spinner } from "@/components/ui/spinner";
 
 type Tab = "overview" | "import" | "history" | "messages" | "cards" | "authorize";
 
@@ -253,7 +254,7 @@ function renderOperationalAlertTable(
   if (loading) {
     return (
       <div className="flex items-center justify-center py-10 text-muted-foreground">
-        <Loader2 className="w-5 h-5 animate-spin text-primary mr-2" />
+        <Spinner className="w-5 h-5 mr-2" />
         Loading...
       </div>
     );
@@ -945,7 +946,7 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        <Spinner className="w-10 h-10" />
       </div>
     );
   }
@@ -1453,7 +1454,7 @@ export default function Dashboard() {
                       className="flex items-center gap-2 border border-border hover:border-primary/50 hover:bg-primary/5 text-secondary font-medium px-4 py-2 rounded-lg transition-all disabled:opacity-60 text-sm whitespace-nowrap"
                     >
                       {isTemplateUploading
-                        ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
+                        ? <><Spinner className="h-[14px] w-[14px]" /> Saving…</>
                         : <><UploadCloud size={14} /> {templateStatus?.hasTemplate ? "Replace Template" : "Upload Template"}</>
                       }
                     </button>
@@ -1494,7 +1495,7 @@ export default function Dashboard() {
                     />
                     {isMasterUploading ? (
                       <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                        <Spinner className="w-12 h-12" />
                         <p className="font-semibold text-secondary">Processing Tracking Master…</p>
                         <p className="text-sm text-muted-foreground">Importing all shipments and grouping by consignee</p>
                       </div>
@@ -1555,7 +1556,7 @@ export default function Dashboard() {
                           className="mt-4 w-full flex items-center justify-center gap-2 bg-secondary hover:bg-secondary/90 text-white font-semibold px-5 py-3 rounded-lg transition-all disabled:opacity-60 text-sm shadow-sm"
                         >
                           {isDownloadingZip
-                            ? <><Loader2 size={16} className="animate-spin" /> Generating Reports…</>
+                            ? <><Spinner className="h-4 w-4" /> Generating Reports…</>
                             : <><Download size={16} /> Download All {masterUploadResult.consignees.length} Status Reports (ZIP)</>
                           }
                         </button>
@@ -1571,7 +1572,7 @@ export default function Dashboard() {
                       className="w-full flex items-center justify-center gap-2 border border-border hover:border-primary/50 hover:bg-primary/5 text-secondary font-medium px-5 py-2.5 rounded-lg transition-all disabled:opacity-60 text-sm"
                     >
                       {isDownloadingZip
-                        ? <><Loader2 size={15} className="animate-spin" /> Generating…</>
+                        ? <><Spinner className="h-[15px] w-[15px]" /> Generating…</>
                         : <><Download size={15} /> Download All Current Reports (ZIP)</>
                       }
                     </button>
@@ -1606,7 +1607,7 @@ export default function Dashboard() {
                     />
                     {isUploading ? (
                       <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                        <Spinner className="w-12 h-12" />
                         <p className="font-semibold text-secondary text-lg">Processing File…</p>
                         <p className="text-sm text-muted-foreground">This may take a moment</p>
                       </div>
@@ -1682,7 +1683,7 @@ export default function Dashboard() {
                     className="flex items-center gap-2 bg-destructive hover:bg-destructive/90 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-all disabled:opacity-60 shrink-0"
                   >
                     {deletingAll
-                      ? <Loader2 size={15} className="animate-spin" />
+                      ? <Spinner className="h-[15px] w-[15px]" />
                       : <Trash2 size={15} />
                     }
                     {deletingAll ? "Clearing…" : "Delete All Data"}
@@ -1703,7 +1704,7 @@ export default function Dashboard() {
 
                 {uploadsLoading ? (
                   <div className="flex items-center justify-center py-16">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <Spinner className="w-8 h-8" />
                   </div>
                 ) : !uploads?.length ? (
                   <div className="py-16 text-center">
@@ -1748,7 +1749,7 @@ export default function Dashboard() {
                             className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-secondary/90 disabled:opacity-60"
                           >
                             {downloadingUploadId === upload.id
-                              ? <Loader2 size={14} className="animate-spin" />
+                              ? <Spinner className="h-[14px] w-[14px]" />
                               : <Download size={14} />
                             }
                             Download
@@ -1760,7 +1761,7 @@ export default function Dashboard() {
                             className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50 p-2 rounded-lg hover:bg-red-50"
                           >
                             {deletingId === upload.id
-                              ? <Loader2 size={16} className="animate-spin" />
+                              ? <Spinner className="h-4 w-4" />
                               : <Trash2 size={16} />
                             }
                           </button>
@@ -1787,7 +1788,7 @@ export default function Dashboard() {
                     disabled={isDownloadingZip}
                     className="flex items-center gap-2 bg-secondary hover:bg-secondary/90 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-all disabled:opacity-60"
                   >
-                    {isDownloadingZip ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                    {isDownloadingZip ? <Spinner className="h-[15px] w-[15px]" /> : <Download size={15} />}
                     {isDownloadingZip ? "Generating..." : "Download All"}
                   </button>
                   <button
@@ -1813,7 +1814,7 @@ export default function Dashboard() {
 
               {companiesLoading ? (
                 <div className="flex items-center justify-center py-20">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <Spinner className="w-8 h-8" />
                 </div>
               ) : companiesList.length === 0 ? (
                 <div className="bg-white rounded-xl border border-border shadow-sm py-20 text-center">
@@ -1853,7 +1854,7 @@ export default function Dashboard() {
                                 className="flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold bg-secondary hover:bg-secondary/90 text-white px-2 sm:px-3 py-2 rounded-lg transition-all disabled:opacity-60"
                                 title="Download Excel report"
                               >
-                                {isDownloadingExcel ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                                {isDownloadingExcel ? <Spinner className="h-[14px] w-[14px]" /> : <Download size={14} />}
                                 {isDownloading ? "Generating…" : "Download"}
                               </button>
                               <button
@@ -1862,14 +1863,14 @@ export default function Dashboard() {
                                 className="flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold bg-primary hover:bg-primary/90 text-white px-2 sm:px-3 py-2 rounded-lg transition-all disabled:opacity-60"
                                 title="Download PDF report"
                               >
-                                {isDownloadingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                                {isDownloadingPdf ? <Spinner className="h-[14px] w-[14px]" /> : <Download size={14} />}
                                 PDF
                               </button>
                               <button
                                 onClick={() => toggleCompanyCard(company.companyName)}
                                 className="flex items-center justify-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-secondary border border-border px-2 sm:px-3 py-2 rounded-lg transition-all"
                               >
-                                {isLoadingThis ? <Loader2 size={14} className="animate-spin" /> : <ChevronRight size={14} className={`transition-transform ${isExpanded ? "rotate-90" : ""}`} />}
+                                {isLoadingThis ? <Spinner className="h-[14px] w-[14px]" /> : <ChevronRight size={14} className={`transition-transform ${isExpanded ? "rotate-90" : ""}`} />}
                                 {isExpanded ? "Close" : "View"}
                               </button>
                             </div>
@@ -1880,7 +1881,7 @@ export default function Dashboard() {
                             <div className="border-t border-border">
                               {isLoadingThis ? (
                                 <div className="flex items-center justify-center py-10">
-                                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                  <Spinner className="w-6 h-6" />
                                 </div>
                               ) : shipments.length === 0 ? (
                                 <p className="text-center text-muted-foreground py-8 text-sm">No shipments found for this company.</p>
@@ -1915,7 +1916,7 @@ export default function Dashboard() {
                                               className="flex items-center justify-center gap-1.5 text-xs font-semibold bg-secondary hover:bg-secondary/90 text-white px-2 py-1.5 rounded-lg transition-all disabled:opacity-60 sm:px-2.5"
                                               title="Download Excel report for this consignee"
                                             >
-                                              {isConsDownloadingExcel ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                                              {isConsDownloadingExcel ? <Spinner className="h-[13px] w-[13px]" /> : <Download size={13} />}
                                               {isConsDownloading ? "Generating…" : "Download"}
                                             </button>
                                             <button
@@ -1924,7 +1925,7 @@ export default function Dashboard() {
                                               className="flex items-center justify-center gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-white px-2 py-1.5 rounded-lg transition-all disabled:opacity-60 sm:px-2.5"
                                               title="Download PDF report for this consignee"
                                             >
-                                              {isConsDownloadingPdf ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                                              {isConsDownloadingPdf ? <Spinner className="h-[13px] w-[13px]" /> : <Download size={13} />}
                                               PDF
                                             </button>
                                             <button
@@ -1973,7 +1974,7 @@ export default function Dashboard() {
 
               {pendingSignupsLoading ? (
                 <div className="flex items-center justify-center py-20">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <Spinner className="w-8 h-8" />
                 </div>
               ) : pendingSignups.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-border shadow-sm py-20 text-center">
@@ -2030,7 +2031,7 @@ export default function Dashboard() {
                               disabled={!!pendingSignupAction}
                               className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors disabled:opacity-50"
                             >
-                              {approving ? <Loader2 size={15} className="animate-spin" /> : <UserCheck size={15} />}
+                              {approving ? <Spinner className="h-[15px] w-[15px]" /> : <UserCheck size={15} />}
                               Yes
                             </button>
                             <button
@@ -2038,7 +2039,7 @@ export default function Dashboard() {
                               disabled={!!pendingSignupAction}
                               className="inline-flex items-center gap-2 bg-destructive hover:bg-destructive/90 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors disabled:opacity-50"
                             >
-                              {rejecting ? <Loader2 size={15} className="animate-spin" /> : <UserX size={15} />}
+                              {rejecting ? <Spinner className="h-[15px] w-[15px]" /> : <UserX size={15} />}
                               No
                             </button>
                           </div>
@@ -2124,7 +2125,7 @@ export default function Dashboard() {
 
               {feedbackLoading ? (
                 <div className="flex items-center justify-center py-20">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <Spinner className="w-8 h-8" />
                 </div>
               ) : feedback.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-border shadow-sm py-20 text-center">
@@ -2175,7 +2176,7 @@ export default function Dashboard() {
                             title="Delete message"
                           >
                             {deletingFeedbackId === msg.id
-                              ? <Loader2 size={14} className="animate-spin" />
+                              ? <Spinner className="h-[14px] w-[14px]" />
                               : <Trash2 size={14} />
                             }
                           </button>
@@ -2210,7 +2211,7 @@ export default function Dashboard() {
                               disabled={sendingReply === msg.id || !replyTexts[msg.id]?.trim()}
                               className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all disabled:opacity-50"
                             >
-                              {sendingReply === msg.id ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                              {sendingReply === msg.id ? <Spinner className="h-[14px] w-[14px]" /> : <Send size={14} />}
                               Save Reply
                             </button>
                           </div>
