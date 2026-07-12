@@ -311,27 +311,27 @@
     border-color: rgba(255, 255, 255, 0.72) !important;
     box-shadow:
       0 0 0 2px rgba(255, 255, 255, 1),
-      0 0 0 8px rgba(17, 24, 39, 0.52),
-      0 0 0 12px rgba(255, 255, 255, 0.34),
-      0 0 34px rgba(255, 255, 255, 0.4),
-      0 0 70px rgba(15, 23, 42, 0.52),
-      0 28px 62px rgba(0, 0, 0, 0.4);
-    animation: shipment-change-glow 1.5s ease-in-out infinite;
+      0 0 0 10px rgba(17, 24, 39, 0.68),
+      0 0 0 16px rgba(255, 255, 255, 0.52),
+      0 0 48px rgba(255, 255, 255, 0.62),
+      0 0 96px rgba(15, 23, 42, 0.72),
+      0 30px 70px rgba(0, 0, 0, 0.46);
+    animation: shipment-change-glow 1.2s ease-in-out infinite;
   }
   .shipment-card--changed::before {
     opacity: 1;
     background:
-      radial-gradient(220px circle at var(--glow-x, 50%) var(--glow-y, 42%), rgba(255,255,255,0.34), transparent 58%);
+      radial-gradient(240px circle at var(--glow-x, 50%) var(--glow-y, 42%), rgba(255,255,255,0.46), transparent 60%);
   }
   .shipment-card--changed:hover,
   .shipment-card--changed:focus-within {
     box-shadow:
       0 0 0 2px rgba(255, 255, 255, 1),
-      0 0 0 9px rgba(17, 24, 39, 0.62),
-      0 0 0 14px rgba(255, 255, 255, 0.4),
-      0 0 40px rgba(255, 255, 255, 0.46),
-      0 0 82px rgba(15, 23, 42, 0.62),
-      0 30px 66px rgba(0, 0, 0, 0.44);
+      0 0 0 11px rgba(17, 24, 39, 0.74),
+      0 0 0 18px rgba(255, 255, 255, 0.6),
+      0 0 58px rgba(255, 255, 255, 0.72),
+      0 0 110px rgba(15, 23, 42, 0.8),
+      0 34px 76px rgba(0, 0, 0, 0.5);
   }
   .live-updates-badge {
     box-shadow:
@@ -854,19 +854,21 @@
 @keyframes shipment-change-glow {
   0%, 100% {
     box-shadow:
-      0 0 0 2px rgba(255, 255, 255, 0.92),
-      0 0 0 7px rgba(183, 28, 28, 0.24),
-      0 0 24px rgba(255, 255, 255, 0.26),
-      0 0 48px rgba(183, 28, 28, 0.34),
-      0 24px 56px rgba(0, 0, 0, 0.32);
+      0 0 0 2px rgba(255, 255, 255, 0.96),
+      0 0 0 10px rgba(17, 24, 39, 0.62),
+      0 0 0 15px rgba(255, 255, 255, 0.48),
+      0 0 42px rgba(255, 255, 255, 0.56),
+      0 0 92px rgba(15, 23, 42, 0.68),
+      0 30px 70px rgba(0, 0, 0, 0.46);
   }
   50% {
     box-shadow:
       0 0 0 2px rgba(255, 255, 255, 1),
-      0 0 0 8px rgba(183, 28, 28, 0.34),
-      0 0 30px rgba(255, 255, 255, 0.34),
-      0 0 60px rgba(183, 28, 28, 0.46),
-      0 26px 60px rgba(0, 0, 0, 0.36);
+      0 0 0 12px rgba(17, 24, 39, 0.78),
+      0 0 0 19px rgba(255, 255, 255, 0.64),
+      0 0 60px rgba(255, 255, 255, 0.76),
+      0 0 118px rgba(15, 23, 42, 0.84),
+      0 34px 78px rgba(0, 0, 0, 0.52);
   }
 }
 

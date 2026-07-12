@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import Constants from "expo-constants";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
-import { APP_UPDATE_URL } from "../config";
+import { APP_UPDATE_URL, MOBILE_APP_LATEST_VERSION, compareVersions } from "../config";
 import { LogoSpinner } from "../components/LogoSpinner";
 import { appPalette } from "../theme";
 
-const miniLogo = require("../assets/ifs-mini-logo.png");
+const fullLogo = require("../assets/interfreight-full-logo.png");
 
 export function LoginScreen() {
   const { signIn, loading } = useAuth();
@@ -14,6 +15,8 @@ export function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const currentVersion = Constants.expoConfig?.version ?? "1.0.0";
+  const showUpdateButton = compareVersions(currentVersion, MOBILE_APP_LATEST_VERSION) < 0;
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -33,17 +36,19 @@ export function LoginScreen() {
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.container}>
           <View style={styles.hero}>
-            <Image source={miniLogo} style={styles.logo} resizeMode="contain" />
+            <Image source={fullLogo} style={styles.logo} resizeMode="contain" />
             <Text style={[styles.title, { color: palette.text }]}>InterFreightSolutions</Text>
             <Text style={[styles.subtitle, { color: palette.textSoft }]}>Secure customer tracking, built for quick mobile updates.</Text>
           </View>
 
-          <Pressable
-            style={[styles.updateBanner, { backgroundColor: palette.accent }]}
-            onPress={() => Linking.openURL(APP_UPDATE_URL)}
-          >
-            <Text style={styles.updateBannerText}>Update App</Text>
-          </Pressable>
+          {showUpdateButton && (
+            <Pressable
+              style={[styles.updateBanner, { backgroundColor: palette.accent }]}
+              onPress={() => Linking.openURL(APP_UPDATE_URL)}
+            >
+              <Text style={styles.updateBannerText}>Update App</Text>
+            </Pressable>
+          )}
 
           <View style={[styles.panel, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             <Text style={[styles.label, { color: palette.textMuted }]}>Email</Text>
@@ -83,7 +88,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   container: { flex: 1, justifyContent: "center", paddingHorizontal: 18, paddingVertical: 20, gap: 18 },
   hero: { alignItems: "center", gap: 8, marginBottom: 6 },
-  logo: { width: 86, height: 86 },
+  logo: { width: 190, height: 92 },
   title: { color: "#111827", fontSize: 26, fontWeight: "800", textAlign: "center" },
   subtitle: { color: "#64748b", fontSize: 13, lineHeight: 18, textAlign: "center", maxWidth: 300 },
   updateBanner: {

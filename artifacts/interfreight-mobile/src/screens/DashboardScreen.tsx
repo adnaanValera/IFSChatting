@@ -1,15 +1,16 @@
 import React, { useMemo, useState } from "react";
 import { FlatList, Image, Linking, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import Constants from "expo-constants";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
-import { API_BASE_URL, APP_UPDATE_URL } from "../config";
+import { API_BASE_URL, APP_UPDATE_URL, MOBILE_APP_LATEST_VERSION, compareVersions } from "../config";
 import type { Shipment } from "../types";
 import { LogoSpinner } from "../components/LogoSpinner";
 import { ShipmentCard } from "../components/ShipmentCard";
 import { appPalette } from "../theme";
 
-const miniLogo = require("../assets/ifs-mini-logo.png");
+const fullLogo = require("../assets/interfreight-full-logo.png");
 
 async function fetchShipments(token: string): Promise<Shipment[]> {
   const res = await fetch(`${API_BASE_URL}/api/shipments`, {
@@ -31,6 +32,8 @@ export function DashboardScreen({ navigation }: any) {
   const { token, user, signOut } = useAuth();
   const palette = appPalette();
   const [search, setSearch] = useState("");
+  const currentVersion = Constants.expoConfig?.version ?? "1.0.0";
+  const showUpdateButton = compareVersions(currentVersion, MOBILE_APP_LATEST_VERSION) < 0;
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["mobile-shipments", token],
@@ -68,27 +71,31 @@ export function DashboardScreen({ navigation }: any) {
           <>
             <View style={styles.header}>
               <View style={styles.brandRow}>
-                <Image source={miniLogo} style={styles.logo} resizeMode="contain" />
+                <Image source={fullLogo} style={styles.logo} resizeMode="contain" />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.eyebrow, { color: palette.accentSoft }]}>Customer Dashboard</Text>
                   <Text style={[styles.heading, { color: palette.text }]}>Welcome, {user?.companyName || user?.fullName || "Customer"}</Text>
                 </View>
               </View>
-              <Pressable onPress={() => Linking.openURL(APP_UPDATE_URL)} style={[styles.updateBanner, { backgroundColor: palette.accent }]}>
-                <Text style={styles.updateBannerText}>Update App</Text>
-              </Pressable>
+              {showUpdateButton && (
+                <Pressable onPress={() => Linking.openURL(APP_UPDATE_URL)} style={[styles.updateBanner, { backgroundColor: palette.accent }]}>
+                  <Text style={styles.updateBannerText}>Update App</Text>
+                </Pressable>
+              )}
               <View style={styles.headerActions}>
                 <Pressable onPress={signOut} style={[styles.logout, { backgroundColor: palette.surfaceMuted }]}>
                   <Text style={[styles.logoutText, { color: palette.textMuted }]}>Log out</Text>
                 </Pressable>
               </View>
             </View>
-            
-            <View style={styles.updateHintWrap}>
-              <Text style={[styles.updateHint, { color: palette.textSoft }]}>
-                If something looks outdated, press Update App to install the latest build.
-              </Text>
-            </View>
+
+            {showUpdateButton && (
+              <View style={styles.updateHintWrap}>
+                <Text style={[styles.updateHint, { color: palette.textSoft }]}>
+                  If something looks outdated, press Update App to install the latest build.
+                </Text>
+              </View>
+            )}
 
             <View style={styles.statsRow}>
               <Stat label="Total" value={String(shipments.length)} palette={palette} />
@@ -142,7 +149,7 @@ const styles = StyleSheet.create({
   header: { gap: 12, marginBottom: 16 },
   brandRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, flex: 1 },
   headerActions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  logo: { width: 38, height: 38, marginTop: 2 },
+  logo: { width: 126, height: 54, marginTop: 2 },
   eyebrow: { color: "#c2410c", fontSize: 10, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" },
   heading: { color: "#111827", fontSize: 20, fontWeight: "800", lineHeight: 26 },
   updateBanner: {
