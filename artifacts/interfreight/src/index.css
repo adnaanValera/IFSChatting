@@ -381,7 +381,7 @@
     background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 24%, rgba(255,255,255,0.92) 50%, rgba(255,255,255,0.18) 76%, transparent 100%);
     mix-blend-mode: plus-lighter;
     filter: blur(2px);
-    transform: translateX(-135%);
+    transform: translate3d(-135%, 20%, 0) rotate(-18deg);
     animation: brand-intro-wipe 1.2s ease-in-out 0.45s 1 forwards;
     pointer-events: none;
   }
@@ -815,14 +815,14 @@
 
 @keyframes brand-intro-wipe {
   0% {
-    transform: translateX(-135%);
+    transform: translate3d(-135%, 20%, 0) rotate(-18deg);
     opacity: 0;
   }
   18% {
     opacity: 0.96;
   }
   100% {
-    transform: translateX(135%);
+    transform: translate3d(135%, -20%, 0) rotate(-18deg);
     opacity: 0;
   }
 }

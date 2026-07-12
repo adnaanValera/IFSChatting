@@ -96,6 +96,10 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
     inputRange: [-1, 1],
     outputRange: [-width * 1.2, width * 1.2],
   });
+  const wipeTranslateY = wipeTranslate.interpolate({
+    inputRange: [-1, 1],
+    outputRange: [18, -18],
+  });
   const logoShadowOpacity = logoGlow.interpolate({
     inputRange: [0, 1],
     outputRange: [0.12, 0.34],
@@ -124,7 +128,7 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
               style={[
                 styles.wipe,
                 {
-                  transform: [{ translateX: wipeTranslateX }, { rotate: "-8deg" }],
+                  transform: [{ translateX: wipeTranslateX }, { translateY: wipeTranslateY }, { rotate: "-18deg" }],
                 },
               ]}
             />
