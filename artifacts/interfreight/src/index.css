@@ -361,20 +361,26 @@
     width: min(82vw, 430px);
     display: grid;
     place-items: center;
-    overflow: hidden;
   }
   .brand-intro-logo {
     width: 100%;
+    height: auto;
+    display: block;
     opacity: 0;
     transform: scale(0.94);
-    animation: brand-intro-logo-in 3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: brand-intro-logo-in 3s cubic-bezier(0.22, 1, 0.36, 1) forwards, brand-intro-logo-glow 1.2s ease-in-out 0.45s 1;
     filter: drop-shadow(0 18px 36px rgba(15, 23, 42, 0.14));
   }
   .brand-intro-wipe {
     position: absolute;
-    inset: -6% -8%;
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 36%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.25) 64%, transparent 100%);
-    mix-blend-mode: screen;
+    top: -12%;
+    bottom: -12%;
+    left: 50%;
+    width: 18%;
+    min-width: 72px;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 24%, rgba(255,255,255,0.92) 50%, rgba(255,255,255,0.18) 76%, transparent 100%);
+    mix-blend-mode: plus-lighter;
+    filter: blur(2px);
     transform: translateX(-135%);
     animation: brand-intro-wipe 1.2s ease-in-out 0.45s 1 forwards;
     pointer-events: none;
@@ -818,6 +824,18 @@
   100% {
     transform: translateX(135%);
     opacity: 0;
+  }
+}
+
+@keyframes brand-intro-logo-glow {
+  0%, 100% {
+    filter: drop-shadow(0 18px 36px rgba(15, 23, 42, 0.14));
+  }
+  45% {
+    filter:
+      drop-shadow(0 18px 36px rgba(15, 23, 42, 0.14))
+      drop-shadow(0 0 12px rgba(255, 255, 255, 0.42))
+      drop-shadow(0 0 24px rgba(255, 255, 255, 0.18));
   }
 }
 

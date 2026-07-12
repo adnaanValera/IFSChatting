@@ -16,6 +16,7 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.94)).current;
   const wipeTranslate = useRef(new Animated.Value(-1)).current;
+  const logoGlow = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => undefined);
@@ -44,6 +45,21 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }),
+      Animated.sequence([
+        Animated.delay(420),
+        Animated.timing(logoGlow, {
+          toValue: 1,
+          duration: 420,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: false,
+        }),
+        Animated.timing(logoGlow, {
+          toValue: 0,
+          duration: 520,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ]),
     ]).start();
 
     Animated.timing(wipeTranslate, {
@@ -53,7 +69,7 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: true,
     }).start();
-  }, [logoOpacity, logoScale, reduceMotion, wipeTranslate]);
+  }, [logoGlow, logoOpacity, logoScale, reduceMotion, wipeTranslate]);
 
   useEffect(() => {
     if (!appReady || !visible) return;
@@ -80,6 +96,10 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
     inputRange: [-1, 1],
     outputRange: [-width * 1.2, width * 1.2],
   });
+  const logoShadowOpacity = logoGlow.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.12, 0.34],
+  });
 
   return (
     <Animated.View style={[styles.overlay, { opacity }]}>
@@ -92,6 +112,9 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
               width: Math.min(width * 0.76, 360),
               height: Math.min(width * 0.2, 96),
               opacity: logoOpacity,
+              shadowColor: "#ffffff",
+              shadowOpacity: logoShadowOpacity,
+              shadowRadius: 18,
               transform: [{ scale: logoScale }],
             }}
           />
@@ -125,18 +148,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   logoFrame: {
-    overflow: "hidden",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
   wipe: {
     position: "absolute",
-    top: -16,
-    bottom: -16,
-    width: 120,
-    backgroundColor: "rgba(255,255,255,0.88)",
+    top: -10,
+    bottom: -10,
+    width: 72,
+    backgroundColor: "rgba(255,255,255,0.72)",
     shadowColor: "#ffffff",
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
   },
 });
