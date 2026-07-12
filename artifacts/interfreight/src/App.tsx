@@ -27,21 +27,65 @@ const queryClient = new QueryClient();
 function BrandIntro() {
   const [closing, setClosing] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [morphing, setMorphing] = useState(false);
+  const [targetFrame, setTargetFrame] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const isHome = window.location.pathname === `${import.meta.env.BASE_URL.replace(/\/$/, "") || ""}/` || window.location.pathname === "/";
 
   useEffect(() => {
-    const closeTimer = window.setTimeout(() => setClosing(true), 3000);
-    const hideTimer = window.setTimeout(() => setVisible(false), 3380);
+    if (!isHome) {
+      setVisible(false);
+      return;
+    }
+
+    const locateTarget = () => {
+      const target = document.getElementById("hero-intro-logo");
+      if (!target) return false;
+      const rect = target.getBoundingClientRect();
+      if (!rect.width || !rect.height) return false;
+      setTargetFrame({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      });
+      return true;
+    };
+
+    const locateTimer = window.setInterval(() => {
+      if (locateTarget()) {
+        window.clearInterval(locateTimer);
+      }
+    }, 120);
+
+    const morphTimer = window.setTimeout(() => {
+      locateTarget();
+      setMorphing(true);
+    }, 1700);
+    const closeTimer = window.setTimeout(() => setClosing(true), 2400);
+    const hideTimer = window.setTimeout(() => setVisible(false), 2800);
     return () => {
+      window.clearInterval(locateTimer);
+      window.clearTimeout(morphTimer);
       window.clearTimeout(closeTimer);
       window.clearTimeout(hideTimer);
     };
-  }, []);
+  }, [isHome]);
 
   if (!visible) return null;
 
   return (
-    <div className={`brand-intro-overlay ${closing ? "brand-intro-overlay--closing" : ""}`}>
-      <div className="brand-intro-stage" aria-hidden="true">
+    <div className={`brand-intro-overlay ${closing ? "brand-intro-overlay--closing" : ""} ${morphing ? "brand-intro-overlay--morphing" : ""}`}>
+      <div
+        className={`brand-intro-stage ${morphing && targetFrame ? "brand-intro-stage--morphing" : ""}`}
+        aria-hidden="true"
+        style={morphing && targetFrame ? {
+          top: `${targetFrame.top}px`,
+          left: `${targetFrame.left}px`,
+          width: `${targetFrame.width}px`,
+          height: `${targetFrame.height}px`,
+          transform: "none",
+        } : undefined}
+      >
         <img src={fullLogoUrl} alt="InterFreight Solutions" className="brand-intro-logo" />
         <span className="brand-intro-wipe" />
       </div>

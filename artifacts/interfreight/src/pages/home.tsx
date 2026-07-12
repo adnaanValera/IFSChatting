@@ -529,11 +529,12 @@ export default function Home() {
               onMouseMove={setReactiveGlowTarget}
               className="hero-reactive-panel rounded-[28px] border border-white/15 bg-secondary/72 px-4 py-8 shadow-2xl backdrop-blur-md glow-card glow-card--reactive sm:px-10 md:px-14"
             >
-              <img
-                src={fullLogoUrl}
-                alt="InterFreight Solutions"
-                className="logo-soft-glow mx-auto mb-5 h-16 w-auto object-contain sm:h-20 md:h-24"
-              />
+                <img
+                  src={fullLogoUrl}
+                  alt="InterFreight Solutions"
+                  id="hero-intro-logo"
+                  className="logo-soft-glow mx-auto mb-5 h-16 w-auto object-contain sm:h-20 md:h-24"
+                />
               <p className="text-primary font-semibold tracking-[0.2em] uppercase text-sm mb-5">
                 Malawi
               </p>
