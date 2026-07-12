@@ -352,34 +352,46 @@ export default function CustomerDashboard() {
         )}
 
         {todayUpdates.length > 0 && (
-          <button
+          <motion.button
             type="button"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
             onClick={() => {
               const firstRef = [...todayUpdatedRefs][0];
               const el = firstRef ? document.getElementById(`shipment-${firstRef}`) : null;
               el?.scrollIntoView({ behavior: "smooth", block: "center" });
             }}
-            className="mb-4 sm:mb-6 w-full rounded-xl bg-secondary text-white px-4 py-3 sm:px-5 sm:py-4 flex items-center justify-between gap-3 text-left shadow-sm"
+            className="mb-4 sm:mb-6 w-full rounded-xl bg-secondary text-white px-4 py-3 sm:px-5 sm:py-4 flex items-center justify-between gap-3 text-left shadow-sm glow-card glow-card--reactive"
           >
             <span className="flex items-center gap-3 min-w-0">
-              <span className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+              <span className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0 live-updates-badge">
                 <Bell size={18} className="text-primary" />
               </span>
               <span className="min-w-0">
-                <span className="block text-sm font-extrabold">Today's Updates</span>
+                <span className="flex items-center gap-2 text-sm font-extrabold">
+                  Today's Updates
+                  <span className="live-updates-dot" />
+                </span>
                 <span className="block text-xs text-white/60 truncate">
                   {todayUpdates.length} consignment{todayUpdates.length !== 1 ? "s" : ""} updated today
                 </span>
               </span>
             </span>
             <ArrowRight size={18} className="text-white/50 shrink-0" />
-          </button>
+          </motion.button>
         )}
 
         {/* Summary stats */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-5 sm:mb-8">
-          {statCards.map(({ icon: Icon, label, value, tone }) => (
-            <div key={label} className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm glow-card flex items-center gap-2 sm:gap-3">
+          {statCards.map(({ icon: Icon, label, value, tone }, index) => (
+            <motion.div
+              key={label}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 + index * 0.04, duration: 0.32, ease: "easeOut" }}
+              className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm glow-card glow-card--reactive glow-card--light flex items-center gap-2 sm:gap-3"
+            >
               <div className={`p-2 rounded-lg shrink-0 ${tone}`}>
                 <Icon size={18} />
               </div>
@@ -387,7 +399,7 @@ export default function CustomerDashboard() {
                 <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{label}</p>
                 <p className="text-xl sm:text-2xl font-bold text-secondary dark:text-white">{value}</p>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
 
@@ -434,9 +446,15 @@ export default function CustomerDashboard() {
           </div>
         ) : (
           <div className="space-y-6">
-            {sectionRows.map((section) => (
-              <section key={section.reportLabel} className="space-y-3">
-                <div className="flex items-center justify-between gap-3 bg-secondary text-white rounded-xl px-3 sm:px-4 py-3 shadow-sm">
+            {sectionRows.map((section, sectionIndex) => (
+              <motion.section
+                key={section.reportLabel}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.08 + sectionIndex * 0.05, duration: 0.34, ease: "easeOut" }}
+                className="space-y-3"
+              >
+                <div className="flex items-center justify-between gap-3 bg-secondary text-white rounded-xl px-3 sm:px-4 py-3 shadow-sm glow-card">
                   <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wide">{section.reportLabel}</h3>
                   <span className="text-xs bg-white/15 px-2.5 py-1 rounded-full font-semibold">
                     {section.rows.length}
@@ -458,7 +476,7 @@ export default function CustomerDashboard() {
                     </div>
                   ))
                 )}
-              </section>
+              </motion.section>
             ))}
           </div>
         )}

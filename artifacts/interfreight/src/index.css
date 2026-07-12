@@ -304,6 +304,81 @@
       0 0 0 1px rgba(183, 28, 28, 0.12),
       0 0 20px rgba(183, 28, 28, 0.16);
   }
+  .shipment-card {
+    isolation: isolate;
+  }
+  .shipment-card--changed {
+    border-color: rgba(255, 255, 255, 0.72) !important;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.82),
+      0 0 0 4px rgba(13, 18, 27, 0.48),
+      0 0 24px rgba(255, 255, 255, 0.26),
+      0 0 40px rgba(183, 28, 28, 0.26),
+      0 22px 52px rgba(0, 0, 0, 0.28);
+  }
+  .shipment-card--changed::before {
+    opacity: 1;
+    background:
+      radial-gradient(180px circle at var(--glow-x, 50%) var(--glow-y, 42%), rgba(255,255,255,0.24), transparent 54%);
+  }
+  .shipment-card--changed:hover,
+  .shipment-card--changed:focus-within {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.92),
+      0 0 0 5px rgba(13, 18, 27, 0.52),
+      0 0 30px rgba(255, 255, 255, 0.32),
+      0 0 48px rgba(183, 28, 28, 0.32),
+      0 24px 58px rgba(0, 0, 0, 0.34);
+  }
+  .live-updates-badge {
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.08),
+      0 0 18px rgba(183, 28, 28, 0.18);
+  }
+  .live-updates-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: #ef4444;
+    box-shadow:
+      0 0 0 3px rgba(239, 68, 68, 0.16),
+      0 0 14px rgba(239, 68, 68, 0.42);
+    animation: live-updates-pulse 1.9s ease-in-out infinite;
+  }
+  .brand-intro-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.98);
+  }
+  .brand-intro-overlay--closing {
+    animation: brand-intro-overlay-out 380ms ease forwards;
+  }
+  .brand-intro-stage {
+    position: relative;
+    width: min(82vw, 430px);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  .brand-intro-logo {
+    width: 100%;
+    opacity: 0;
+    transform: scale(0.94);
+    animation: brand-intro-logo-in 3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    filter: drop-shadow(0 18px 36px rgba(15, 23, 42, 0.14));
+  }
+  .brand-intro-wipe {
+    position: absolute;
+    inset: -6% -8%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 36%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.25) 64%, transparent 100%);
+    mix-blend-mode: screen;
+    transform: translateX(-135%);
+    animation: brand-intro-wipe 1.2s ease-in-out 0.45s 1 forwards;
+    pointer-events: none;
+  }
   .dark .glow-primary {
     box-shadow:
       0 0 0 1px rgba(249, 115, 22, 0.16),
@@ -699,5 +774,59 @@
   100% {
     transform: translateX(140%);
     opacity: 0;
+  }
+}
+
+@keyframes live-updates-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.88;
+  }
+  50% {
+    transform: scale(1.14);
+    opacity: 1;
+  }
+}
+
+@keyframes brand-intro-logo-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  82% {
+    opacity: 1;
+    transform: scale(1.025);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes brand-intro-wipe {
+  0% {
+    transform: translateX(-135%);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.96;
+  }
+  100% {
+    transform: translateX(135%);
+    opacity: 0;
+  }
+}
+
+@keyframes brand-intro-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden;
   }
 }

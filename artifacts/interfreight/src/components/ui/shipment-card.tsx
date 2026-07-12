@@ -292,8 +292,8 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, ind
       id={`shipment-${s.ifsRef}`}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.28, ease: "easeOut" }}
-      className={`rounded-xl sm:rounded-2xl overflow-hidden border glow-card ${highlight ? "ring-2 ring-primary/60" : ""} ${theme.cardBorder} shadow-2xl scroll-mt-28`}
+      transition={{ delay: index * 0.05, duration: 0.34, ease: "easeOut" }}
+      className={`rounded-xl sm:rounded-2xl overflow-hidden border glow-card glow-card--reactive shipment-card ${highlight ? "shipment-card--changed" : ""} ${theme.cardBorder} shadow-2xl scroll-mt-28`}
       style={{ background: theme.cardBg }}
     >
       {/* ── Collapsed header — always visible ─────────────────────────────── */}

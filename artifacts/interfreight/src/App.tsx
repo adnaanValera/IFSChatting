@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -5,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { StaffRoute, CustomerRoute, AdminRoute } from "@/components/auth/ProtectedRoute";
 import { PendingSignupWatcher } from "@/components/auth/PendingSignupWatcher";
 import { setupApiClient } from "@/lib/api-setup";
+import fullLogoUrl from "@assets/Inter_freight_logo_nobg.png";
 
 // Pages
 import Home from "@/pages/home";
@@ -21,6 +23,31 @@ import NotFound from "@/pages/not-found";
 setupApiClient();
 
 const queryClient = new QueryClient();
+
+function BrandIntro() {
+  const [closing, setClosing] = useState(false);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const closeTimer = window.setTimeout(() => setClosing(true), 3000);
+    const hideTimer = window.setTimeout(() => setVisible(false), 3380);
+    return () => {
+      window.clearTimeout(closeTimer);
+      window.clearTimeout(hideTimer);
+    };
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div className={`brand-intro-overlay ${closing ? "brand-intro-overlay--closing" : ""}`}>
+      <div className="brand-intro-stage" aria-hidden="true">
+        <img src={fullLogoUrl} alt="InterFreight Solutions" className="brand-intro-logo" />
+        <span className="brand-intro-wipe" />
+      </div>
+    </div>
+  );
+}
 
 function Router() {
   return (
@@ -70,6 +97,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <BrandIntro />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <PendingSignupWatcher />
           <Router />
