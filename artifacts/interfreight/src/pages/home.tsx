@@ -471,7 +471,7 @@ export default function Home() {
                 className="mx-auto mb-5 h-16 w-auto object-contain sm:h-20 md:h-24"
               />
               <p className="text-primary font-semibold tracking-[0.2em] uppercase text-sm mb-5">
-                InterFreight Solutions - Malawi
+                Malawi
               </p>
               <p className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-white/60 sm:text-base sm:tracking-[0.3em]">
                 Shipping made simple
