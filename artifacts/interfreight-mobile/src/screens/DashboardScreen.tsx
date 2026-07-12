@@ -74,10 +74,10 @@ export function DashboardScreen({ navigation }: any) {
                   <Text style={[styles.heading, { color: palette.text }]}>Welcome, {user?.companyName || user?.fullName || "Customer"}</Text>
                 </View>
               </View>
+              <Pressable onPress={() => Linking.openURL(APP_UPDATE_URL)} style={[styles.updateBanner, { backgroundColor: palette.accent }]}>
+                <Text style={styles.updateBannerText}>Update App</Text>
+              </Pressable>
               <View style={styles.headerActions}>
-                <Pressable onPress={() => Linking.openURL(APP_UPDATE_URL)} style={[styles.updateButton, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-                  <Text style={[styles.updateButtonText, { color: palette.text }]}>Update App</Text>
-                </Pressable>
                 <Pressable onPress={signOut} style={[styles.logout, { backgroundColor: palette.surfaceMuted }]}>
                   <Text style={[styles.logoutText, { color: palette.textMuted }]}>Log out</Text>
                 </Pressable>
@@ -145,13 +145,13 @@ const styles = StyleSheet.create({
   logo: { width: 38, height: 38, marginTop: 2 },
   eyebrow: { color: "#c2410c", fontSize: 10, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" },
   heading: { color: "#111827", fontSize: 20, fontWeight: "800", lineHeight: 26 },
-  updateButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 999,
-    borderWidth: 1,
+  updateBanner: {
+    minHeight: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  updateButtonText: { fontWeight: "800", fontSize: 13 },
+  updateBannerText: { color: "#fff", fontWeight: "800", fontSize: 15 },
   logout: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, backgroundColor: "#18222c" },
   logoutText: { color: "#e2e8f0", fontWeight: "700" },
   updateHintWrap: { marginTop: -4, marginBottom: 14 },

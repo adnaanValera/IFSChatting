@@ -310,25 +310,26 @@
   .shipment-card--changed {
     border-color: rgba(255, 255, 255, 0.72) !important;
     box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.82),
-      0 0 0 4px rgba(13, 18, 27, 0.48),
-      0 0 24px rgba(255, 255, 255, 0.26),
-      0 0 40px rgba(183, 28, 28, 0.26),
-      0 22px 52px rgba(0, 0, 0, 0.28);
+      0 0 0 2px rgba(255, 255, 255, 0.96),
+      0 0 0 7px rgba(183, 28, 28, 0.28),
+      0 0 26px rgba(255, 255, 255, 0.3),
+      0 0 54px rgba(183, 28, 28, 0.42),
+      0 24px 56px rgba(0, 0, 0, 0.32);
+    animation: shipment-change-glow 1.9s ease-in-out infinite;
   }
   .shipment-card--changed::before {
     opacity: 1;
     background:
-      radial-gradient(180px circle at var(--glow-x, 50%) var(--glow-y, 42%), rgba(255,255,255,0.24), transparent 54%);
+      radial-gradient(200px circle at var(--glow-x, 50%) var(--glow-y, 42%), rgba(255,255,255,0.28), transparent 56%);
   }
   .shipment-card--changed:hover,
   .shipment-card--changed:focus-within {
     box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.92),
-      0 0 0 5px rgba(13, 18, 27, 0.52),
-      0 0 30px rgba(255, 255, 255, 0.32),
-      0 0 48px rgba(183, 28, 28, 0.32),
-      0 24px 58px rgba(0, 0, 0, 0.34);
+      0 0 0 2px rgba(255, 255, 255, 1),
+      0 0 0 8px rgba(183, 28, 28, 0.34),
+      0 0 34px rgba(255, 255, 255, 0.34),
+      0 0 60px rgba(183, 28, 28, 0.46),
+      0 26px 60px rgba(0, 0, 0, 0.36);
   }
   .live-updates-badge {
     box-shadow:
@@ -845,6 +846,25 @@
   50% {
     transform: scale(1.14);
     opacity: 1;
+  }
+}
+
+@keyframes shipment-change-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.92),
+      0 0 0 7px rgba(183, 28, 28, 0.24),
+      0 0 24px rgba(255, 255, 255, 0.26),
+      0 0 48px rgba(183, 28, 28, 0.34),
+      0 24px 56px rgba(0, 0, 0, 0.32);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 1),
+      0 0 0 8px rgba(183, 28, 28, 0.34),
+      0 0 30px rgba(255, 255, 255, 0.34),
+      0 0 60px rgba(183, 28, 28, 0.46),
+      0 26px 60px rgba(0, 0, 0, 0.36);
   }
 }
 

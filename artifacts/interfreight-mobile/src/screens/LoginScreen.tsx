@@ -38,6 +38,13 @@ export function LoginScreen() {
             <Text style={[styles.subtitle, { color: palette.textSoft }]}>Secure customer tracking, built for quick mobile updates.</Text>
           </View>
 
+          <Pressable
+            style={[styles.updateBanner, { backgroundColor: palette.accent }]}
+            onPress={() => Linking.openURL(APP_UPDATE_URL)}
+          >
+            <Text style={styles.updateBannerText}>Update App</Text>
+          </Pressable>
+
           <View style={[styles.panel, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             <Text style={[styles.label, { color: palette.textMuted }]}>Email</Text>
             <TextInput
@@ -63,13 +70,6 @@ export function LoginScreen() {
               {submitting || loading ? <LogoSpinner size={20} /> : <Text style={styles.buttonText}>Sign In</Text>}
             </Pressable>
 
-            <Pressable
-              style={[styles.updateButton, { borderColor: palette.borderMuted, backgroundColor: palette.background }]}
-              onPress={() => Linking.openURL(APP_UPDATE_URL)}
-            >
-              <Text style={[styles.updateButtonText, { color: palette.text }]}>Update App</Text>
-            </Pressable>
-
             <Text style={[styles.note, { color: palette.textSoft }]}>The app keeps customers signed in on their own device so they can check updates quickly.</Text>
           </View>
         </View>
@@ -86,6 +86,14 @@ const styles = StyleSheet.create({
   logo: { width: 86, height: 86 },
   title: { color: "#111827", fontSize: 26, fontWeight: "800", textAlign: "center" },
   subtitle: { color: "#64748b", fontSize: 13, lineHeight: 18, textAlign: "center", maxWidth: 300 },
+  updateBanner: {
+    minHeight: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 2,
+  },
+  updateBannerText: { color: "#fff", fontSize: 15, fontWeight: "800" },
   panel: {
     backgroundColor: "#ffffff",
     borderColor: "#d5dbe1",
@@ -113,13 +121,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   buttonText: { color: "#fff", fontSize: 15, fontWeight: "800" },
-  updateButton: {
-    minHeight: 46,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  updateButtonText: { fontSize: 14, fontWeight: "800" },
   note: { color: "#64748b", fontSize: 12, lineHeight: 18, marginTop: 6, textAlign: "center" },
 });

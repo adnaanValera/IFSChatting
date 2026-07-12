@@ -214,6 +214,7 @@ export default function CustomerDashboard() {
     if (!term) return shipments;
     return shipments.filter((shipment: any) => searchableText(shipment).includes(term));
   }, [shipments, search]);
+  const hasSearch = search.trim().length > 0;
   const companyName = String(typedUser?.companyName || typedUser?.fullName || typedUser?.name || "InterFreight Client");
   const statusChangesByIfsRef = new Map<string, { oldValue: string; newValue: string }>();
   for (const notification of notifications) {
@@ -443,6 +444,26 @@ export default function CustomerDashboard() {
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
               Try searching by reference, container, invoice number, entry, shipper, or cargo description.
             </p>
+          </div>
+        ) : hasSearch ? (
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-secondary">{filteredShipments.length}</span> shipment{filteredShipments.length !== 1 ? "s" : ""} found
+                {" "}for <span className="font-semibold text-secondary">"{search.trim()}"</span>
+              </p>
+            </div>
+            <div className="space-y-4">
+              {filteredShipments.map((shipment: any, index: number) => (
+                <ShipmentCard
+                  key={shipment.id}
+                  shipment={shipment}
+                  statusChange={statusChangesByIfsRef.get(shipment.ifsRef)}
+                  highlight={todayUpdatedRefs.has(shipment.ifsRef)}
+                  index={index}
+                />
+              ))}
+            </div>
           </div>
         ) : (
           <div className="space-y-6">
