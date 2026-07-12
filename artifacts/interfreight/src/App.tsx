@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -28,7 +28,8 @@ function BrandIntro() {
   const [closing, setClosing] = useState(false);
   const [visible, setVisible] = useState(true);
   const [morphing, setMorphing] = useState(false);
-  const [targetFrame, setTargetFrame] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [targetTransform, setTargetTransform] = useState<{ x: number; y: number; scale: number } | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const isHome = window.location.pathname === `${import.meta.env.BASE_URL.replace(/\/$/, "") || ""}/` || window.location.pathname === "/";
 
   useEffect(() => {
@@ -42,14 +43,19 @@ function BrandIntro() {
 
     const locateTarget = () => {
       const target = document.getElementById("hero-intro-logo");
-      if (!target) return false;
-      const rect = target.getBoundingClientRect();
-      if (!rect.width || !rect.height) return false;
-      setTargetFrame({
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
+      const stage = stageRef.current;
+      if (!target || !stage) return false;
+      const targetRect = target.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      if (!targetRect.width || !targetRect.height || !stageRect.width || !stageRect.height) return false;
+      const stageCenterX = stageRect.left + stageRect.width / 2;
+      const stageCenterY = stageRect.top + stageRect.height / 2;
+      const targetCenterX = targetRect.left + targetRect.width / 2;
+      const targetCenterY = targetRect.top + targetRect.height / 2;
+      setTargetTransform({
+        x: targetCenterX - stageCenterX,
+        y: targetCenterY - stageCenterY,
+        scale: targetRect.width / stageRect.width,
       });
       return true;
     };
@@ -89,14 +95,13 @@ function BrandIntro() {
   return (
     <div className={`brand-intro-overlay ${closing ? "brand-intro-overlay--closing" : ""} ${morphing ? "brand-intro-overlay--morphing" : ""}`}>
       <div
-        className={`brand-intro-stage ${morphing && targetFrame ? "brand-intro-stage--morphing" : ""}`}
+        ref={stageRef}
+        className={`brand-intro-stage ${morphing && targetTransform ? "brand-intro-stage--morphing" : ""}`}
         aria-hidden="true"
-        style={morphing && targetFrame ? {
-          top: `${targetFrame.top}px`,
-          left: `${targetFrame.left}px`,
-          width: `${targetFrame.width}px`,
-          height: `${targetFrame.height}px`,
-          transform: "none",
+        style={morphing && targetTransform ? {
+          ["--intro-shift-x" as string]: `${targetTransform.x}px`,
+          ["--intro-shift-y" as string]: `${targetTransform.y}px`,
+          ["--intro-scale" as string]: `${targetTransform.scale}`,
         } : undefined}
       >
         <img src={fullLogoUrl} alt="InterFreight Solutions" className="brand-intro-logo" />

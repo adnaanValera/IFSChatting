@@ -12,6 +12,7 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
   const { width } = useWindowDimensions();
   const [reduceMotion, setReduceMotion] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [minDurationElapsed, setMinDurationElapsed] = useState(false);
   const opacity = useRef(new Animated.Value(1)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.94)).current;
@@ -21,6 +22,11 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
     const subscription = AccessibilityInfo.addEventListener?.("reduceMotionChanged", setReduceMotion);
     return () => subscription?.remove?.();
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMinDurationElapsed(true), reduceMotion ? 500 : 1400);
+    return () => clearTimeout(timer);
+  }, [reduceMotion]);
 
   useEffect(() => {
     if (reduceMotion) {
@@ -46,7 +52,7 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
   }, [logoOpacity, logoScale, reduceMotion]);
 
   useEffect(() => {
-    if (!appReady || !visible) return;
+    if (!appReady || !visible || !minDurationElapsed) return;
 
     const startExit = () => {
       Animated.timing(opacity, {
@@ -60,9 +66,9 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
       });
     };
 
-    const timer = setTimeout(startExit, reduceMotion ? 150 : 3000);
+    const timer = setTimeout(startExit, reduceMotion ? 150 : 450);
     return () => clearTimeout(timer);
-  }, [appReady, onFinish, opacity, reduceMotion, visible]);
+  }, [appReady, minDurationElapsed, onFinish, opacity, reduceMotion, visible]);
 
   if (!visible) return null;
 
