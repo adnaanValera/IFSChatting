@@ -323,8 +323,16 @@ export default function CustomerDashboard() {
               </button>
             </div>
 
-            {canInstall && (
-              <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/app-install"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-secondary/15 bg-secondary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-secondary/92"
+              >
+                <Smartphone size={16} />
+                Update App
+              </Link>
+
+              {canInstall && (
                 <button
                   type="button"
                   onClick={() => void promptInstall()}
@@ -333,8 +341,8 @@ export default function CustomerDashboard() {
                   <Smartphone size={16} />
                   Download app
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 

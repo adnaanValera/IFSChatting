@@ -310,26 +310,28 @@
   .shipment-card--changed {
     border-color: rgba(255, 255, 255, 0.72) !important;
     box-shadow:
-      0 0 0 2px rgba(255, 255, 255, 0.96),
-      0 0 0 7px rgba(183, 28, 28, 0.28),
-      0 0 26px rgba(255, 255, 255, 0.3),
-      0 0 54px rgba(183, 28, 28, 0.42),
-      0 24px 56px rgba(0, 0, 0, 0.32);
-    animation: shipment-change-glow 1.9s ease-in-out infinite;
+      0 0 0 2px rgba(255, 255, 255, 1),
+      0 0 0 8px rgba(17, 24, 39, 0.52),
+      0 0 0 12px rgba(255, 255, 255, 0.34),
+      0 0 34px rgba(255, 255, 255, 0.4),
+      0 0 70px rgba(15, 23, 42, 0.52),
+      0 28px 62px rgba(0, 0, 0, 0.4);
+    animation: shipment-change-glow 1.5s ease-in-out infinite;
   }
   .shipment-card--changed::before {
     opacity: 1;
     background:
-      radial-gradient(200px circle at var(--glow-x, 50%) var(--glow-y, 42%), rgba(255,255,255,0.28), transparent 56%);
+      radial-gradient(220px circle at var(--glow-x, 50%) var(--glow-y, 42%), rgba(255,255,255,0.34), transparent 58%);
   }
   .shipment-card--changed:hover,
   .shipment-card--changed:focus-within {
     box-shadow:
       0 0 0 2px rgba(255, 255, 255, 1),
-      0 0 0 8px rgba(183, 28, 28, 0.34),
-      0 0 34px rgba(255, 255, 255, 0.34),
-      0 0 60px rgba(183, 28, 28, 0.46),
-      0 26px 60px rgba(0, 0, 0, 0.36);
+      0 0 0 9px rgba(17, 24, 39, 0.62),
+      0 0 0 14px rgba(255, 255, 255, 0.4),
+      0 0 40px rgba(255, 255, 255, 0.46),
+      0 0 82px rgba(15, 23, 42, 0.62),
+      0 30px 66px rgba(0, 0, 0, 0.44);
   }
   .live-updates-badge {
     box-shadow:
