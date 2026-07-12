@@ -360,7 +360,7 @@
   }
   .brand-intro-stage {
     position: fixed;
-    top: 50%;
+    top: 42%;
     left: 50%;
     width: min(82vw, 430px);
     height: auto;
@@ -377,6 +377,17 @@
   }
   .brand-intro-stage--morphing {
     opacity: 0.96;
+  }
+  html[data-brand-intro="active"] #hero-intro-logo,
+  html[data-brand-intro="morphing"] #hero-intro-logo {
+    opacity: 0;
+  }
+  html[data-brand-intro="closing"] #hero-intro-logo,
+  html[data-brand-intro="done"] #hero-intro-logo {
+    opacity: 1;
+  }
+  #hero-intro-logo {
+    transition: opacity 280ms ease;
   }
   .brand-intro-logo {
     width: 100%;
@@ -813,11 +824,11 @@
 @keyframes brand-intro-logo-in {
   0% {
     opacity: 0;
-    transform: scale(0.94);
+    transform: translateY(-18px) scale(1.02);
   }
   18% {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
   82% {
     opacity: 1;

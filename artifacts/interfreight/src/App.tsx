@@ -33,9 +33,12 @@ function BrandIntro() {
 
   useEffect(() => {
     if (!isHome) {
+      document.documentElement.dataset.brandIntro = "done";
       setVisible(false);
       return;
     }
+
+    document.documentElement.dataset.brandIntro = "active";
 
     const locateTarget = () => {
       const target = document.getElementById("hero-intro-logo");
@@ -59,15 +62,25 @@ function BrandIntro() {
 
     const morphTimer = window.setTimeout(() => {
       locateTarget();
+      document.documentElement.dataset.brandIntro = "morphing";
       setMorphing(true);
     }, 1700);
-    const closeTimer = window.setTimeout(() => setClosing(true), 2400);
-    const hideTimer = window.setTimeout(() => setVisible(false), 2800);
+    const closeTimer = window.setTimeout(() => {
+      document.documentElement.dataset.brandIntro = "closing";
+      setClosing(true);
+    }, 2480);
+    const hideTimer = window.setTimeout(() => {
+      document.documentElement.dataset.brandIntro = "done";
+      setVisible(false);
+    }, 2860);
     return () => {
       window.clearInterval(locateTimer);
       window.clearTimeout(morphTimer);
       window.clearTimeout(closeTimer);
       window.clearTimeout(hideTimer);
+      if (document.documentElement.dataset.brandIntro !== "done") {
+        delete document.documentElement.dataset.brandIntro;
+      }
     };
   }, [isHome]);
 
