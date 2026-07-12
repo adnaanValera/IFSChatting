@@ -64,15 +64,15 @@ function BrandIntro() {
       locateTarget();
       document.documentElement.dataset.brandIntro = "morphing";
       setMorphing(true);
-    }, 2050);
+    }, 2350);
     const closeTimer = window.setTimeout(() => {
       document.documentElement.dataset.brandIntro = "closing";
       setClosing(true);
-    }, 3200);
+    }, 3950);
     const hideTimer = window.setTimeout(() => {
       document.documentElement.dataset.brandIntro = "done";
       setVisible(false);
-    }, 3600);
+    }, 4400);
     return () => {
       window.clearInterval(locateTimer);
       window.clearTimeout(morphTimer);
