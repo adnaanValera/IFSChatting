@@ -440,6 +440,10 @@ export default function Dashboard() {
   const typedUser = user as any;
   const isAdmin = typedUser?.role === "admin";
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+
   const loadOperationalAlerts = async () => {
     setOperationalAlertsLoading(true);
     try {

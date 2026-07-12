@@ -8,9 +8,9 @@
     "icon": "./assets/ifs-mini-logo.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/ifs-mini-logo.png",
+      "image": "./assets/interfreight-full-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0f1419"
+      "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": [
       "**/*"
