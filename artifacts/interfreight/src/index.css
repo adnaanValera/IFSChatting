@@ -226,11 +226,28 @@
     color: #A7ADB5;
   }
   .glow-card {
+    position: relative;
+    overflow: hidden;
     box-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.05),
       0 0 22px rgba(183, 28, 28, 0.08),
       0 18px 42px rgba(15, 23, 42, 0.08);
     transition: box-shadow 180ms ease, transform 180ms ease, border-color 180ms ease;
+  }
+  .glow-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(160px circle at var(--glow-x, 50%) var(--glow-y, 45%), rgba(255,255,255,0.2), transparent 52%);
+    opacity: 0;
+    transition: opacity 150ms ease;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .glow-card > * {
+    position: relative;
+    z-index: 1;
   }
   .dark .glow-card {
     box-shadow:
@@ -240,18 +257,27 @@
   }
   .glow-card--reactive:hover,
   .glow-card--reactive:focus-within {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
     box-shadow:
-      0 0 0 1px rgba(183, 28, 28, 0.12),
-      0 0 32px rgba(183, 28, 28, 0.12),
-      0 22px 50px rgba(15, 23, 42, 0.14);
+      0 0 0 1px rgba(255, 255, 255, 0.72),
+      0 0 0 4px rgba(13, 18, 27, 0.42),
+      0 0 24px rgba(255, 255, 255, 0.3),
+      0 0 34px rgba(183, 28, 28, 0.14),
+      0 22px 46px rgba(5, 10, 18, 0.22);
+    border-color: rgba(255,255,255,0.65);
   }
   .glow-card--reactive:active {
     transform: translateY(-1px);
     box-shadow:
-      0 0 0 1px rgba(183, 28, 28, 0.12),
-      0 0 24px rgba(183, 28, 28, 0.14),
-      0 18px 36px rgba(15, 23, 42, 0.12);
+      0 0 0 1px rgba(255, 255, 255, 0.6),
+      0 0 0 3px rgba(13, 18, 27, 0.32),
+      0 0 18px rgba(255, 255, 255, 0.24),
+      0 0 24px rgba(183, 28, 28, 0.1),
+      0 16px 30px rgba(5, 10, 18, 0.18);
+  }
+  .glow-card--reactive:hover::before,
+  .glow-card--reactive:focus-within::before {
+    opacity: 1;
   }
   .glow-primary {
     box-shadow:
@@ -291,7 +317,7 @@
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(240px circle at var(--glow-x, 50%) var(--glow-y, 35%), rgba(255,255,255,0.11), transparent 58%);
+      radial-gradient(150px circle at var(--glow-x, 50%) var(--glow-y, 35%), rgba(255,255,255,0.18), transparent 50%);
     opacity: 0;
     transition: opacity 180ms ease;
     pointer-events: none;
@@ -306,9 +332,11 @@
   }
   .route-card-active {
     box-shadow:
-      0 0 0 1px rgba(255,255,255,0.12),
-      0 0 26px rgba(183, 28, 28, 0.18),
-      0 16px 40px rgba(15, 23, 42, 0.14);
+      0 0 0 1px rgba(255,255,255,0.58),
+      0 0 0 4px rgba(13, 18, 27, 0.34),
+      0 0 24px rgba(255,255,255,0.2),
+      0 0 30px rgba(183, 28, 28, 0.18),
+      0 16px 40px rgba(15, 23, 42, 0.16);
     border-color: rgba(255,255,255,0.18);
     transform: translateY(-1px);
   }

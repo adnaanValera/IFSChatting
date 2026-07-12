@@ -129,6 +129,12 @@ const routeSummaryCards = [
   },
 ];
 
+function setReactiveGlowTarget(event: React.MouseEvent<HTMLElement>) {
+  const rect = event.currentTarget.getBoundingClientRect();
+  event.currentTarget.style.setProperty("--glow-x", `${((event.clientX - rect.left) / rect.width) * 100}%`);
+  event.currentTarget.style.setProperty("--glow-y", `${((event.clientY - rect.top) / rect.height) * 100}%`);
+}
+
 function AnimatedStat({ value, label, index }: { value: string; label: string; index: number }) {
   return (
     <motion.div
@@ -147,6 +153,7 @@ function AnimatedStat({ value, label, index }: { value: string; label: string; i
 
 function WorldMapNetwork() {
   const [activeRoute, setActiveRoute] = useState<string | null>(null);
+  const [activeContinent, setActiveContinent] = useState<string | null>(null);
 
   return (
     <section className="py-14">
@@ -177,8 +184,11 @@ function WorldMapNetwork() {
                 <svg viewBox="0 0 1660 948" className="absolute inset-0 z-20 h-full w-full">
                   <defs>
                     <filter id="routeGlow">
-                      <feGaussianBlur stdDeviation="3.6" result="blur" />
+                      <feGaussianBlur stdDeviation="4.8" result="blur" />
+                      <feFlood floodColor="#ffffff" floodOpacity="0.8" result="whiteFlood" />
+                      <feComposite in="whiteFlood" in2="blur" operator="in" result="whiteGlow" />
                       <feMerge>
+                        <feMergeNode in="whiteGlow" />
                         <feMergeNode in="blur" />
                         <feMergeNode in="SourceGraphic" />
                       </feMerge>
@@ -235,15 +245,25 @@ function WorldMapNetwork() {
                   ))}
 
                   {[...continentPoints, { x: 918, y: 644, label: "Malawi", tone: "#A31E2C" }].map((point) => {
-                    const isActive = activeRoute === point.label;
+                    const isActive = activeRoute === point.label || activeContinent === point.label;
                     return (
-                      <g key={point.label}>
+                      <motion.g
+                        key={point.label}
+                        onMouseEnter={() => setActiveContinent(point.label)}
+                        onMouseLeave={() => setActiveContinent(null)}
+                        animate={{ y: isActive ? -6 : 0, scale: isActive ? 1.02 : 1 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        style={{ cursor: "pointer" }}
+                      >
                         <circle cx={point.x} cy={point.y} r={isActive ? "7" : "6"} fill={"tone" in point ? point.tone : "#F8F8F6"} />
                         <circle cx={point.x} cy={point.y} r={isActive ? "22" : "18"} fill="none" stroke={"tone" in point ? point.tone : "#F8F8F6"} strokeOpacity={isActive ? "0.42" : "0.25"} />
+                        {isActive ? (
+                          <circle cx={point.x} cy={point.y} r="25" fill="none" stroke="#ffffff" strokeOpacity="0.45" strokeWidth="1.2" />
+                        ) : null}
                         <text x={point.x + 16} y={point.y - 14} fill={"tone" in point ? point.tone : "#F8F8F6"} fontSize="18" fontWeight="700" opacity={isActive ? "1" : "0.9"}>
                           {point.label}
                         </text>
-                      </g>
+                      </motion.g>
                     );
                   })}
                 </svg>
@@ -258,6 +278,7 @@ function WorldMapNetwork() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.08, duration: 0.35 }}
+                  onMouseMove={setReactiveGlowTarget}
                   onMouseEnter={() => setActiveRoute(card.title === "Import" || card.title === "Export" ? "Malawi" : card.title)}
                   onMouseLeave={() => setActiveRoute(null)}
                   className={`rounded-2xl border border-white/10 bg-white/[0.04] p-5 glow-card glow-card--reactive ${activeRoute === card.title ? "route-card-active" : ""}`}
@@ -323,7 +344,7 @@ function StaffTracker() {
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg border border-border p-5 mb-8 glow-card">
+        <div onMouseMove={setReactiveGlowTarget} className="bg-white rounded-2xl shadow-lg border border-border p-5 mb-8 glow-card glow-card--reactive">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={20} />
             <input
@@ -362,7 +383,8 @@ function StaffTracker() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-2xl border border-border p-14 flex flex-col items-center text-center shadow-sm glow-card"
+            onMouseMove={setReactiveGlowTarget}
+            className="bg-white rounded-2xl border border-border p-14 flex flex-col items-center text-center shadow-sm glow-card glow-card--reactive"
           >
             <SearchX className="w-14 h-14 text-muted-foreground mb-4 opacity-40" />
             <h3 className="text-xl font-bold text-secondary mb-2">No containers found</h3>
@@ -474,12 +496,8 @@ export default function Home() {
               initial={{ opacity: 0, y: 28 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              onMouseMove={(event) => {
-                const rect = event.currentTarget.getBoundingClientRect();
-                event.currentTarget.style.setProperty("--glow-x", `${((event.clientX - rect.left) / rect.width) * 100}%`);
-                event.currentTarget.style.setProperty("--glow-y", `${((event.clientY - rect.top) / rect.height) * 100}%`);
-              }}
-              className="hero-reactive-panel rounded-[28px] border border-white/15 bg-secondary/72 px-4 py-8 shadow-2xl backdrop-blur-md glow-card sm:px-10 md:px-14"
+              onMouseMove={setReactiveGlowTarget}
+              className="hero-reactive-panel rounded-[28px] border border-white/15 bg-secondary/72 px-4 py-8 shadow-2xl backdrop-blur-md glow-card glow-card--reactive sm:px-10 md:px-14"
             >
               <img
                 src={fullLogoUrl}
@@ -557,6 +575,7 @@ export default function Home() {
                   className="mx-auto mt-8 max-w-lg"
                 >
                   <div
+                    onMouseMove={setReactiveGlowTarget}
                     className="relative rounded-2xl overflow-hidden border border-white/20 shadow-2xl glow-card glow-card--reactive"
                     style={{ background: "linear-gradient(135deg, rgba(17,19,21,0.92) 0%, rgba(30,8,8,0.88) 100%)", backdropFilter: "blur(12px)" }}
                   >
@@ -606,7 +625,7 @@ export default function Home() {
 
         <section id="services" className="py-24 scroll-mt-16">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md glow-card">
+            <div onMouseMove={setReactiveGlowTarget} className="text-center mb-16 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md glow-card glow-card--reactive">
               <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-3">
                 What We Do
               </p>
@@ -627,6 +646,7 @@ export default function Home() {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.08, duration: 0.4 }}
                   whileHover={{ y: -6 }}
+                  onMouseMove={setReactiveGlowTarget}
                   className="bg-white border border-border rounded-2xl p-7 shadow-sm hover:shadow-md hover:border-primary/30 transition-all group glow-card glow-card--reactive"
                 >
                   <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
@@ -642,7 +662,7 @@ export default function Home() {
 
         <section className="py-20">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center rounded-3xl border border-white/15 bg-secondary/80 px-6 py-10 shadow-xl backdrop-blur-md glow-card">
+            <div onMouseMove={setReactiveGlowTarget} className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center rounded-3xl border border-white/15 bg-secondary/80 px-6 py-10 shadow-xl backdrop-blur-md glow-card glow-card--reactive">
               {stats.map(({ value, label }, i) => (
                 <AnimatedStat key={label} value={value} label={label} index={i} />
               ))}
@@ -655,7 +675,7 @@ export default function Home() {
         <section className="py-24">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
-              <div className="rounded-3xl border border-white/15 bg-white/90 p-8 shadow-xl backdrop-blur-md glow-card">
+              <div onMouseMove={setReactiveGlowTarget} className="rounded-3xl border border-white/15 bg-white/90 p-8 shadow-xl backdrop-blur-md glow-card glow-card--reactive">
                 <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-3">
                   Why InterFreight
                 </p>
@@ -668,13 +688,13 @@ export default function Home() {
                   Mwanza, Songwe, Mchinji, Dedza, Muloza, Chiponde, and Marka in Nsanje.
                 </p>
                 <div className="grid sm:grid-cols-2 gap-3 mb-8">
-                  <div className="rounded-2xl border border-border bg-background/70 p-4 glow-card">
+                  <div onMouseMove={setReactiveGlowTarget} className="rounded-2xl border border-border bg-background/70 p-4 glow-card glow-card--reactive">
                     <p className="text-primary text-xs font-bold uppercase tracking-widest mb-2">Vision</p>
                     <p className="text-secondary text-sm font-semibold leading-relaxed">
                       To earn client confidence through honesty, integrity, and dependable service.
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-border bg-background/70 p-4 glow-card">
+                  <div onMouseMove={setReactiveGlowTarget} className="rounded-2xl border border-border bg-background/70 p-4 glow-card glow-card--reactive">
                     <p className="text-primary text-xs font-bold uppercase tracking-widest mb-2">Mission</p>
                     <p className="text-secondary text-sm font-semibold leading-relaxed">
                       To provide complete logistics solutions that are efficient, reliable, and affordable.
@@ -698,7 +718,8 @@ export default function Home() {
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.08, duration: 0.4 }}
                     whileHover={{ y: -5, scale: 1.01 }}
-                  className="bg-white border border-border rounded-xl p-5 shadow-sm hover:shadow-xl hover:border-primary/30 transition-all glow-card glow-card--reactive"
+                    onMouseMove={setReactiveGlowTarget}
+                    className="bg-white border border-border rounded-xl p-5 shadow-sm hover:shadow-xl hover:border-primary/30 transition-all glow-card glow-card--reactive"
                   >
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
@@ -716,7 +737,7 @@ export default function Home() {
 
         <section className="py-10 overflow-hidden">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="relative min-h-[500px] flex flex-col lg:flex-row items-stretch overflow-hidden rounded-3xl border border-white/15 shadow-2xl backdrop-blur-md glow-card">
+            <div onMouseMove={setReactiveGlowTarget} className="relative min-h-[500px] flex flex-col lg:flex-row items-stretch overflow-hidden rounded-3xl border border-white/15 shadow-2xl backdrop-blur-md glow-card glow-card--reactive">
               <motion.div
                 initial={{ opacity: 0, x: -24 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -747,7 +768,7 @@ export default function Home() {
                     Weekly Consolidation
                   </h2>
 
-                  <div className="flex items-center gap-4 bg-white/10 border border-white/20 rounded-xl px-5 py-4 mb-8 w-fit glow-card">
+                  <div onMouseMove={setReactiveGlowTarget} className="flex items-center gap-4 bg-white/10 border border-white/20 rounded-xl px-5 py-4 mb-8 w-fit glow-card glow-card--reactive">
                     <span className="text-3xl" role="img" aria-label="South Africa">ZA</span>
                     <div className="flex flex-col items-center gap-1">
                       <span className="text-white/60 text-xs font-semibold uppercase tracking-wider">Weekly</span>
@@ -791,7 +812,7 @@ export default function Home() {
               </motion.div>
             </div>
 
-            <div className="relative h-64 overflow-hidden rounded-3xl border border-white/15 shadow-2xl mt-8 glow-card">
+            <div onMouseMove={setReactiveGlowTarget} className="relative h-64 overflow-hidden rounded-3xl border border-white/15 shadow-2xl mt-8 glow-card glow-card--reactive">
               <img
                 src={warehouseImg}
                 alt="InterFreight warehouse"
@@ -814,7 +835,7 @@ export default function Home() {
         <section className="py-20">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl mx-auto">
-              <div className="bg-secondary/90 border border-white/15 rounded-2xl px-8 py-10 flex flex-col md:flex-row items-center gap-8 shadow-xl backdrop-blur-md glow-card">
+              <div onMouseMove={setReactiveGlowTarget} className="bg-secondary/90 border border-white/15 rounded-2xl px-8 py-10 flex flex-col md:flex-row items-center gap-8 shadow-xl backdrop-blur-md glow-card glow-card--reactive">
                 <div className="flex-1 text-center md:text-left">
                   <p className="text-primary font-semibold tracking-widest uppercase text-xs mb-2">
                     Client Portal
@@ -882,7 +903,7 @@ export default function Home() {
 
         <section id="contact" className="py-24 scroll-mt-16">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-14 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md glow-card">
+            <div onMouseMove={setReactiveGlowTarget} className="text-center mb-14 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md glow-card glow-card--reactive">
               <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-3">
                 Get In Touch
               </p>
@@ -916,7 +937,7 @@ export default function Home() {
                     sub: "We reply within 24hrs",
                   },
                 ].map(({ icon: Icon, label, value, sub }) => (
-                  <div key={label} className="bg-white border border-border rounded-2xl p-6 shadow-sm flex items-start gap-4 glow-card">
+                  <div key={label} onMouseMove={setReactiveGlowTarget} className="bg-white border border-border rounded-2xl p-6 shadow-sm flex items-start gap-4 glow-card glow-card--reactive">
                     <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
                       <Icon className="text-primary" size={20} />
                     </div>
@@ -931,7 +952,7 @@ export default function Home() {
                 ))}
               </div>
 
-              <div className="bg-white border border-border rounded-2xl p-8 shadow-sm glow-card">
+              <div onMouseMove={setReactiveGlowTarget} className="bg-white border border-border rounded-2xl p-8 shadow-sm glow-card glow-card--reactive">
                 {sent ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <CheckCircle2 className="text-green-600 mb-4" size={48} />
