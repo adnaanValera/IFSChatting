@@ -146,6 +146,8 @@ function AnimatedStat({ value, label, index }: { value: string; label: string; i
 }
 
 function WorldMapNetwork() {
+  const [activeRoute, setActiveRoute] = useState<string | null>(null);
+
   return (
     <section className="py-14">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -189,29 +191,33 @@ function WorldMapNetwork() {
 
                   <ellipse cx="918" cy="644" rx="42" ry="72" fill="url(#malawiGlow)" opacity="0.9" />
 
-                  {worldRoutes.map((route, index) => (
-                    <g key={route.mode}>
-                      <path
-                        d={route.path}
-                        fill="none"
-                        stroke={route.color}
-                        strokeOpacity="0.2"
-                        strokeWidth="2"
-                        strokeDasharray="8 10"
-                      />
-                      <motion.path
-                        d={route.path}
-                        fill="none"
-                        stroke={route.color}
-                        strokeWidth={route.mode === "ROAD" ? 2.8 : 2.4}
-                        strokeLinecap="round"
-                        filter="url(#routeGlow)"
-                        strokeDasharray="26 280"
-                        animate={{ strokeDashoffset: [0, -306] }}
-                        transition={{ duration: 3.8, repeat: Infinity, ease: "linear", delay: index * 0.45 }}
-                      />
-                    </g>
-                  ))}
+                  {worldRoutes.map((route, index) => {
+                    const isActive = activeRoute === route.mode || activeRoute === route.origin || activeRoute === route.destination;
+                    return (
+                      <g key={route.mode}>
+                        <path
+                          d={route.path}
+                          fill="none"
+                          stroke={route.color}
+                          strokeOpacity={isActive ? "0.42" : "0.2"}
+                          strokeWidth="2"
+                          strokeDasharray="8 10"
+                        />
+                        <motion.path
+                          d={route.path}
+                          fill="none"
+                          stroke={route.color}
+                          strokeWidth={isActive ? 3.4 : route.mode === "ROAD" ? 2.8 : 2.4}
+                          strokeOpacity={isActive ? 1 : 0.88}
+                          strokeLinecap="round"
+                          filter="url(#routeGlow)"
+                          strokeDasharray="26 280"
+                          animate={{ strokeDashoffset: [0, -306] }}
+                          transition={{ duration: isActive ? 2.7 : 3.8, repeat: Infinity, ease: "linear", delay: index * 0.45 }}
+                        />
+                      </g>
+                    );
+                  })}
 
                   {[0, 1, 2].map((index) => (
                     <motion.circle
@@ -228,15 +234,18 @@ function WorldMapNetwork() {
                     />
                   ))}
 
-                  {[...continentPoints, { x: 918, y: 644, label: "Malawi", tone: "#A31E2C" }].map((point) => (
-                    <g key={point.label}>
-                      <circle cx={point.x} cy={point.y} r="6" fill={"tone" in point ? point.tone : "#F8F8F6"} />
-                      <circle cx={point.x} cy={point.y} r="18" fill="none" stroke={"tone" in point ? point.tone : "#F8F8F6"} strokeOpacity="0.25" />
-                      <text x={point.x + 16} y={point.y - 14} fill={"tone" in point ? point.tone : "#F8F8F6"} fontSize="18" fontWeight="700">
-                        {point.label}
-                      </text>
-                    </g>
-                  ))}
+                  {[...continentPoints, { x: 918, y: 644, label: "Malawi", tone: "#A31E2C" }].map((point) => {
+                    const isActive = activeRoute === point.label;
+                    return (
+                      <g key={point.label}>
+                        <circle cx={point.x} cy={point.y} r={isActive ? "7" : "6"} fill={"tone" in point ? point.tone : "#F8F8F6"} />
+                        <circle cx={point.x} cy={point.y} r={isActive ? "22" : "18"} fill="none" stroke={"tone" in point ? point.tone : "#F8F8F6"} strokeOpacity={isActive ? "0.42" : "0.25"} />
+                        <text x={point.x + 16} y={point.y - 14} fill={"tone" in point ? point.tone : "#F8F8F6"} fontSize="18" fontWeight="700" opacity={isActive ? "1" : "0.9"}>
+                          {point.label}
+                        </text>
+                      </g>
+                    );
+                  })}
                 </svg>
               </div>
             </div>
@@ -249,7 +258,9 @@ function WorldMapNetwork() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.08, duration: 0.35 }}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 glow-card"
+                  onMouseEnter={() => setActiveRoute(card.title === "Import" || card.title === "Export" ? "Malawi" : card.title)}
+                  onMouseLeave={() => setActiveRoute(null)}
+                  className={`rounded-2xl border border-white/10 bg-white/[0.04] p-5 glow-card glow-card--reactive ${activeRoute === card.title ? "route-card-active" : ""}`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-xs font-bold tracking-[0.26em] uppercase" style={{ color: card.color }}>
@@ -463,12 +474,17 @@ export default function Home() {
               initial={{ opacity: 0, y: 28 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="rounded-[28px] border border-white/15 bg-secondary/72 px-4 py-8 shadow-2xl backdrop-blur-md glow-card sm:px-10 md:px-14"
+              onMouseMove={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                event.currentTarget.style.setProperty("--glow-x", `${((event.clientX - rect.left) / rect.width) * 100}%`);
+                event.currentTarget.style.setProperty("--glow-y", `${((event.clientY - rect.top) / rect.height) * 100}%`);
+              }}
+              className="hero-reactive-panel rounded-[28px] border border-white/15 bg-secondary/72 px-4 py-8 shadow-2xl backdrop-blur-md glow-card sm:px-10 md:px-14"
             >
               <img
                 src={fullLogoUrl}
                 alt="InterFreight Solutions"
-                className="mx-auto mb-5 h-16 w-auto object-contain sm:h-20 md:h-24"
+                className="logo-soft-glow mx-auto mb-5 h-16 w-auto object-contain sm:h-20 md:h-24"
               />
               <p className="text-primary font-semibold tracking-[0.2em] uppercase text-sm mb-5">
                 Malawi
@@ -491,7 +507,7 @@ export default function Home() {
                     href="/#services"
                     whileHover={{ y: -3 }}
                     whileTap={{ scale: 0.98 }}
-                    className="group inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3.5 text-base font-bold text-white shadow-xl transition-all hover:bg-primary/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
+                    className="reactive-button group inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3.5 text-base font-bold text-white shadow-xl transition-all hover:bg-primary/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
                   >
                     Our Services
                     <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
@@ -500,14 +516,14 @@ export default function Home() {
                     href="/#contact"
                     whileHover={{ y: -3 }}
                     whileTap={{ scale: 0.98 }}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/30 bg-white/10 px-6 py-3.5 text-base font-semibold text-white transition-all backdrop-blur-sm hover:bg-white/20 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
+                    className="reactive-button reactive-button--white inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/30 bg-white/10 px-6 py-3.5 text-base font-semibold text-white transition-all backdrop-blur-sm hover:bg-white/20 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
                   >
                     Contact Us
                   </motion.a>
                   {role === "customer" && (
                     <Link
                       href="/dashboard"
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-base font-bold text-secondary shadow-xl transition-all hover:bg-white/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
+                      className="reactive-button inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-base font-bold text-secondary shadow-xl transition-all hover:bg-white/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
                     >
                       <MapPin size={20} />
                       My Tracking
@@ -516,7 +532,7 @@ export default function Home() {
                   {(role === "staff" || role === "admin") && (
                     <Link
                       href="/staff/dashboard"
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-base font-bold text-secondary shadow-xl transition-all hover:bg-white/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
+                      className="reactive-button inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-base font-bold text-secondary shadow-xl transition-all hover:bg-white/90 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
                     >
                       <LayoutDashboard size={20} />
                       Staff / Admin Dashboard
@@ -526,7 +542,7 @@ export default function Home() {
 
                 <Link
                   href="/app-install"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/12 px-6 py-3 text-sm font-semibold text-primary transition-all hover:bg-primary/18"
+                  className="reactive-button reactive-button--white inline-flex items-center justify-center gap-2 rounded-lg border border-white/45 bg-primary/12 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-primary/18"
                 >
                   <Download size={16} />
                   Download Our App
@@ -541,7 +557,7 @@ export default function Home() {
                   className="mx-auto mt-8 max-w-lg"
                 >
                   <div
-                    className="relative rounded-2xl overflow-hidden border border-white/20 shadow-2xl glow-card"
+                    className="relative rounded-2xl overflow-hidden border border-white/20 shadow-2xl glow-card glow-card--reactive"
                     style={{ background: "linear-gradient(135deg, rgba(17,19,21,0.92) 0%, rgba(30,8,8,0.88) 100%)", backdropFilter: "blur(12px)" }}
                   >
                     <div className="h-0.5 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
@@ -611,7 +627,7 @@ export default function Home() {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.08, duration: 0.4 }}
                   whileHover={{ y: -6 }}
-                  className="bg-white border border-border rounded-2xl p-7 shadow-sm hover:shadow-md hover:border-primary/30 transition-all group glow-card"
+                  className="bg-white border border-border rounded-2xl p-7 shadow-sm hover:shadow-md hover:border-primary/30 transition-all group glow-card glow-card--reactive"
                 >
                   <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
                     <Icon className="text-primary" size={24} />
@@ -682,7 +698,7 @@ export default function Home() {
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.08, duration: 0.4 }}
                     whileHover={{ y: -5, scale: 1.01 }}
-                    className="bg-white border border-border rounded-xl p-5 shadow-sm hover:shadow-xl hover:border-primary/30 transition-all glow-card"
+                  className="bg-white border border-border rounded-xl p-5 shadow-sm hover:shadow-xl hover:border-primary/30 transition-all glow-card glow-card--reactive"
                   >
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
@@ -767,7 +783,7 @@ export default function Home() {
                     href="/#contact"
                     whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.98 }}
-                    className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold px-7 py-4 rounded-xl transition-all text-sm shadow-lg"
+                    className="reactive-button inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold px-7 py-4 rounded-xl transition-all text-sm shadow-lg"
                   >
                     Get a Quote <ArrowRight size={16} />
                   </motion.a>
@@ -816,7 +832,7 @@ export default function Home() {
                     <>
                       <Link
                         href={dashboardHref}
-                        className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold px-7 py-3.5 rounded-lg transition-all text-sm whitespace-nowrap shadow-lg"
+                        className="reactive-button inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold px-7 py-3.5 rounded-lg transition-all text-sm whitespace-nowrap shadow-lg"
                       >
                         <LayoutDashboard size={16} />
                         Go to My Dashboard
@@ -824,14 +840,14 @@ export default function Home() {
                       <button
                         onClick={handleLogout}
                         disabled={logoutMutation.isPending}
-                        className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3 rounded-lg transition-all text-sm"
+                        className="reactive-button reactive-button--white inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3 rounded-lg transition-all text-sm"
                       >
                         <LogOut size={15} />
                         Sign Out
                       </button>
                       <Link
                         href="/app-install"
-                        className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3 rounded-lg transition-all text-sm"
+                        className="reactive-button reactive-button--white inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3 rounded-lg transition-all text-sm"
                       >
                         <Download size={15} />
                         Download Our App
@@ -841,7 +857,7 @@ export default function Home() {
                     <>
                       <Link
                         href="/auth"
-                        className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold px-7 py-3.5 rounded-lg transition-all text-sm whitespace-nowrap shadow-lg"
+                        className="reactive-button inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold px-7 py-3.5 rounded-lg transition-all text-sm whitespace-nowrap shadow-lg"
                       >
                         <LogIn size={16} />
                         Log In / Sign Up
@@ -851,7 +867,7 @@ export default function Home() {
                       </p>
                       <Link
                         href="/app-install"
-                        className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3 rounded-lg transition-all text-sm"
+                        className="reactive-button reactive-button--white inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3 rounded-lg transition-all text-sm"
                       >
                         <Download size={15} />
                         Download Our App

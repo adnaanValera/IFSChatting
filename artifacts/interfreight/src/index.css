@@ -230,12 +230,28 @@
       0 0 0 1px rgba(255, 255, 255, 0.05),
       0 0 22px rgba(183, 28, 28, 0.08),
       0 18px 42px rgba(15, 23, 42, 0.08);
+    transition: box-shadow 180ms ease, transform 180ms ease, border-color 180ms ease;
   }
   .dark .glow-card {
     box-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.05),
       0 0 26px rgba(249, 115, 22, 0.14),
       0 18px 46px rgba(0, 0, 0, 0.35);
+  }
+  .glow-card--reactive:hover,
+  .glow-card--reactive:focus-within {
+    transform: translateY(-2px);
+    box-shadow:
+      0 0 0 1px rgba(183, 28, 28, 0.12),
+      0 0 32px rgba(183, 28, 28, 0.12),
+      0 22px 50px rgba(15, 23, 42, 0.14);
+  }
+  .glow-card--reactive:active {
+    transform: translateY(-1px);
+    box-shadow:
+      0 0 0 1px rgba(183, 28, 28, 0.12),
+      0 0 24px rgba(183, 28, 28, 0.14),
+      0 18px 36px rgba(15, 23, 42, 0.12);
   }
   .glow-primary {
     box-shadow:
@@ -246,6 +262,55 @@
     box-shadow:
       0 0 0 1px rgba(249, 115, 22, 0.16),
       0 0 24px rgba(249, 115, 22, 0.2);
+  }
+  .reactive-button {
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, color 160ms ease, background-color 160ms ease;
+  }
+  .reactive-button:hover,
+  .reactive-button:focus-visible {
+    transform: translateY(-1px);
+    box-shadow:
+      0 0 0 1px rgba(183, 28, 28, 0.2),
+      0 0 22px rgba(183, 28, 28, 0.22),
+      0 14px 28px rgba(15, 23, 42, 0.14);
+  }
+  .reactive-button--white:hover,
+  .reactive-button--white:focus-visible {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.36),
+      0 0 24px rgba(255, 255, 255, 0.3),
+      0 14px 28px rgba(15, 23, 42, 0.16);
+    color: rgba(255,255,255,0.98);
+  }
+  .hero-reactive-panel {
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-reactive-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(240px circle at var(--glow-x, 50%) var(--glow-y, 35%), rgba(255,255,255,0.11), transparent 58%);
+    opacity: 0;
+    transition: opacity 180ms ease;
+    pointer-events: none;
+  }
+  .hero-reactive-panel:hover::before,
+  .hero-reactive-panel:focus-within::before {
+    opacity: 1;
+  }
+  .logo-soft-glow {
+    animation: logo-soft-glow 4.2s ease-in-out infinite;
+    filter: drop-shadow(0 0 8px rgba(255,255,255,0.08));
+  }
+  .route-card-active {
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.12),
+      0 0 26px rgba(183, 28, 28, 0.18),
+      0 16px 40px rgba(15, 23, 42, 0.14);
+    border-color: rgba(255,255,255,0.18);
+    transform: translateY(-1px);
   }
   .ifs-loader__svg {
     width: 100%;
@@ -446,6 +511,15 @@
     content: attr(data-placeholder);
     color: hsl(var(--muted-foreground));
     pointer-events: none;
+  }
+}
+
+@keyframes logo-soft-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(255,255,255,0.08));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(255,255,255,0.14)) drop-shadow(0 0 24px rgba(183, 28, 28, 0.08));
   }
 }
 
