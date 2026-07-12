@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
+import { APP_UPDATE_URL } from "../config";
 import { LogoSpinner } from "../components/LogoSpinner";
 import { appPalette } from "../theme";
 
@@ -62,6 +63,13 @@ export function LoginScreen() {
               {submitting || loading ? <LogoSpinner size={20} /> : <Text style={styles.buttonText}>Sign In</Text>}
             </Pressable>
 
+            <Pressable
+              style={[styles.updateButton, { borderColor: palette.borderMuted, backgroundColor: palette.background }]}
+              onPress={() => Linking.openURL(APP_UPDATE_URL)}
+            >
+              <Text style={[styles.updateButtonText, { color: palette.text }]}>Update App</Text>
+            </Pressable>
+
             <Text style={[styles.note, { color: palette.textSoft }]}>The app keeps customers signed in on their own device so they can check updates quickly.</Text>
           </View>
         </View>
@@ -105,5 +113,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   buttonText: { color: "#fff", fontSize: 15, fontWeight: "800" },
+  updateButton: {
+    minHeight: 46,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  updateButtonText: { fontSize: 14, fontWeight: "800" },
   note: { color: "#64748b", fontSize: 12, lineHeight: 18, marginTop: 6, textAlign: "center" },
 });
