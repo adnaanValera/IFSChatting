@@ -1,13 +1,16 @@
 import React, { useState } from "react";
-import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
 import { LogoSpinner } from "../components/LogoSpinner";
+import { appPalette } from "../theme";
 
 const miniLogo = require("../assets/ifs-mini-logo.png");
 
 export function LoginScreen() {
   const { signIn, loading } = useAuth();
+  const isDark = useColorScheme() === "dark";
+  const palette = appPalette(isDark);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -26,41 +29,41 @@ export function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: palette.background }]}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.container}>
           <View style={styles.hero}>
             <Image source={miniLogo} style={styles.logo} resizeMode="contain" />
-            <Text style={styles.title}>InterFreightSolutions</Text>
-            <Text style={styles.subtitle}>Secure customer tracking, built for quick mobile updates.</Text>
+            <Text style={[styles.title, { color: palette.text }]}>InterFreightSolutions</Text>
+            <Text style={[styles.subtitle, { color: palette.textSoft }]}>Secure customer tracking, built for quick mobile updates.</Text>
           </View>
 
-          <View style={styles.panel}>
-            <Text style={styles.label}>Email</Text>
+          <View style={[styles.panel, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+            <Text style={[styles.label, { color: palette.textMuted }]}>Email</Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
               placeholder="you@company.com"
-              placeholderTextColor="#64748b"
-              style={styles.input}
+              placeholderTextColor={palette.textSoft}
+              style={[styles.input, { backgroundColor: palette.background, color: palette.text, borderColor: palette.borderMuted }]}
             />
-            <Text style={styles.label}>Password</Text>
+            <Text style={[styles.label, { color: palette.textMuted }]}>Password</Text>
             <TextInput
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               placeholder="Enter password"
-              placeholderTextColor="#64748b"
-              style={styles.input}
+              placeholderTextColor={palette.textSoft}
+              style={[styles.input, { backgroundColor: palette.background, color: palette.text, borderColor: palette.borderMuted }]}
             />
 
-            <Pressable style={styles.button} onPress={handleLogin} disabled={submitting || loading}>
+            <Pressable style={[styles.button, { backgroundColor: palette.accent }]} onPress={handleLogin} disabled={submitting || loading}>
               {submitting || loading ? <LogoSpinner size={20} /> : <Text style={styles.buttonText}>Sign In</Text>}
             </Pressable>
 
-            <Text style={styles.note}>The app keeps customers signed in on their own device so they can check updates quickly.</Text>
+            <Text style={[styles.note, { color: palette.textSoft }]}>The app keeps customers signed in on their own device so they can check updates quickly.</Text>
           </View>
         </View>
       </KeyboardAvoidingView>

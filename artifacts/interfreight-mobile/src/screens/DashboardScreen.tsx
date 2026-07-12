@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
@@ -7,6 +7,7 @@ import { API_BASE_URL } from "../config";
 import type { Shipment } from "../types";
 import { LogoSpinner } from "../components/LogoSpinner";
 import { ShipmentCard } from "../components/ShipmentCard";
+import { appPalette } from "../theme";
 
 const miniLogo = require("../assets/ifs-mini-logo.png");
 
@@ -28,6 +29,8 @@ function activeSectionCount(shipments: Shipment[], label: string) {
 
 export function DashboardScreen({ navigation }: any) {
   const { token, user, signOut } = useAuth();
+  const isDark = useColorScheme() === "dark";
+  const palette = appPalette(isDark);
   const [search, setSearch] = useState("");
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
@@ -56,51 +59,51 @@ export function DashboardScreen({ navigation }: any) {
   }, [search, shipments]);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: palette.background }]}>
       <FlatList
         data={filtered}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#f97316" />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={palette.accent} />}
         ListHeaderComponent={
           <>
             <View style={styles.header}>
               <View style={styles.brandRow}>
                 <Image source={miniLogo} style={styles.logo} resizeMode="contain" />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.eyebrow}>Customer Dashboard</Text>
-                  <Text style={styles.heading}>Welcome, {user?.companyName || user?.fullName || "Customer"}</Text>
+                  <Text style={[styles.eyebrow, { color: palette.accentSoft }]}>Customer Dashboard</Text>
+                  <Text style={[styles.heading, { color: palette.text }]}>Welcome, {user?.companyName || user?.fullName || "Customer"}</Text>
                 </View>
               </View>
-              <Pressable onPress={signOut} style={styles.logout}>
-                <Text style={styles.logoutText}>Log out</Text>
+              <Pressable onPress={signOut} style={[styles.logout, { backgroundColor: palette.surfaceMuted }]}>
+                <Text style={[styles.logoutText, { color: palette.textMuted }]}>Log out</Text>
               </Pressable>
             </View>
 
             <View style={styles.statsRow}>
-              <Stat label="Total" value={String(shipments.length)} />
-              <Stat label="On Sea" value={String(activeSectionCount(shipments, "SHIPMENTS ON SEA"))} />
-              <Stat label="Enroute" value={String(activeSectionCount(shipments, "SHIPMENTS ENROUTE"))} />
-              <Stat label="Malawi" value={String(activeSectionCount(shipments, "SHIPMENTS IN MALAWI"))} />
+              <Stat label="Total" value={String(shipments.length)} palette={palette} />
+              <Stat label="On Sea" value={String(activeSectionCount(shipments, "SHIPMENTS ON SEA"))} palette={palette} />
+              <Stat label="Enroute" value={String(activeSectionCount(shipments, "SHIPMENTS ENROUTE"))} palette={palette} />
+              <Stat label="Malawi" value={String(activeSectionCount(shipments, "SHIPMENTS IN MALAWI"))} palette={palette} />
             </View>
 
             <TextInput
               value={search}
               onChangeText={setSearch}
               placeholder="Search container, BL, invoice, consignee..."
-              placeholderTextColor="#64748b"
-              style={styles.search}
+              placeholderTextColor={palette.textSoft}
+              style={[styles.search, { backgroundColor: palette.surface, borderColor: palette.border, color: palette.text }]}
             />
 
             {isLoading ? (
               <View style={styles.loadingWrap}>
                 <LogoSpinner size={56} />
-                <Text style={styles.loadingText}>Loading your consignments...</Text>
+                <Text style={[styles.loadingText, { color: palette.textSoft }]}>Loading your consignments...</Text>
               </View>
             ) : filtered.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyTitle}>No matching consignments</Text>
-                <Text style={styles.emptyText}>Try a different search, or pull down to refresh.</Text>
+              <View style={[styles.emptyWrap, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+                <Text style={[styles.emptyTitle, { color: palette.text }]}>No matching consignments</Text>
+                <Text style={[styles.emptyText, { color: palette.textSoft }]}>Try a different search, or pull down to refresh.</Text>
               </View>
             ) : null}
           </>
@@ -114,11 +117,11 @@ export function DashboardScreen({ navigation }: any) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, palette }: { label: string; value: string; palette: ReturnType<typeof appPalette> }) {
   return (
-    <View style={styles.statCard}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
+    <View style={[styles.statCard, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+      <Text style={[styles.statLabel, { color: palette.textSoft }]}>{label}</Text>
+      <Text style={[styles.statValue, { color: palette.text }]}>{value}</Text>
     </View>
   );
 }

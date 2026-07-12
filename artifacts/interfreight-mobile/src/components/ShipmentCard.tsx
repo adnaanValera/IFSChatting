@@ -1,6 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
 import type { Shipment } from "../types";
+import { appPalette } from "../theme";
 
 function shipmentIdentifier(shipment: Shipment) {
   const type = String(shipment.type || "").toUpperCase();
@@ -21,33 +22,35 @@ export function ShipmentCard({
   shipment: Shipment;
   onPress?: () => void;
 }) {
+  const palette = appPalette(useColorScheme() === "dark");
+
   return (
-    <Pressable onPress={onPress} style={styles.card}>
+    <Pressable onPress={onPress} style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
       <View style={styles.row}>
-        <Text style={styles.eyebrow}>{String(shipment.type || "Shipment").toUpperCase()}</Text>
-        <View style={styles.statusPill}>
-          <Text style={styles.statusText}>{shipment.status || "N/A"}</Text>
+        <Text style={[styles.eyebrow, { color: palette.accentSoft }]}>{String(shipment.type || "Shipment").toUpperCase()}</Text>
+        <View style={[styles.statusPill, { backgroundColor: palette.accentTint }]}>
+          <Text style={[styles.statusText, { color: palette.accentSoft }]}>{shipment.status || "N/A"}</Text>
         </View>
       </View>
-      <Text style={styles.identifier}>{shipmentIdentifier(shipment)}</Text>
-      <Text style={styles.section}>{statusSection(shipment)}</Text>
+      <Text style={[styles.identifier, { color: palette.text }]}>{shipmentIdentifier(shipment)}</Text>
+      <Text style={[styles.section, { color: palette.textSoft }]}>{statusSection(shipment)}</Text>
       <View style={styles.grid}>
-        <Info label="IFS Ref" value={shipment.ifsRef} />
-        <Info label="MRA Ref" value={shipment.mraRef} />
-        <Info label="Consignee" value={shipment.consignee} />
-        <Info label="Shipper" value={shipment.shipper} />
-        <Info label="Description" value={shipment.cargoDescription} />
-        <Info label="Invoice" value={shipment.invoiceNo} />
+        <Info label="IFS Ref" value={shipment.ifsRef} palette={palette} />
+        <Info label="MRA Ref" value={shipment.mraRef} palette={palette} />
+        <Info label="Consignee" value={shipment.consignee} palette={palette} />
+        <Info label="Shipper" value={shipment.shipper} palette={palette} />
+        <Info label="Description" value={shipment.cargoDescription} palette={palette} />
+        <Info label="Invoice" value={shipment.invoiceNo} palette={palette} />
       </View>
     </Pressable>
   );
 }
 
-function Info({ label, value }: { label: string; value?: string | null }) {
+function Info({ label, value, palette }: { label: string; value?: string | null; palette: ReturnType<typeof appPalette> }) {
   return (
-    <View style={styles.infoBox}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value && value.trim() ? value : "N/A"}</Text>
+    <View style={[styles.infoBox, { backgroundColor: palette.background, borderColor: palette.borderMuted }]}>
+      <Text style={[styles.infoLabel, { color: palette.textSoft }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: palette.text }]}>{value && value.trim() ? value : "N/A"}</Text>
     </View>
   );
 }
