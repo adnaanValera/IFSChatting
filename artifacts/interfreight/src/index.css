@@ -279,6 +279,26 @@
   .glow-card--reactive:focus-within::before {
     opacity: 1;
   }
+  .glow-card--light::before {
+    background:
+      radial-gradient(135px circle at var(--glow-x, 50%) var(--glow-y, 45%), rgba(15,23,42,0.16), transparent 48%);
+  }
+  .glow-card--light.glow-card--reactive:hover,
+  .glow-card--light.glow-card--reactive:focus-within {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.92),
+      0 0 0 4px rgba(15, 23, 42, 0.24),
+      0 0 12px rgba(15, 23, 42, 0.14),
+      0 14px 32px rgba(15, 23, 42, 0.18);
+    border-color: rgba(15,23,42,0.22);
+  }
+  .glow-card--light.glow-card--reactive:active {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.84),
+      0 0 0 3px rgba(15, 23, 42, 0.18),
+      0 0 9px rgba(15, 23, 42, 0.1),
+      0 12px 24px rgba(15, 23, 42, 0.14);
+  }
   .glow-primary {
     box-shadow:
       0 0 0 1px rgba(183, 28, 28, 0.12),

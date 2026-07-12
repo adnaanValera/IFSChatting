@@ -344,7 +344,7 @@ function StaffTracker() {
           </p>
         </div>
 
-        <div onMouseMove={setReactiveGlowTarget} className="bg-white rounded-2xl shadow-lg border border-border p-5 mb-8 glow-card glow-card--reactive">
+        <div onMouseMove={setReactiveGlowTarget} className="bg-white rounded-2xl shadow-lg border border-border p-5 mb-8 glow-card glow-card--reactive glow-card--light">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={20} />
             <input
@@ -384,7 +384,7 @@ function StaffTracker() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             onMouseMove={setReactiveGlowTarget}
-            className="bg-white rounded-2xl border border-border p-14 flex flex-col items-center text-center shadow-sm glow-card glow-card--reactive"
+            className="bg-white rounded-2xl border border-border p-14 flex flex-col items-center text-center shadow-sm glow-card glow-card--reactive glow-card--light"
           >
             <SearchX className="w-14 h-14 text-muted-foreground mb-4 opacity-40" />
             <h3 className="text-xl font-bold text-secondary mb-2">No containers found</h3>
@@ -625,7 +625,7 @@ export default function Home() {
 
         <section id="services" className="py-24 scroll-mt-16">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div onMouseMove={setReactiveGlowTarget} className="text-center mb-16 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md glow-card glow-card--reactive">
+            <div onMouseMove={setReactiveGlowTarget} className="text-center mb-16 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md glow-card glow-card--reactive glow-card--light">
               <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-3">
                 What We Do
               </p>
@@ -647,7 +647,7 @@ export default function Home() {
                   transition={{ delay: i * 0.08, duration: 0.4 }}
                   whileHover={{ y: -6 }}
                   onMouseMove={setReactiveGlowTarget}
-                  className="bg-white border border-border rounded-2xl p-7 shadow-sm hover:shadow-md hover:border-primary/30 transition-all group glow-card glow-card--reactive"
+                  className="bg-white border border-border rounded-2xl p-7 shadow-sm hover:shadow-md hover:border-primary/30 transition-all group glow-card glow-card--reactive glow-card--light"
                 >
                   <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
                     <Icon className="text-primary" size={24} />
@@ -675,7 +675,7 @@ export default function Home() {
         <section className="py-24">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
-              <div onMouseMove={setReactiveGlowTarget} className="rounded-3xl border border-white/15 bg-white/90 p-8 shadow-xl backdrop-blur-md glow-card glow-card--reactive">
+              <div onMouseMove={setReactiveGlowTarget} className="rounded-3xl border border-white/15 bg-white/90 p-8 shadow-xl backdrop-blur-md glow-card glow-card--reactive glow-card--light">
                 <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-3">
                   Why InterFreight
                 </p>
@@ -688,13 +688,13 @@ export default function Home() {
                   Mwanza, Songwe, Mchinji, Dedza, Muloza, Chiponde, and Marka in Nsanje.
                 </p>
                 <div className="grid sm:grid-cols-2 gap-3 mb-8">
-                  <div onMouseMove={setReactiveGlowTarget} className="rounded-2xl border border-border bg-background/70 p-4 glow-card glow-card--reactive">
+                  <div onMouseMove={setReactiveGlowTarget} className="rounded-2xl border border-border bg-background/70 p-4 glow-card glow-card--reactive glow-card--light">
                     <p className="text-primary text-xs font-bold uppercase tracking-widest mb-2">Vision</p>
                     <p className="text-secondary text-sm font-semibold leading-relaxed">
                       To earn client confidence through honesty, integrity, and dependable service.
                     </p>
                   </div>
-                  <div onMouseMove={setReactiveGlowTarget} className="rounded-2xl border border-border bg-background/70 p-4 glow-card glow-card--reactive">
+                  <div onMouseMove={setReactiveGlowTarget} className="rounded-2xl border border-border bg-background/70 p-4 glow-card glow-card--reactive glow-card--light">
                     <p className="text-primary text-xs font-bold uppercase tracking-widest mb-2">Mission</p>
                     <p className="text-secondary text-sm font-semibold leading-relaxed">
                       To provide complete logistics solutions that are efficient, reliable, and affordable.
@@ -719,7 +719,7 @@ export default function Home() {
                     transition={{ delay: i * 0.08, duration: 0.4 }}
                     whileHover={{ y: -5, scale: 1.01 }}
                     onMouseMove={setReactiveGlowTarget}
-                    className="bg-white border border-border rounded-xl p-5 shadow-sm hover:shadow-xl hover:border-primary/30 transition-all glow-card glow-card--reactive"
+                    className="bg-white border border-border rounded-xl p-5 shadow-sm hover:shadow-xl hover:border-primary/30 transition-all glow-card glow-card--reactive glow-card--light"
                   >
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
@@ -903,7 +903,7 @@ export default function Home() {
 
         <section id="contact" className="py-24 scroll-mt-16">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div onMouseMove={setReactiveGlowTarget} className="text-center mb-14 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md glow-card glow-card--reactive">
+            <div onMouseMove={setReactiveGlowTarget} className="text-center mb-14 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md glow-card glow-card--reactive glow-card--light">
               <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-3">
                 Get In Touch
               </p>
@@ -937,7 +937,7 @@ export default function Home() {
                     sub: "We reply within 24hrs",
                   },
                 ].map(({ icon: Icon, label, value, sub }) => (
-                  <div key={label} onMouseMove={setReactiveGlowTarget} className="bg-white border border-border rounded-2xl p-6 shadow-sm flex items-start gap-4 glow-card glow-card--reactive">
+                  <div key={label} onMouseMove={setReactiveGlowTarget} className="bg-white border border-border rounded-2xl p-6 shadow-sm flex items-start gap-4 glow-card glow-card--reactive glow-card--light">
                     <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
                       <Icon className="text-primary" size={20} />
                     </div>
@@ -952,7 +952,7 @@ export default function Home() {
                 ))}
               </div>
 
-              <div onMouseMove={setReactiveGlowTarget} className="bg-white border border-border rounded-2xl p-8 shadow-sm glow-card glow-card--reactive">
+              <div onMouseMove={setReactiveGlowTarget} className="bg-white border border-border rounded-2xl p-8 shadow-sm glow-card glow-card--reactive glow-card--light">
                 {sent ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <CheckCircle2 className="text-green-600 mb-4" size={48} />
