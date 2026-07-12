@@ -193,6 +193,13 @@ function WorldMapNetwork() {
                         <feMergeNode in="SourceGraphic" />
                       </feMerge>
                     </filter>
+                    <filter id="continentGlow">
+                      <feGaussianBlur stdDeviation="10" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
                     <radialGradient id="malawiGlow" cx="50%" cy="50%" r="50%">
                       <stop offset="0%" stopColor="rgba(163,30,44,0.95)" />
                       <stop offset="100%" stopColor="rgba(163,30,44,0)" />
@@ -255,12 +262,35 @@ function WorldMapNetwork() {
                         transition={{ duration: 0.2, ease: "easeOut" }}
                         style={{ cursor: "pointer" }}
                       >
+                        {isActive ? (
+                          <>
+                            <ellipse
+                              cx={point.x}
+                              cy={point.y}
+                              rx="44"
+                              ry="28"
+                              fill={"tone" in point ? "rgba(163,30,44,0.2)" : "rgba(255,255,255,0.24)"}
+                              filter="url(#continentGlow)"
+                            />
+                            <ellipse
+                              cx={point.x}
+                              cy={point.y}
+                              rx="58"
+                              ry="36"
+                              fill="none"
+                              stroke="#ffffff"
+                              strokeOpacity="0.38"
+                              strokeWidth="1.4"
+                              filter="url(#continentGlow)"
+                            />
+                          </>
+                        ) : null}
                         <circle cx={point.x} cy={point.y} r={isActive ? "7" : "6"} fill={"tone" in point ? point.tone : "#F8F8F6"} />
                         <circle cx={point.x} cy={point.y} r={isActive ? "22" : "18"} fill="none" stroke={"tone" in point ? point.tone : "#F8F8F6"} strokeOpacity={isActive ? "0.42" : "0.25"} />
                         {isActive ? (
-                          <circle cx={point.x} cy={point.y} r="25" fill="none" stroke="#ffffff" strokeOpacity="0.45" strokeWidth="1.2" />
+                          <circle cx={point.x} cy={point.y} r="25" fill="none" stroke="#ffffff" strokeOpacity="0.7" strokeWidth="1.5" />
                         ) : null}
-                        <text x={point.x + 16} y={point.y - 14} fill={"tone" in point ? point.tone : "#F8F8F6"} fontSize="18" fontWeight="700" opacity={isActive ? "1" : "0.9"}>
+                        <text x={point.x + 16} y={point.y - 14} fill={"tone" in point ? point.tone : "#F8F8F6"} fontSize="18" fontWeight="700" opacity={isActive ? "1" : "0.9"} style={isActive ? { filter: "drop-shadow(0 0 10px rgba(255,255,255,0.55))" } : undefined}>
                           {point.label}
                         </text>
                       </motion.g>
