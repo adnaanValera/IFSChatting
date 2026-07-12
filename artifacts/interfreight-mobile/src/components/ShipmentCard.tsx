@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Shipment } from "../types";
 import { appPalette } from "../theme";
 
@@ -22,7 +22,7 @@ export function ShipmentCard({
   shipment: Shipment;
   onPress?: () => void;
 }) {
-  const palette = appPalette(useColorScheme() === "dark");
+  const palette = appPalette();
 
   return (
     <Pressable onPress={onPress} style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -57,66 +57,71 @@ function Info({ label, value, palette }: { label: string; value?: string | null;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#121a21",
-    borderColor: "#22303d",
+    backgroundColor: "#ffffff",
+    borderColor: "#d5dbe1",
     borderWidth: 1,
-    borderRadius: 22,
-    padding: 16,
-    gap: 10,
+    borderRadius: 18,
+    padding: 14,
+    gap: 8,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
+    alignItems: "flex-start",
+    gap: 10,
   },
   eyebrow: {
-    color: "#fb923c",
-    fontSize: 11,
+    color: "#c2410c",
+    fontSize: 10,
     fontWeight: "800",
-    letterSpacing: 1.8,
+    letterSpacing: 1.2,
+    flexShrink: 1,
   },
   statusPill: {
-    backgroundColor: "rgba(249,115,22,0.18)",
+    backgroundColor: "rgba(234,88,12,0.12)",
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    maxWidth: "54%",
   },
   statusText: {
-    color: "#fdba74",
-    fontSize: 12,
+    color: "#c2410c",
+    fontSize: 11,
     fontWeight: "700",
+    textAlign: "center",
   },
   identifier: {
-    color: "#f8fafc",
-    fontSize: 24,
+    color: "#111827",
+    fontSize: 20,
     fontWeight: "800",
+    lineHeight: 26,
   },
   section: {
-    color: "#94a3b8",
-    fontSize: 13,
+    color: "#64748b",
+    fontSize: 12,
     fontWeight: "600",
   },
   grid: {
-    gap: 10,
+    gap: 8,
   },
   infoBox: {
-    backgroundColor: "#0f1419",
-    borderRadius: 16,
-    padding: 12,
+    backgroundColor: "#f4f6f8",
+    borderRadius: 14,
+    padding: 11,
     borderWidth: 1,
-    borderColor: "#1d2833",
+    borderColor: "#e2e8f0",
   },
   infoLabel: {
-    color: "#94a3b8",
-    fontSize: 11,
+    color: "#64748b",
+    fontSize: 10,
     fontWeight: "700",
     marginBottom: 4,
     textTransform: "uppercase",
   },
   infoValue: {
-    color: "#f8fafc",
-    fontSize: 15,
+    color: "#111827",
+    fontSize: 14,
     fontWeight: "700",
+    lineHeight: 18,
   },
 });

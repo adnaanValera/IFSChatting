@@ -1,12 +1,12 @@
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ShipmentCard } from "../components/ShipmentCard";
 import { appPalette } from "../theme";
 
 export function ShipmentDetailScreen({ navigation, route }: any) {
   const shipment = route.params?.shipment;
-  const palette = appPalette(useColorScheme() === "dark");
+  const palette = appPalette();
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: palette.background }]}>
@@ -30,24 +30,24 @@ export function ShipmentDetailScreen({ navigation, route }: any) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0f1419" },
-  content: { padding: 16, gap: 14 },
+  content: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 24, gap: 14 },
   backButton: {
     alignSelf: "flex-start",
-    backgroundColor: "#18222c",
+    backgroundColor: "#eef2f6",
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 999,
   },
-  backText: { color: "#e2e8f0", fontWeight: "700" },
-  heading: { color: "#f8fafc", fontSize: 24, fontWeight: "800" },
-  subheading: { color: "#94a3b8", fontSize: 14, lineHeight: 20 },
+  backText: { color: "#475569", fontWeight: "700" },
+  heading: { color: "#111827", fontSize: 22, fontWeight: "800" },
+  subheading: { color: "#64748b", fontSize: 13, lineHeight: 19 },
   note: {
-    backgroundColor: "#121a21",
-    borderRadius: 20,
+    backgroundColor: "#ffffff",
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#22303d",
+    borderColor: "#d5dbe1",
     padding: 16,
   },
-  noteTitle: { color: "#fb923c", fontSize: 12, fontWeight: "800", textTransform: "uppercase", marginBottom: 6 },
-  noteText: { color: "#cbd5e1", fontSize: 14, lineHeight: 20 },
+  noteTitle: { color: "#c2410c", fontSize: 12, fontWeight: "800", textTransform: "uppercase", marginBottom: 6 },
+  noteText: { color: "#475569", fontSize: 14, lineHeight: 20 },
 });

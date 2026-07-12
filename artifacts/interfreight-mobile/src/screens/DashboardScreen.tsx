@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, useColorScheme } from "react-native";
+import { FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
@@ -29,8 +29,7 @@ function activeSectionCount(shipments: Shipment[], label: string) {
 
 export function DashboardScreen({ navigation }: any) {
   const { token, user, signOut } = useAuth();
-  const isDark = useColorScheme() === "dark";
-  const palette = appPalette(isDark);
+  const palette = appPalette();
   const [search, setSearch] = useState("");
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
@@ -128,31 +127,31 @@ function Stat({ label, value, palette }: { label: string; value: string; palette
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0f1419" },
-  content: { padding: 16, paddingBottom: 28 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 16 },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-  logo: { width: 42, height: 42 },
-  eyebrow: { color: "#fb923c", fontSize: 11, fontWeight: "800", letterSpacing: 1.8, textTransform: "uppercase" },
-  heading: { color: "#f8fafc", fontSize: 22, fontWeight: "800" },
+  content: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 28 },
+  header: { gap: 12, marginBottom: 16 },
+  brandRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, flex: 1 },
+  logo: { width: 38, height: 38, marginTop: 2 },
+  eyebrow: { color: "#c2410c", fontSize: 10, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" },
+  heading: { color: "#111827", fontSize: 20, fontWeight: "800", lineHeight: 26 },
   logout: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, backgroundColor: "#18222c" },
   logoutText: { color: "#e2e8f0", fontWeight: "700" },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
-  statCard: { flexGrow: 1, minWidth: "47%", backgroundColor: "#121a21", borderRadius: 18, borderWidth: 1, borderColor: "#22303d", padding: 14 },
-  statLabel: { color: "#94a3b8", fontSize: 11, fontWeight: "700", textTransform: "uppercase" },
-  statValue: { color: "#f8fafc", fontSize: 24, fontWeight: "800", marginTop: 6 },
+  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+  statCard: { flexGrow: 1, minWidth: "47%", backgroundColor: "#ffffff", borderRadius: 16, borderWidth: 1, borderColor: "#d5dbe1", padding: 12 },
+  statLabel: { color: "#64748b", fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
+  statValue: { color: "#111827", fontSize: 21, fontWeight: "800", marginTop: 4 },
   search: {
-    backgroundColor: "#121a21",
-    borderRadius: 18,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#22303d",
-    color: "#f8fafc",
+    borderColor: "#d5dbe1",
+    color: "#111827",
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 13,
     marginBottom: 16,
   },
   loadingWrap: { alignItems: "center", justifyContent: "center", paddingVertical: 36, gap: 12 },
-  loadingText: { color: "#94a3b8", fontSize: 14 },
-  emptyWrap: { backgroundColor: "#121a21", borderRadius: 20, padding: 18, borderWidth: 1, borderColor: "#22303d", marginBottom: 8 },
-  emptyTitle: { color: "#f8fafc", fontSize: 18, fontWeight: "800", marginBottom: 4 },
-  emptyText: { color: "#94a3b8", fontSize: 14 },
+  loadingText: { color: "#64748b", fontSize: 14 },
+  emptyWrap: { backgroundColor: "#ffffff", borderRadius: 18, padding: 18, borderWidth: 1, borderColor: "#d5dbe1", marginBottom: 8 },
+  emptyTitle: { color: "#111827", fontSize: 18, fontWeight: "800", marginBottom: 4 },
+  emptyText: { color: "#64748b", fontSize: 14 },
 });

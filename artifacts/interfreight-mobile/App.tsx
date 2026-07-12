@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from "react";
-import { NavigationContainer, DarkTheme, DefaultTheme } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
-import { useColorScheme, View } from "react-native";
+import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { AppSplash } from "./src/components/AppSplash";
@@ -32,32 +32,28 @@ function AppNavigator() {
 }
 
 function AppShell() {
-  const colorScheme = useColorScheme();
   const { loading } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
 
-  const isDark = colorScheme === "dark";
-
   const theme = useMemo(() => {
-    const baseTheme = isDark ? DarkTheme : DefaultTheme;
     return {
-      ...baseTheme,
+      ...DefaultTheme,
       colors: {
-        ...baseTheme.colors,
-        background: isDark ? "#0f1419" : "#f4f6f8",
-        card: isDark ? "#121a21" : "#ffffff",
-        text: isDark ? "#f5f7fa" : "#111827",
-        border: isDark ? "#22303d" : "#d5dbe1",
+        ...DefaultTheme.colors,
+        background: "#f4f6f8",
+        card: "#ffffff",
+        text: "#111827",
+        border: "#d5dbe1",
         primary: "#f97316",
         notification: "#f97316",
       },
     };
-  }, [isDark]);
+  }, []);
 
   return (
     <View style={{ flex: 1 }}>
       <NavigationContainer theme={theme}>
-        <StatusBar style={isDark ? "light" : "dark"} />
+        <StatusBar style="dark" />
         <AppNavigator />
       </NavigationContainer>
       {!splashDone ? <AppSplash appReady={!loading} onFinish={() => setSplashDone(true)} /> : null}

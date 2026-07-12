@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -18,7 +17,6 @@ import CustomerDashboard from "@/pages/customer/dashboard";
 import StaffDashboard from "@/pages/staff/dashboard";
 import StaffUsers from "@/pages/staff/users";
 import NotFound from "@/pages/not-found";
-import { PremiumBrandAnimation } from "@/components/branding/PremiumBrandAnimation";
 
 setupApiClient();
 
@@ -69,23 +67,10 @@ function Router() {
 }
 
 function App() {
-  const [showSplash, setShowSplash] = useState(true);
-
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const applyTheme = () => {
-      document.documentElement.classList.toggle("dark", media.matches);
-    };
-    applyTheme();
-    media.addEventListener("change", applyTheme);
-    return () => media.removeEventListener("change", applyTheme);
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          {showSplash && <PremiumBrandAnimation mode="splash" onComplete={() => setShowSplash(false)} />}
           <PendingSignupWatcher />
           <Router />
         </WouterRouter>

@@ -12,6 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import consolidationImg from "@assets/WhatsApp_Image_2026-06-30_at_13.47.05_1783091673424.jpeg";
 import warehouseImg from "@assets/WhatsApp_Image_2026-06-30_at_13.47.25_1783091673421.jpeg";
 import worldMapImage from "@assets/premium_world_map.png";
+import fullLogoUrl from "@assets/Inter_freight_logo_nobg.png";
 import { Link } from "wouter";
 import { useGetMe, useStaffLogout, useListShipments } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -464,6 +465,11 @@ export default function Home() {
               transition={{ duration: 0.6 }}
               className="rounded-[28px] border border-white/15 bg-secondary/72 px-4 py-8 shadow-2xl backdrop-blur-md glow-card sm:px-10 md:px-14"
             >
+              <img
+                src={fullLogoUrl}
+                alt="InterFreight Solutions"
+                className="mx-auto mb-5 h-16 w-auto object-contain sm:h-20 md:h-24"
+              />
               <p className="text-primary font-semibold tracking-[0.2em] uppercase text-sm mb-5">
                 InterFreight Solutions - Malawi
               </p>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from "react-native";
+import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
 import { LogoSpinner } from "../components/LogoSpinner";
@@ -9,8 +9,7 @@ const miniLogo = require("../assets/ifs-mini-logo.png");
 
 export function LoginScreen() {
   const { signIn, loading } = useAuth();
-  const isDark = useColorScheme() === "dark";
-  const palette = appPalette(isDark);
+  const palette = appPalette();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -74,37 +73,37 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0f1419" },
   fill: { flex: 1 },
-  container: { flex: 1, justifyContent: "center", padding: 20, gap: 20 },
-  hero: { alignItems: "center", gap: 10, marginBottom: 8 },
-  logo: { width: 88, height: 88 },
-  title: { color: "#f8fafc", fontSize: 28, fontWeight: "800" },
-  subtitle: { color: "#94a3b8", fontSize: 14, textAlign: "center", maxWidth: 280 },
+  container: { flex: 1, justifyContent: "center", paddingHorizontal: 18, paddingVertical: 20, gap: 18 },
+  hero: { alignItems: "center", gap: 8, marginBottom: 6 },
+  logo: { width: 86, height: 86 },
+  title: { color: "#111827", fontSize: 26, fontWeight: "800", textAlign: "center" },
+  subtitle: { color: "#64748b", fontSize: 13, lineHeight: 18, textAlign: "center", maxWidth: 300 },
   panel: {
-    backgroundColor: "#121a21",
-    borderColor: "#22303d",
+    backgroundColor: "#ffffff",
+    borderColor: "#d5dbe1",
     borderWidth: 1,
-    borderRadius: 24,
-    padding: 18,
+    borderRadius: 22,
+    padding: 16,
     gap: 10,
   },
-  label: { color: "#cbd5e1", fontSize: 13, fontWeight: "700" },
+  label: { color: "#475569", fontSize: 13, fontWeight: "700" },
   input: {
-    backgroundColor: "#0b1116",
-    color: "#f8fafc",
-    borderRadius: 16,
+    backgroundColor: "#f4f6f8",
+    color: "#111827",
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#1e293b",
+    borderColor: "#e2e8f0",
     paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingVertical: 12,
   },
   button: {
     marginTop: 8,
-    minHeight: 50,
-    borderRadius: 16,
+    minHeight: 48,
+    borderRadius: 14,
     backgroundColor: "#ea580c",
     alignItems: "center",
     justifyContent: "center",
   },
   buttonText: { color: "#fff", fontSize: 15, fontWeight: "800" },
-  note: { color: "#94a3b8", fontSize: 12, lineHeight: 18, marginTop: 6 },
+  note: { color: "#64748b", fontSize: 12, lineHeight: 18, marginTop: 6, textAlign: "center" },
 });
