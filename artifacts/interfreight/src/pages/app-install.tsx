@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { Spinner } from "@/components/ui/spinner";
 import { isStandaloneDisplay } from "@/lib/pwa";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
+import { savedAccounts } from "@/lib/saved-accounts";
 import { ThemeLogo } from "@/components/layout/ThemeLogo";
 
 export default function AppInstallPage() {
@@ -14,11 +15,14 @@ export default function AppInstallPage() {
   const isIOS = /iPad|iPhone|iPod/i.test(userAgent);
   const openedInApp = isStandaloneDisplay();
   const isWaitingForPrompt = !isIOS && !installed && !openedInApp && !canInstall;
-  const hasToken = typeof window !== "undefined" && !!localStorage.getItem("intf_token");
+  const currentToken = typeof window !== "undefined" ? localStorage.getItem("intf_token") : null;
+  const hasToken = !!currentToken;
+  const currentAccount = currentToken ? savedAccounts().find((account) => account.token === currentToken) : null;
+  const authedHref = currentAccount?.role === "staff" || currentAccount?.role === "admin" ? "/staff/dashboard" : "/dashboard";
 
   useEffect(() => {
     if (hasToken) {
-      window.location.replace("/dashboard");
+      window.location.replace(authedHref);
       return;
     }
     if (openedInApp || installed) {
@@ -38,7 +42,7 @@ export default function AppInstallPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [canInstall, hasToken, installed, isIOS, openedInApp, promptInstall]);
+  }, [authedHref, canInstall, hasToken, installed, isIOS, openedInApp, promptInstall]);
 
   const installHelpText = useMemo(() => {
     if (isIOS) {

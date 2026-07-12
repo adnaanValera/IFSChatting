@@ -384,7 +384,6 @@ function StaffTracker() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               className="w-full pl-11 pr-10 py-3.5 rounded-xl border border-input text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all bg-background"
-              autoFocus
             />
             {input && (
               <button
