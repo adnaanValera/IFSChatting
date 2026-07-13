@@ -44,19 +44,19 @@ export function DashboardScreen({ navigation }: any) {
       Animated.parallel([
         Animated.timing(introOpacity, {
           toValue: 1,
-          duration: 720,
+          duration: 820,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
       ]),
-      Animated.delay(560),
+      Animated.delay(720),
       Animated.timing(introProgress, {
         toValue: 1,
-        duration: 3360,
+        duration: 4280,
         easing: Easing.bezier(0.16, 0.88, 0.2, 1),
         useNativeDriver: true,
       }),
-      Animated.delay(220),
+      Animated.delay(260),
       Animated.timing(introOpacity, {
         toValue: 0,
         duration: 140,
