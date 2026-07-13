@@ -228,6 +228,10 @@ export default function CustomerDashboard() {
       .map((notification) => notification.ifsRef)
       .filter((ifsRef): ifsRef is string => Boolean(ifsRef)),
   );
+  const changedShipmentRefs = new Set([
+    ...todayUpdatedRefs,
+    ...statusChangesByIfsRef.keys(),
+  ]);
   const sectionRows = STATUS_SECTIONS.map((section) => ({
     ...section,
     rows: filteredShipments.filter((shipment: any) => shipmentSectionLabel(shipment) === section.reportLabel),
@@ -324,14 +328,6 @@ export default function CustomerDashboard() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Link
-                href="/app-install"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-secondary/15 bg-secondary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-secondary/92"
-              >
-                <Smartphone size={16} />
-                Update App
-              </Link>
-
               {canInstall && (
                 <button
                   type="button"
@@ -392,21 +388,21 @@ export default function CustomerDashboard() {
         )}
 
         {/* Summary stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-5 sm:mb-8">
+        <div className="grid grid-cols-5 gap-2 sm:gap-3 mb-5 sm:mb-8">
           {statCards.map(({ icon: Icon, label, value, tone }, index) => (
             <motion.div
               key={label}
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 + index * 0.04, duration: 0.32, ease: "easeOut" }}
-              className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm glow-card glow-card--reactive glow-card--light flex items-center gap-2 sm:gap-3"
+              className="bg-card rounded-xl border border-border p-2 sm:p-4 shadow-sm glow-card glow-card--reactive glow-card--light flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3 min-w-0"
             >
-              <div className={`p-2 rounded-lg shrink-0 ${tone}`}>
-                <Icon size={18} />
+              <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${tone}`}>
+                <Icon size={14} className="sm:w-[18px] sm:h-[18px]" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide leading-tight">{label}</p>
-                <p className="text-xl sm:text-2xl font-bold text-secondary dark:text-white">{value}</p>
+                <p className="text-[9px] sm:text-xs text-muted-foreground uppercase tracking-[0.06em] leading-tight">{label}</p>
+                <p className="text-base sm:text-2xl font-bold text-secondary dark:text-white leading-none mt-1">{value}</p>
               </div>
             </motion.div>
           ))}
@@ -467,7 +463,7 @@ export default function CustomerDashboard() {
                   key={shipment.id}
                   shipment={shipment}
                   statusChange={statusChangesByIfsRef.get(shipment.ifsRef)}
-                  highlight={todayUpdatedRefs.has(shipment.ifsRef)}
+                  highlight={changedShipmentRefs.has(shipment.ifsRef)}
                   index={index}
                 />
               ))}
@@ -499,7 +495,7 @@ export default function CustomerDashboard() {
                       <ShipmentCard
                         shipment={s}
                         statusChange={statusChangesByIfsRef.get(s.ifsRef)}
-                        highlight={todayUpdatedRefs.has(s.ifsRef)}
+                        highlight={changedShipmentRefs.has(s.ifsRef)}
                         index={index}
                       />
                     </div>

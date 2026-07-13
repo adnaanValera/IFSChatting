@@ -1015,7 +1015,7 @@ export default function Dashboard() {
     { id: "overview", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
     { id: "import", label: "Data Import", icon: <UploadCloud size={18} /> },
     { id: "cards", label: "Company Cards", icon: <Building2 size={18} />, badge: companiesLoaded ? companiesList.length : undefined },
-    { id: "history", label: "Upload History", icon: <History size={18} />, badge: uploads?.length },
+    { id: "history", label: "File Download", icon: <History size={18} />, badge: uploads?.length },
     { id: "authorize", label: "Authorize Sign Up", icon: <UserCheck size={18} />, badge: pendingSignups.length || undefined },
     { id: "messages", label: "Messages", icon: <MessageSquare size={18} />, badge: unreadCount || undefined },
   ];
@@ -1677,8 +1677,8 @@ export default function Dashboard() {
             <div className="space-y-6 max-w-4xl">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-extrabold text-secondary mb-1">Upload History</h2>
-                  <p className="text-sm text-muted-foreground">All uploaded files and their import results</p>
+                  <h2 className="text-2xl font-extrabold text-secondary mb-1">File Download</h2>
+                  <p className="text-sm text-muted-foreground">Latest files stay at the top so the right one is always easy to download</p>
                 </div>
                 {uploads && uploads.length > 0 && (
                   <button
@@ -1700,10 +1700,10 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2">
                     <History size={18} className="text-primary" />
                     <h3 className="font-bold text-secondary">
-                      {uploads?.length ?? 0} Upload{uploads?.length !== 1 ? "s" : ""}
+                      {uploads?.length ?? 0} File{uploads?.length !== 1 ? "s" : ""}
                     </h3>
                   </div>
-                  <span className="text-xs text-muted-foreground">Click trash icon to delete individual upload</span>
+                  <span className="text-xs text-muted-foreground">Newest file is first. Click trash icon to delete individual file.</span>
                 </div>
 
                 {uploadsLoading ? (
@@ -1713,7 +1713,7 @@ export default function Dashboard() {
                 ) : !uploads?.length ? (
                   <div className="py-16 text-center">
                     <FileSpreadsheet className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-                    <p className="font-semibold text-secondary mb-1">No uploads yet</p>
+                    <p className="font-semibold text-secondary mb-1">No files yet</p>
                     <p className="text-sm text-muted-foreground">
                       Go to{" "}
                       <button
@@ -1727,15 +1727,25 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div className="divide-y divide-border">
-                    {uploads.map((upload) => (
-                      <div key={upload.id} className="flex flex-col gap-3 px-4 py-4 hover:bg-muted/20 transition-colors group sm:flex-row sm:items-center sm:gap-4 sm:px-6">
-                        <div className="p-2 bg-muted rounded-lg shrink-0">
+                    {uploads.map((upload, index) => {
+                      const isLatest = index === 0;
+                      return (
+                      <div key={upload.id} className={`flex flex-col gap-3 px-4 py-4 hover:bg-muted/20 transition-colors group sm:flex-row sm:items-center sm:gap-4 sm:px-6 ${isLatest ? "download-ready-glow" : ""}`}>
+                        <div className={`p-2 rounded-lg shrink-0 ${isLatest ? "bg-green-50 border border-green-200" : "bg-muted"}`}>
                           <FileSpreadsheet size={18} className="text-muted-foreground" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-secondary leading-snug break-words sm:truncate" title={upload.filename}>
-                            {upload.filename}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-sm text-secondary leading-snug break-words sm:truncate" title={upload.filename}>
+                              {upload.filename}
+                            </p>
+                            {isLatest && (
+                              <span className="download-ready-badge inline-flex items-center gap-2 text-[11px] text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full font-semibold">
+                                <span className="live-updates-dot !bg-green-500 !shadow-[0_0_0_3px_rgba(34,197,94,0.16),0_0_14px_rgba(34,197,94,0.42)]" />
+                                Latest to download
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             Uploaded {formatDate(upload.uploadedAt)} · by {upload.uploadedBy}
                           </p>
@@ -1771,7 +1781,7 @@ export default function Dashboard() {
                           </button>
                         </div>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 )}
               </div>

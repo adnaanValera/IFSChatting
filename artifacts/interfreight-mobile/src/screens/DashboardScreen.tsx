@@ -1,10 +1,9 @@
 import React, { useMemo, useState } from "react";
-import { FlatList, Image, Linking, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
-import Constants from "expo-constants";
+import { FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
-import { API_BASE_URL, APP_UPDATE_URL, MOBILE_APP_LATEST_VERSION, compareVersions } from "../config";
+import { API_BASE_URL } from "../config";
 import type { Shipment } from "../types";
 import { LogoSpinner } from "../components/LogoSpinner";
 import { ShipmentCard } from "../components/ShipmentCard";
@@ -32,8 +31,6 @@ export function DashboardScreen({ navigation }: any) {
   const { token, user, signOut } = useAuth();
   const palette = appPalette();
   const [search, setSearch] = useState("");
-  const currentVersion = Constants.expoConfig?.version ?? "1.0.0";
-  const showUpdateButton = compareVersions(currentVersion, MOBILE_APP_LATEST_VERSION) < 0;
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["mobile-shipments", token],
@@ -77,25 +74,12 @@ export function DashboardScreen({ navigation }: any) {
                   <Text style={[styles.heading, { color: palette.text }]}>Welcome, {user?.companyName || user?.fullName || "Customer"}</Text>
                 </View>
               </View>
-              {showUpdateButton && (
-                <Pressable onPress={() => Linking.openURL(APP_UPDATE_URL)} style={[styles.updateBanner, { backgroundColor: palette.accent }]}>
-                  <Text style={styles.updateBannerText}>Update App</Text>
-                </Pressable>
-              )}
               <View style={styles.headerActions}>
                 <Pressable onPress={signOut} style={[styles.logout, { backgroundColor: palette.surfaceMuted }]}>
                   <Text style={[styles.logoutText, { color: palette.textMuted }]}>Log out</Text>
                 </Pressable>
               </View>
             </View>
-
-            {showUpdateButton && (
-              <View style={styles.updateHintWrap}>
-                <Text style={[styles.updateHint, { color: palette.textSoft }]}>
-                  If something looks outdated, press Update App to install the latest build.
-                </Text>
-              </View>
-            )}
 
             <View style={styles.statsRow}>
               <Stat label="Total" value={String(shipments.length)} palette={palette} />
@@ -152,17 +136,8 @@ const styles = StyleSheet.create({
   logo: { width: 126, height: 54, marginTop: 2 },
   eyebrow: { color: "#c2410c", fontSize: 10, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" },
   heading: { color: "#111827", fontSize: 20, fontWeight: "800", lineHeight: 26 },
-  updateBanner: {
-    minHeight: 48,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  updateBannerText: { color: "#fff", fontWeight: "800", fontSize: 15 },
   logout: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, backgroundColor: "#18222c" },
   logoutText: { color: "#e2e8f0", fontWeight: "700" },
-  updateHintWrap: { marginTop: -4, marginBottom: 14 },
-  updateHint: { fontSize: 12, lineHeight: 17 },
   statsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
   statCard: { flexGrow: 1, minWidth: "47%", backgroundColor: "#ffffff", borderRadius: 16, borderWidth: 1, borderColor: "#d5dbe1", padding: 12 },
   statLabel: { color: "#64748b", fontSize: 10, fontWeight: "700", textTransform: "uppercase" },

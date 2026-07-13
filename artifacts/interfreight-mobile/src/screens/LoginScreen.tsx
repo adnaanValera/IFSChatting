@@ -1,9 +1,7 @@
 import React, { useState } from "react";
-import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import Constants from "expo-constants";
+import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
-import { APP_UPDATE_URL, MOBILE_APP_LATEST_VERSION, compareVersions } from "../config";
 import { LogoSpinner } from "../components/LogoSpinner";
 import { appPalette } from "../theme";
 
@@ -15,8 +13,6 @@ export function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const currentVersion = Constants.expoConfig?.version ?? "1.0.0";
-  const showUpdateButton = compareVersions(currentVersion, MOBILE_APP_LATEST_VERSION) < 0;
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -40,16 +36,6 @@ export function LoginScreen() {
             <Text style={[styles.title, { color: palette.text }]}>InterFreightSolutions</Text>
             <Text style={[styles.subtitle, { color: palette.textSoft }]}>Secure customer tracking, built for quick mobile updates.</Text>
           </View>
-
-          {showUpdateButton && (
-            <Pressable
-              style={[styles.updateBanner, { backgroundColor: palette.accent }]}
-              onPress={() => Linking.openURL(APP_UPDATE_URL)}
-            >
-              <Text style={styles.updateBannerText}>Update App</Text>
-            </Pressable>
-          )}
-
           <View style={[styles.panel, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             <Text style={[styles.label, { color: palette.textMuted }]}>Email</Text>
             <TextInput
@@ -91,14 +77,6 @@ const styles = StyleSheet.create({
   logo: { width: 190, height: 92 },
   title: { color: "#111827", fontSize: 26, fontWeight: "800", textAlign: "center" },
   subtitle: { color: "#64748b", fontSize: 13, lineHeight: 18, textAlign: "center", maxWidth: 300 },
-  updateBanner: {
-    minHeight: 48,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 2,
-  },
-  updateBannerText: { color: "#fff", fontSize: 15, fontWeight: "800" },
   panel: {
     backgroundColor: "#ffffff",
     borderColor: "#d5dbe1",

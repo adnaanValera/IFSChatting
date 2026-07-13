@@ -51,6 +51,23 @@ function appendDateToFilename(filename: string, date: Date | string): string {
   return `${safe.slice(0, dot)}-${stamp}${safe.slice(dot)}`;
 }
 
+function normalizeUploadFamily(filename: string): string {
+  const safe = safeDownloadName(filename).toLowerCase();
+  const withoutExtension = safe.replace(/\.[^.]+$/, "");
+  const compact = withoutExtension
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (compact.includes("tracking master")) return "tracking master";
+
+  return compact
+    .replace(/\b\d{1,2}[./ -]\d{1,2}[./ -]\d{2,4}\b/g, "")
+    .replace(/\b\d{4}[./ -]\d{1,2}[./ -]\d{1,2}\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function saveOriginalUploadFile(uploadId: number, file: Express.Multer.File): Promise<void> {
   const fileData = await fs.promises.readFile(file.path);
   await pool.query(
@@ -438,13 +455,14 @@ async function notifyCustomersOfNewShipment(args: {
 }
 
 async function pruneUploadHistoryForFilename(filename: string): Promise<void> {
-  const sameNameUploads = await db
-    .select({ id: uploadsTable.id })
+  const targetFamily = normalizeUploadFamily(filename);
+  const allNamedUploads = await db
+    .select({ id: uploadsTable.id, filename: uploadsTable.filename })
     .from(uploadsTable)
-    .where(eq(uploadsTable.filename, filename))
     .orderBy(desc(uploadsTable.uploadedAt));
 
-  const oldUploadIds = sameNameUploads.slice(2).map((upload) => upload.id);
+  const sameFamilyUploads = allNamedUploads.filter((upload) => normalizeUploadFamily(upload.filename) === targetFamily);
+  const oldUploadIds = sameFamilyUploads.slice(2).map((upload) => upload.id);
   for (const id of oldUploadIds) {
     await pool.query("DELETE FROM shipment_change_logs WHERE upload_batch_id = $1", [id]);
     await db.delete(uploadsTable).where(eq(uploadsTable.id, id));
@@ -1010,7 +1028,7 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
 // ── List uploads (staff only) ─────────────────────────────────────────────────
 
 router.get("/staff/uploads", requireAuth, requireStaff, async (_req, res) => {
-  const uploads = await db.select().from(uploadsTable).orderBy(uploadsTable.uploadedAt);
+  const uploads = await db.select().from(uploadsTable).orderBy(desc(uploadsTable.uploadedAt));
   res.json(uploads);
 });
 

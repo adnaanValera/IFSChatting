@@ -39,18 +39,18 @@ export function ShipmentCard({
         <Info label="MRA Ref" value={shipment.mraRef} palette={palette} />
         <Info label="Consignee" value={shipment.consignee} palette={palette} />
         <Info label="Shipper" value={shipment.shipper} palette={palette} />
-        <Info label="Description" value={shipment.cargoDescription} palette={palette} />
+        <Info label="Description" value={shipment.cargoDescription} palette={palette} wide />
         <Info label="Invoice" value={shipment.invoiceNo} palette={palette} />
       </View>
     </Pressable>
   );
 }
 
-function Info({ label, value, palette }: { label: string; value?: string | null; palette: ReturnType<typeof appPalette> }) {
+function Info({ label, value, palette, wide = false }: { label: string; value?: string | null; palette: ReturnType<typeof appPalette>; wide?: boolean }) {
   return (
-    <View style={[styles.infoBox, { backgroundColor: palette.background, borderColor: palette.borderMuted }]}>
+    <View style={[styles.infoBox, wide ? styles.infoBoxWide : styles.infoBoxHalf, { backgroundColor: palette.background, borderColor: palette.borderMuted }]}>
       <Text style={[styles.infoLabel, { color: palette.textSoft }]}>{label}</Text>
-      <Text style={[styles.infoValue, { color: palette.text }]}>{value && value.trim() ? value : "N/A"}</Text>
+      <Text numberOfLines={wide ? 2 : 1} style={[styles.infoValue, { color: palette.text }]}>{value && value.trim() ? value : "N/A"}</Text>
     </View>
   );
 }
@@ -61,8 +61,8 @@ const styles = StyleSheet.create({
     borderColor: "#d5dbe1",
     borderWidth: 1,
     borderRadius: 18,
-    padding: 14,
-    gap: 8,
+    padding: 12,
+    gap: 6,
   },
   row: {
     flexDirection: "row",
@@ -92,36 +92,44 @@ const styles = StyleSheet.create({
   },
   identifier: {
     color: "#111827",
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "800",
-    lineHeight: 26,
+    lineHeight: 22,
   },
   section: {
     color: "#64748b",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
   },
   grid: {
-    gap: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
   },
   infoBox: {
     backgroundColor: "#f4f6f8",
     borderRadius: 14,
-    padding: 11,
+    padding: 9,
     borderWidth: 1,
     borderColor: "#e2e8f0",
   },
+  infoBoxHalf: {
+    width: "48.5%",
+  },
+  infoBoxWide: {
+    width: "100%",
+  },
   infoLabel: {
     color: "#64748b",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "700",
-    marginBottom: 4,
+    marginBottom: 3,
     textTransform: "uppercase",
   },
   infoValue: {
     color: "#111827",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700",
-    lineHeight: 18,
+    lineHeight: 16,
   },
 });

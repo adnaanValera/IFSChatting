@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, Image, StyleSheet, View } from "react-native";
 
-const miniLogo = require("../assets/ifs-mini-logo.png");
+const fullLogo = require("../assets/interfreight-full-logo.png");
 
 export function LogoSpinner({ size = 40 }: { size?: number }) {
   const spin = useRef(new Animated.Value(0)).current;
@@ -24,7 +24,7 @@ export function LogoSpinner({ size = 40 }: { size?: number }) {
 
   return (
     <View style={[styles.frame, { width: size, height: size }]}>
-      <Animated.Image source={miniLogo} style={{ width: size, height: size, transform: [{ rotate }] }} resizeMode="contain" />
+      <Animated.Image source={fullLogo} style={{ width: size * 2.25, height: size, transform: [{ rotate }] }} resizeMode="contain" />
     </View>
   );
 }

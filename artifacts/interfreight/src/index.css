@@ -310,27 +310,27 @@
   .shipment-card--changed {
     border-color: rgba(255, 255, 255, 0.72) !important;
     box-shadow:
-      0 0 0 2px rgba(255, 255, 255, 1),
-      0 0 0 10px rgba(17, 24, 39, 0.68),
-      0 0 0 16px rgba(255, 255, 255, 0.52),
-      0 0 48px rgba(255, 255, 255, 0.62),
-      0 0 96px rgba(15, 23, 42, 0.72),
+      0 0 0 3px rgba(255, 255, 255, 1),
+      0 0 0 12px rgba(17, 24, 39, 0.84),
+      0 0 0 18px rgba(255, 255, 255, 0.68),
+      0 0 70px rgba(255, 255, 255, 0.78),
+      0 0 118px rgba(15, 23, 42, 0.82),
       0 30px 70px rgba(0, 0, 0, 0.46);
-    animation: shipment-change-glow 1.2s ease-in-out infinite;
+    animation: shipment-change-glow 0.95s ease-in-out infinite;
   }
   .shipment-card--changed::before {
     opacity: 1;
     background:
-      radial-gradient(240px circle at var(--glow-x, 50%) var(--glow-y, 42%), rgba(255,255,255,0.46), transparent 60%);
+      radial-gradient(260px circle at var(--glow-x, 50%) var(--glow-y, 42%), rgba(255,255,255,0.58), transparent 62%);
   }
   .shipment-card--changed:hover,
   .shipment-card--changed:focus-within {
     box-shadow:
-      0 0 0 2px rgba(255, 255, 255, 1),
-      0 0 0 11px rgba(17, 24, 39, 0.74),
-      0 0 0 18px rgba(255, 255, 255, 0.6),
-      0 0 58px rgba(255, 255, 255, 0.72),
-      0 0 110px rgba(15, 23, 42, 0.8),
+      0 0 0 3px rgba(255, 255, 255, 1),
+      0 0 0 13px rgba(17, 24, 39, 0.88),
+      0 0 0 20px rgba(255, 255, 255, 0.74),
+      0 0 82px rgba(255, 255, 255, 0.84),
+      0 0 132px rgba(15, 23, 42, 0.88),
       0 34px 76px rgba(0, 0, 0, 0.5);
   }
   .live-updates-badge {
@@ -347,6 +347,28 @@
       0 0 0 3px rgba(239, 68, 68, 0.16),
       0 0 14px rgba(239, 68, 68, 0.42);
     animation: live-updates-pulse 1.9s ease-in-out infinite;
+  }
+  .download-ready-glow {
+    position: relative;
+    border-color: rgba(34, 197, 94, 0.9) !important;
+    box-shadow:
+      0 0 0 2px rgba(34, 197, 94, 0.9),
+      0 0 0 8px rgba(34, 197, 94, 0.16),
+      0 0 28px rgba(34, 197, 94, 0.38),
+      0 18px 42px rgba(15, 23, 42, 0.14);
+    animation: download-ready-pulse 1.5s ease-in-out infinite;
+  }
+  .download-ready-glow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(180px circle at 18% 50%, rgba(34,197,94,0.16), transparent 58%);
+    pointer-events: none;
+  }
+  .download-ready-badge {
+    box-shadow:
+      0 0 0 1px rgba(34, 197, 94, 0.2),
+      0 0 14px rgba(34, 197, 94, 0.22);
   }
   .brand-intro-overlay {
     position: fixed;
@@ -848,6 +870,23 @@
   50% {
     transform: scale(1.14);
     opacity: 1;
+  }
+}
+
+@keyframes download-ready-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px rgba(34, 197, 94, 0.92),
+      0 0 0 8px rgba(34, 197, 94, 0.18),
+      0 0 24px rgba(34, 197, 94, 0.32),
+      0 18px 42px rgba(15, 23, 42, 0.14);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(34, 197, 94, 1),
+      0 0 0 11px rgba(34, 197, 94, 0.24),
+      0 0 40px rgba(34, 197, 94, 0.5),
+      0 22px 48px rgba(15, 23, 42, 0.18);
   }
 }
 
