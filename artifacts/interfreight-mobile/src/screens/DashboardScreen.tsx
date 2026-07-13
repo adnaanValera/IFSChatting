@@ -37,7 +37,6 @@ export function DashboardScreen({ navigation }: any) {
   const introScale = useRef(new Animated.Value(1.12)).current;
   const introTranslateX = useRef(new Animated.Value(0)).current;
   const introTranslateY = useRef(new Animated.Value(0)).current;
-  const wipeX = useRef(new Animated.Value(-120)).current;
   const [showIntro, setShowIntro] = useState(true);
 
   useEffect(() => {
@@ -50,54 +49,47 @@ export function DashboardScreen({ navigation }: any) {
       Animated.parallel([
         Animated.timing(introOpacity, {
           toValue: 1,
-          duration: 620,
+          duration: 720,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(introScale, {
           toValue: 1,
-          duration: 780,
+          duration: 900,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]),
-      Animated.delay(420),
-      Animated.timing(wipeX, {
-        toValue: 108,
-        duration: 420,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.delay(320),
+      Animated.delay(560),
       Animated.parallel([
         Animated.timing(introTranslateX, {
           toValue: targetTranslateX,
-          duration: 1860,
-          easing: Easing.inOut(Easing.cubic),
+          duration: 2360,
+          easing: Easing.bezier(0.2, 0.92, 0.24, 1),
           useNativeDriver: true,
         }),
         Animated.timing(introTranslateY, {
           toValue: targetTranslateY,
-          duration: 1860,
-          easing: Easing.inOut(Easing.cubic),
+          duration: 2360,
+          easing: Easing.bezier(0.2, 0.92, 0.24, 1),
           useNativeDriver: true,
         }),
         Animated.timing(introScale, {
           toValue: finalScale,
-          duration: 1860,
-          easing: Easing.inOut(Easing.cubic),
+          duration: 2360,
+          easing: Easing.bezier(0.2, 0.92, 0.24, 1),
           useNativeDriver: true,
         }),
       ]),
-      Animated.delay(80),
+      Animated.delay(140),
       Animated.timing(introOpacity, {
         toValue: 0,
-        duration: 260,
+        duration: 220,
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }),
     ]).start(() => setShowIntro(false));
-  }, [height, introOpacity, introScale, introTranslateX, introTranslateY, logoTarget, width, wipeX]);
+  }, [height, introOpacity, introScale, introTranslateX, introTranslateY, logoTarget, width]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -152,12 +144,6 @@ export function DashboardScreen({ navigation }: any) {
                 },
               ]}
             />
-            <Animated.View
-              style={[
-                styles.introWipe,
-                { transform: [{ translateX: wipeX }, { rotate: "-16deg" }] },
-              ]}
-            />
           </View>
         </Animated.View>
       )}
@@ -201,9 +187,7 @@ export function DashboardScreen({ navigation }: any) {
             />
 
             {isLoading ? (
-              <View style={styles.loadingWrap}>
-                <Text style={[styles.loadingText, { color: palette.textSoft }]}>Loading your consignments...</Text>
-              </View>
+              <View style={styles.loadingWrap} />
             ) : filtered.length === 0 ? (
               <View style={[styles.emptyWrap, { backgroundColor: palette.surface, borderColor: palette.border }]}>
                 <Text style={[styles.emptyTitle, { color: palette.text }]}>No matching consignments</Text>
@@ -249,15 +233,6 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 34,
   },
-  introWipe: {
-    position: "absolute",
-    width: 68,
-    height: 260,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    shadowColor: "#ffffff",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-  },
   header: { gap: 12, marginBottom: 16 },
   brandRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, flex: 1 },
   logoSlot: {
@@ -291,8 +266,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     marginBottom: 16,
   },
-  loadingWrap: { alignItems: "center", justifyContent: "center", paddingVertical: 20, gap: 8 },
-  loadingText: { color: "#64748b", fontSize: 14 },
+  loadingWrap: { minHeight: 0 },
   emptyWrap: { backgroundColor: "#ffffff", borderRadius: 18, padding: 18, borderWidth: 1, borderColor: "#d5dbe1", marginBottom: 8 },
   emptyTitle: { color: "#111827", fontSize: 18, fontWeight: "800", marginBottom: 4 },
   emptyText: { color: "#64748b", fontSize: 14 },

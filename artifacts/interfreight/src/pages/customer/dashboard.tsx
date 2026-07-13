@@ -309,10 +309,7 @@ export default function CustomerDashboard() {
   if (userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="space-y-4 text-center">
-          <Spinner className="w-14 h-14 mx-auto" />
-          <p className="text-sm text-muted-foreground">Preparing your consignee portal...</p>
-        </div>
+        <Spinner className="w-14 h-14" />
       </div>
     );
   }
@@ -331,14 +328,8 @@ export default function CustomerDashboard() {
               x: [0, 0, 0, logoTarget?.x ?? 0, logoTarget?.x ?? 0],
               y: [0, 0, 0, logoTarget?.y ?? 0, logoTarget?.y ?? 0],
             }}
-            transition={{ duration: 3.4, ease: [0.22, 1, 0.36, 1], times: [0, 0.19, 0.43, 0.94, 1] }}
+            transition={{ duration: 4.2, ease: [0.2, 0.92, 0.24, 1], times: [0, 0.17, 0.42, 0.95, 1] }}
             className="dashboard-intro-logo"
-          />
-          <motion.div
-            initial={{ x: -140, rotate: -16, opacity: 0 }}
-            animate={{ x: [-140, -140, 112], rotate: -16, opacity: [0, 0.03, 0.08, 0] }}
-            transition={{ duration: 0.56, ease: "easeOut", times: [0, 0.3, 0.78, 1], delay: 0.66 }}
-            className="dashboard-intro-wipe"
           />
         </div>
       )}
