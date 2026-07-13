@@ -317,12 +317,7 @@ export default function CustomerDashboard() {
   }
 
   return (
-    <motion.div
-      className="min-h-screen bg-background"
-      initial={{ filter: "blur(14px)", opacity: 0.92 }}
-      animate={{ filter: "blur(0px)", opacity: 1 }}
-      transition={{ duration: 6, ease: [0.16, 0.88, 0.2, 1] }}
-    >
+    <div className="min-h-screen bg-background">
       {showIntro && (
         <div className="dashboard-intro-overlay" aria-hidden="true">
           <motion.img
@@ -611,6 +606,6 @@ export default function CustomerDashboard() {
         )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
