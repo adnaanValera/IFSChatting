@@ -174,6 +174,7 @@ export default function CustomerDashboard() {
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
   const [seenChangeTokens, setSeenChangeTokens] = useState<Set<string>>(() => new Set(readSeenChangeTokens()));
   const [showIntro, setShowIntro] = useState(true);
+  const [introMorphing, setIntroMorphing] = useState(false);
   const logoTargetRef = useRef<HTMLImageElement | null>(null);
   const [logoTarget, setLogoTarget] = useState<{ x: number; y: number } | null>(null);
   const { canInstall, promptInstall } = useInstallPrompt();
@@ -194,11 +195,16 @@ export default function CustomerDashboard() {
       });
     };
     const frame = window.requestAnimationFrame(measure);
-    const timer = window.setTimeout(() => setShowIntro(false), 1600);
+    const morphTimer = window.setTimeout(() => {
+      measure();
+      setIntroMorphing(true);
+    }, 720);
+    const hideTimer = window.setTimeout(() => setShowIntro(false), 6200);
     window.addEventListener("resize", measure);
     return () => {
       window.cancelAnimationFrame(frame);
-      window.clearTimeout(timer);
+      window.clearTimeout(morphTimer);
+      window.clearTimeout(hideTimer);
       window.removeEventListener("resize", measure);
     };
   }, []);
@@ -320,19 +326,16 @@ export default function CustomerDashboard() {
     <div className="min-h-screen bg-background">
       {showIntro && (
         <div className="dashboard-intro-overlay" aria-hidden="true">
-          <motion.img
-            src={CUSTOMER_BADGE_URL}
-            alt=""
-            initial={{ opacity: 0, scale: 1, x: 0, y: 0 }}
-            animate={{
-              opacity: [0, 1, 1, 1],
-              scale: [1, 1, 0.22, 0.22],
-              x: [0, 0, logoTarget?.x ?? 0, logoTarget?.x ?? 0],
-              y: [0, 0, logoTarget?.y ?? 0, logoTarget?.y ?? 0],
-            }}
-            transition={{ duration: 6.8, ease: "linear", times: [0, 0.1, 0.97, 1] }}
-            className="dashboard-intro-logo"
-          />
+          <div
+            className={`dashboard-intro-stage ${introMorphing && logoTarget ? "dashboard-intro-stage--morphing" : ""}`}
+            style={introMorphing && logoTarget ? {
+              ["--dashboard-intro-x" as string]: `${logoTarget.x}px`,
+              ["--dashboard-intro-y" as string]: `${logoTarget.y}px`,
+              ["--dashboard-intro-scale" as string]: `${40 / 180}`,
+            } : undefined}
+          >
+            <img src={CUSTOMER_BADGE_URL} alt="" className="dashboard-intro-logo" />
+          </div>
         </div>
       )}
       <NotificationOptIn storageKey="intf_push_prompt_customer" scope={{ type: "auth" }} />
