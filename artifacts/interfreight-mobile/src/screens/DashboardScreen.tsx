@@ -44,8 +44,9 @@ export function DashboardScreen({ navigation }: any) {
     const finalScale = 44 / 180;
     const targetTranslateX = logoTarget.x - width / 2;
     const targetTranslateY = logoTarget.y - height / 2;
-    const midwayFactor = 0.78;
-    const midwayScale = 0.42;
+    const stageOneFactor = 0.18;
+    const stageTwoFactor = 0.48;
+    const stageThreeFactor = 0.78;
 
     Animated.sequence([
       Animated.parallel([
@@ -65,20 +66,60 @@ export function DashboardScreen({ navigation }: any) {
       Animated.delay(560),
       Animated.parallel([
         Animated.timing(introTranslateX, {
-          toValue: targetTranslateX * midwayFactor,
-          duration: 1560,
+          toValue: targetTranslateX * stageOneFactor,
+          duration: 720,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(introTranslateY, {
+          toValue: targetTranslateY * stageOneFactor,
+          duration: 720,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(introScale, {
+          toValue: 0.76,
+          duration: 720,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(introTranslateX, {
+          toValue: targetTranslateX * stageTwoFactor,
+          duration: 960,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(introTranslateY, {
-          toValue: targetTranslateY * midwayFactor,
-          duration: 1560,
+          toValue: targetTranslateY * stageTwoFactor,
+          duration: 960,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(introScale, {
-          toValue: midwayScale,
-          duration: 1560,
+          toValue: 0.46,
+          duration: 960,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(introTranslateX, {
+          toValue: targetTranslateX * stageThreeFactor,
+          duration: 920,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(introTranslateY, {
+          toValue: targetTranslateY * stageThreeFactor,
+          duration: 920,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(introScale, {
+          toValue: 0.3,
+          duration: 920,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -86,19 +127,19 @@ export function DashboardScreen({ navigation }: any) {
       Animated.parallel([
         Animated.timing(introTranslateX, {
           toValue: targetTranslateX,
-          duration: 1660,
+          duration: 1180,
           easing: Easing.bezier(0.16, 0.9, 0.18, 1),
           useNativeDriver: true,
         }),
         Animated.timing(introTranslateY, {
           toValue: targetTranslateY,
-          duration: 1660,
+          duration: 1180,
           easing: Easing.bezier(0.16, 0.9, 0.18, 1),
           useNativeDriver: true,
         }),
         Animated.timing(introScale, {
           toValue: finalScale,
-          duration: 1660,
+          duration: 1180,
           easing: Easing.bezier(0.16, 0.9, 0.18, 1),
           useNativeDriver: true,
         }),
