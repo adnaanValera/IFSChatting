@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { BriefcaseBusiness, Check, Users } from "lucide-react";
 import { SavedAccount, savedAccounts, switchSavedAccount } from "@/lib/saved-accounts";
 
+const CUSTOMER_BADGE_URL = "/ifs-app-premium.png";
+
 function initials(value?: string) {
   return String(value || "")
     .split(/\s+/)
@@ -49,7 +51,9 @@ export function AccountSwitcher({ currentToken }: { currentToken?: string | null
                     }}
                     className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${isCurrent ? "bg-primary/10" : "hover:bg-muted/70"}`}
                   >
-                    {account.profilePictureUrl ? (
+                    {account.role === "customer" ? (
+                      <img src={CUSTOMER_BADGE_URL} alt={account.fullName || account.companyName || "Saved account"} className="h-10 w-10 rounded-xl object-cover border border-border shrink-0" />
+                    ) : account.profilePictureUrl ? (
                       <img src={account.profilePictureUrl} alt={account.fullName || account.companyName || "Saved account"} className="h-10 w-10 rounded-xl object-cover border border-border shrink-0" />
                     ) : (
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold">

@@ -17,6 +17,9 @@ import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
 import { saveAccount, savedAccounts, type SavedAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
+const CUSTOMER_BADGE_URL = "/ifs-app-premium.png";
+const READ_CHANGES_STORAGE_KEY = "intf_read_status_changes_v1";
+
 const STATUS_SECTIONS = [
   { label: "Shipments In Malawi", reportLabel: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
   { label: "Shipments Enroute", reportLabel: "SHIPMENTS ENROUTE", statuses: ["In Transit", "Enroute LLW", "Enroute BLZ", "Enroute"] },
@@ -131,6 +134,15 @@ function searchableText(shipment: any): string {
   ].join(" ").toLowerCase();
 }
 
+function readSeenChangeTokens(): string[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(READ_CHANGES_STORAGE_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function CustomerDashboard() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -158,6 +170,7 @@ export default function CustomerDashboard() {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [search, setSearch] = useState("");
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
+  const [seenChangeTokens, setSeenChangeTokens] = useState<Set<string>>(() => new Set(readSeenChangeTokens()));
   const { canInstall, promptInstall } = useInstallPrompt();
 
   useEffect(() => {
@@ -207,7 +220,6 @@ export default function CustomerDashboard() {
   };
 
   const typedUser = user as any;
-  const profilePictureUrl = typedUser?.profilePictureUrl as string | undefined;
   const shipments = shipmentsPage?.items ?? [];
   const filteredShipments = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -217,20 +229,41 @@ export default function CustomerDashboard() {
   const hasSearch = search.trim().length > 0;
   const companyName = String(typedUser?.companyName || typedUser?.fullName || typedUser?.name || "InterFreight Client");
   const statusChangesByIfsRef = new Map<string, { oldValue: string; newValue: string }>();
+  const statusChangeTokenByIfsRef = new Map<string, string>();
   for (const notification of notifications) {
     if (!notification.ifsRef || statusChangesByIfsRef.has(notification.ifsRef)) continue;
     const change = parseStatusChange(notification.message);
-    if (change) statusChangesByIfsRef.set(notification.ifsRef, change);
+    if (change) {
+      statusChangesByIfsRef.set(notification.ifsRef, change);
+      statusChangeTokenByIfsRef.set(notification.ifsRef, `${notification.ifsRef}::${change.oldValue}::${change.newValue}`);
+    }
   }
-  const todayUpdates = notifications.filter((notification) => notification.status && isToday(notification.createdAt));
+  const markChangeAsSeen = (token?: string) => {
+    if (!token || seenChangeTokens.has(token)) return;
+    setSeenChangeTokens((current) => {
+      const next = new Set(current);
+      next.add(token);
+      localStorage.setItem(READ_CHANGES_STORAGE_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  };
+  const unreadTodayUpdates = notifications.filter((notification) => {
+    if (!notification.status || !isToday(notification.createdAt) || !notification.ifsRef) return false;
+    const change = parseStatusChange(notification.message);
+    if (!change) return false;
+    const token = `${notification.ifsRef}::${change.oldValue}::${change.newValue}`;
+    return !seenChangeTokens.has(token);
+  });
   const todayUpdatedRefs = new Set(
-    todayUpdates
+    unreadTodayUpdates
       .map((notification) => notification.ifsRef)
       .filter((ifsRef): ifsRef is string => Boolean(ifsRef)),
   );
   const changedShipmentRefs = new Set([
     ...todayUpdatedRefs,
-    ...statusChangesByIfsRef.keys(),
+    ...[...statusChangeTokenByIfsRef.entries()]
+      .filter(([, token]) => !seenChangeTokens.has(token))
+      .map(([ifsRef]) => ifsRef),
   ]);
   const hasShipmentChanges = changedShipmentRefs.size > 0;
   const sectionRows = STATUS_SECTIONS.map((section) => ({
@@ -263,13 +296,7 @@ export default function CustomerDashboard() {
       <div className="bg-secondary text-secondary-foreground shadow-lg sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {profilePictureUrl ? (
-              <img src={profilePictureUrl} alt={typedUser?.fullName || typedUser?.name || "Profile"} className="h-10 w-10 rounded-xl object-cover border border-white/15 shrink-0" />
-            ) : (
-              <div className="h-10 w-10 rounded-xl bg-primary/10 border border-white/10 flex items-center justify-center text-primary font-bold shrink-0">
-                {initials(companyName)}
-              </div>
-            )}
+            <img src={CUSTOMER_BADGE_URL} alt={typedUser?.fullName || typedUser?.name || "Profile"} className="h-10 w-10 rounded-xl object-cover border border-white/15 shrink-0" />
             <div className="min-w-0">
               <p className="text-xs text-gray-400 uppercase tracking-widest">My Tracking</p>
               <h1 className="text-sm sm:text-lg font-bold text-white leading-tight truncate">
@@ -300,13 +327,7 @@ export default function CustomerDashboard() {
           <div className="flex flex-col gap-5">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
               <div className="flex items-center gap-4 min-w-0">
-                {profilePictureUrl ? (
-                  <img src={profilePictureUrl} alt={companyName} className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover border border-primary/20 shrink-0" />
-                ) : (
-                  <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-extrabold text-lg shrink-0">
-                    {initials(companyName)}
-                  </div>
-                )}
+                <img src={CUSTOMER_BADGE_URL} alt={companyName} className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover border border-primary/20 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Secure Consignee Portal</p>
                   <h2 className="text-2xl sm:text-3xl font-extrabold text-secondary dark:text-white leading-tight">
@@ -357,7 +378,7 @@ export default function CustomerDashboard() {
           </motion.div>
         )}
 
-        {todayUpdates.length > 0 && (
+        {unreadTodayUpdates.length > 0 && (
           <motion.button
             type="button"
             initial={{ opacity: 0, y: 10 }}
@@ -380,7 +401,7 @@ export default function CustomerDashboard() {
                   <span className="live-updates-dot" />
                 </span>
                 <span className="block text-xs text-white/60 truncate">
-                  {todayUpdates.length} consignment{todayUpdates.length !== 1 ? "s" : ""} updated today
+                  {unreadTodayUpdates.length} consignment{unreadTodayUpdates.length !== 1 ? "s" : ""} updated today
                 </span>
               </span>
             </span>
@@ -463,8 +484,10 @@ export default function CustomerDashboard() {
                 <ShipmentCard
                   key={shipment.id}
                   shipment={shipment}
-                  statusChange={statusChangesByIfsRef.get(shipment.ifsRef)}
+                  statusChange={changedShipmentRefs.has(shipment.ifsRef) ? statusChangesByIfsRef.get(shipment.ifsRef) : undefined}
                   highlight={changedShipmentRefs.has(shipment.ifsRef)}
+                  changeToken={statusChangeTokenByIfsRef.get(shipment.ifsRef)}
+                  onViewed={markChangeAsSeen}
                   index={index}
                 />
               ))}
@@ -495,8 +518,10 @@ export default function CustomerDashboard() {
                     <div key={s.id} className="glow-card rounded-2xl">
                       <ShipmentCard
                         shipment={s}
-                        statusChange={statusChangesByIfsRef.get(s.ifsRef)}
+                        statusChange={changedShipmentRefs.has(s.ifsRef) ? statusChangesByIfsRef.get(s.ifsRef) : undefined}
                         highlight={changedShipmentRefs.has(s.ifsRef)}
+                        changeToken={statusChangeTokenByIfsRef.get(s.ifsRef)}
+                        onViewed={markChangeAsSeen}
                         index={index}
                       />
                     </div>

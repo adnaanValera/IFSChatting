@@ -5,10 +5,10 @@
     "scheme": "interfreightsolutions",
     "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/ifs-mini-logo.png",
+    "icon": "./assets/ifs-app-premium.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/interfreight-full-logo.png",
+      "image": "./assets/ifs-app-premium.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,7 +18,7 @@
     "android": {
       "package": "com.interfreightsolutions.customer",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/ifs-mini-logo.png",
+        "foregroundImage": "./assets/ifs-app-premium.png",
         "backgroundColor": "#ffffff"
       }
     }

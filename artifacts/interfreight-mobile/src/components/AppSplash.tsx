@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Easing, Image, StyleSheet, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, Animated, Easing, StyleSheet, View, useWindowDimensions } from "react-native";
 
-const fullLogo = require("../../assets/interfreight-full-logo.png");
+const fullLogo = require("../../assets/ifs-app-premium.png");
 
 type AppSplashProps = {
   appReady: boolean;
@@ -15,7 +15,8 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
   const [minDurationElapsed, setMinDurationElapsed] = useState(false);
   const opacity = useRef(new Animated.Value(1)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.94)).current;
+  const logoScale = useRef(new Animated.Value(0.96)).current;
+  const wipeX = useRef(new Animated.Value(-240)).current;
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => undefined);
@@ -32,6 +33,7 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
     if (reduceMotion) {
       logoOpacity.setValue(1);
       logoScale.setValue(1);
+      wipeX.setValue(240);
       return;
     }
 
@@ -48,8 +50,14 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }),
+      Animated.timing(wipeX, {
+        toValue: 240,
+        duration: 620,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
     ]).start();
-  }, [logoOpacity, logoScale, reduceMotion]);
+  }, [logoOpacity, logoScale, reduceMotion, wipeX]);
 
   useEffect(() => {
     if (!appReady || !visible || !minDurationElapsed) return;
@@ -75,16 +83,27 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
   return (
     <Animated.View style={[styles.overlay, { opacity }]}>
       <View style={styles.stage}>
-        <Animated.Image
-          source={fullLogo}
-          resizeMode="contain"
-          style={{
-            width: Math.min(width * 0.76, 360),
-            height: Math.min(width * 0.2, 96),
-            opacity: logoOpacity,
-            transform: [{ scale: logoScale }],
-          }}
-        />
+        <View style={styles.logoWrap}>
+          <Animated.Image
+            source={fullLogo}
+            resizeMode="contain"
+            style={{
+              width: Math.min(width * 0.78, 340),
+              height: Math.min(width * 0.78, 340),
+              opacity: logoOpacity,
+              transform: [{ scale: logoScale }],
+            }}
+          />
+          {!reduceMotion && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.wipe,
+                { transform: [{ translateX: wipeX }, { rotate: "-18deg" }] },
+              ]}
+            />
+          )}
+        </View>
       </View>
     </Animated.View>
   );
@@ -101,5 +120,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
+  },
+  logoWrap: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  wipe: {
+    position: "absolute",
+    width: 112,
+    height: "130%",
+    backgroundColor: "rgba(255,255,255,0.24)",
+    shadowColor: "#ffffff",
+    shadowOpacity: 0.32,
+    shadowRadius: 20,
   },
 });
