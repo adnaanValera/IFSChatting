@@ -169,6 +169,7 @@ export default function CustomerDashboard() {
   const logoutMutation = useStaffLogout();
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [search, setSearch] = useState("");
+  const [showChangedOnly, setShowChangedOnly] = useState(false);
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
   const [seenChangeTokens, setSeenChangeTokens] = useState<Set<string>>(() => new Set(readSeenChangeTokens()));
   const [showIntro, setShowIntro] = useState(true);
@@ -243,7 +244,7 @@ export default function CustomerDashboard() {
 
   const typedUser = user as any;
   const shipments = shipmentsPage?.items ?? [];
-  const filteredShipments = useMemo(() => {
+  const searchedShipments = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return shipments;
     return shipments.filter((shipment: any) => searchableText(shipment).includes(term));
@@ -288,6 +289,11 @@ export default function CustomerDashboard() {
       .map(([ifsRef]) => ifsRef),
   ]);
   const hasShipmentChanges = changedShipmentRefs.size > 0;
+  const filteredShipments = useMemo(() => (
+    showChangedOnly
+      ? searchedShipments.filter((shipment: any) => changedShipmentRefs.has(shipment.ifsRef))
+      : searchedShipments
+  ), [changedShipmentRefs, searchedShipments, showChangedOnly]);
   const sectionRows = STATUS_SECTIONS.map((section) => ({
     ...section,
     rows: filteredShipments.filter((shipment: any) => shipmentSectionLabel(shipment) === section.reportLabel),
@@ -325,13 +331,13 @@ export default function CustomerDashboard() {
               x: [0, 0, 0, logoTarget?.x ?? 0, logoTarget?.x ?? 0],
               y: [0, 0, 0, logoTarget?.y ?? 0, logoTarget?.y ?? 0],
             }}
-            transition={{ duration: 2.95, ease: [0.22, 1, 0.36, 1], times: [0, 0.2, 0.42, 0.92, 1] }}
+            transition={{ duration: 3.4, ease: [0.22, 1, 0.36, 1], times: [0, 0.19, 0.43, 0.94, 1] }}
             className="dashboard-intro-logo"
           />
           <motion.div
             initial={{ x: -140, rotate: -16, opacity: 0 }}
-            animate={{ x: [-140, -140, 124], rotate: -16, opacity: [0, 0.06, 0.16, 0] }}
-            transition={{ duration: 0.7, ease: "easeOut", times: [0, 0.28, 0.78, 1], delay: 0.58 }}
+            animate={{ x: [-140, -140, 112], rotate: -16, opacity: [0, 0.03, 0.08, 0] }}
+            transition={{ duration: 0.56, ease: "easeOut", times: [0, 0.3, 0.78, 1], delay: 0.66 }}
             className="dashboard-intro-wipe"
           />
         </div>
@@ -391,10 +397,20 @@ export default function CustomerDashboard() {
                   Download PDF Report
                 </button>
                 {hasShipmentChanges && (
-                  <div className="inline-flex items-center gap-2 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-500 shadow-[0_0_18px_rgba(239,68,68,0.18)]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch("");
+                      setShowChangedOnly(true);
+                      window.requestAnimationFrame(() => {
+                        document.getElementById("customer-shipments")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      });
+                    }}
+                    className="inline-flex items-center gap-2 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-500 shadow-[0_0_18px_rgba(239,68,68,0.18)] transition-all hover:bg-red-500/15"
+                  >
                     <Bell size={14} className="animate-pulse" />
                     <span>Check the changes</span>
-                  </div>
+                  </button>
                 )}
               </div>
             </div>
@@ -492,6 +508,15 @@ export default function CustomerDashboard() {
                 className="w-full pl-10 pr-3 py-3 rounded-xl border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               />
             </div>
+            {showChangedOnly && (
+              <button
+                type="button"
+                onClick={() => setShowChangedOnly(false)}
+                className="inline-flex items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-500/15"
+              >
+                Showing changed cards
+              </button>
+            )}
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             Showing {filteredShipments.length} of {shipments.length} shipment{shipments.length !== 1 ? "s" : ""}.
@@ -499,6 +524,7 @@ export default function CustomerDashboard() {
         </div>
 
         {/* Shipment cards */}
+        <div id="customer-shipments">
         {shipmentsLoading ? (
           <div className="grid gap-4">
             {[0, 1, 2].map((item) => (
@@ -581,6 +607,7 @@ export default function CustomerDashboard() {
             ))}
           </div>
         )}
+        </div>
       </div>
     </div>
   );
