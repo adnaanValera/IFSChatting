@@ -325,6 +325,20 @@
       0 0 14px rgba(255, 255, 255, 0.34);
     animation: shipment-change-pill-pulse 1.2s ease-in-out infinite;
   }
+  .shipment-card__change-bell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 999px;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+    box-shadow:
+      0 0 0 1px rgba(239, 68, 68, 0.42),
+      0 0 16px rgba(239, 68, 68, 0.36);
+    animation: shipment-bell-pulse 1.2s ease-in-out infinite;
+  }
   .shipment-card--changed {
     border-color: rgba(255, 255, 255, 0.72) !important;
     box-shadow:
@@ -399,6 +413,29 @@
     z-index: 9999;
     background: rgba(255, 255, 255, 0.98);
     transition: background-color 520ms ease, opacity 460ms ease;
+  }
+  .dashboard-intro-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.98);
+    overflow: hidden;
+  }
+  .dashboard-intro-logo {
+    width: min(38vw, 180px);
+    aspect-ratio: 1 / 1;
+    border-radius: 2rem;
+    object-fit: cover;
+  }
+  .dashboard-intro-wipe {
+    position: absolute;
+    width: 6rem;
+    height: 18rem;
+    background: rgba(255, 255, 255, 0.24);
+    box-shadow: 0 0 22px rgba(255, 255, 255, 0.4);
   }
   .brand-intro-overlay::before {
     content: "";
@@ -974,6 +1011,19 @@
     box-shadow:
       0 0 0 2px rgba(255, 255, 255, 1),
       0 0 22px rgba(255, 255, 255, 0.46);
+  }
+}
+
+@keyframes shipment-bell-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(239, 68, 68, 0.38),
+      0 0 12px rgba(239, 68, 68, 0.28);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(239, 68, 68, 0.54),
+      0 0 22px rgba(239, 68, 68, 0.44);
   }
 }
 

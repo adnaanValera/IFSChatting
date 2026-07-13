@@ -1,11 +1,10 @@
-import React, { useMemo, useState } from "react";
-import { FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
 import { API_BASE_URL } from "../config";
 import type { Shipment } from "../types";
-import { LogoSpinner } from "../components/LogoSpinner";
 import { ShipmentCard } from "../components/ShipmentCard";
 import { appPalette } from "../theme";
 
@@ -31,6 +30,63 @@ export function DashboardScreen({ navigation }: any) {
   const { token, user, signOut } = useAuth();
   const palette = appPalette();
   const [search, setSearch] = useState("");
+  const introOpacity = useRef(new Animated.Value(0)).current;
+  const introScale = useRef(new Animated.Value(1.14)).current;
+  const introTranslateX = useRef(new Animated.Value(88)).current;
+  const introTranslateY = useRef(new Animated.Value(188)).current;
+  const wipeX = useRef(new Animated.Value(-120)).current;
+  const [showIntro, setShowIntro] = useState(true);
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(introOpacity, {
+          toValue: 1,
+          duration: 320,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(introScale, {
+          toValue: 1,
+          duration: 420,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(wipeX, {
+          toValue: 120,
+          duration: 520,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(introTranslateX, {
+          toValue: 0,
+          duration: 820,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(introTranslateY, {
+          toValue: 0,
+          duration: 820,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(introScale, {
+          toValue: 0.28,
+          duration: 820,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.timing(introOpacity, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }),
+    ]).start(() => setShowIntro(false));
+  }, [introOpacity, introScale, introTranslateX, introTranslateY, wipeX]);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["mobile-shipments", token],
@@ -59,6 +115,32 @@ export function DashboardScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: palette.background }]}>
+      {showIntro && (
+        <Animated.View pointerEvents="none" style={[styles.introOverlay, { opacity: introOpacity }]}>
+          <View style={styles.introStage}>
+            <Animated.Image
+              source={topLogo}
+              resizeMode="cover"
+              style={[
+                styles.introLogo,
+                {
+                  transform: [
+                    { translateX: introTranslateX },
+                    { translateY: introTranslateY },
+                    { scale: introScale },
+                  ],
+                },
+              ]}
+            />
+            <Animated.View
+              style={[
+                styles.introWipe,
+                { transform: [{ translateX: wipeX }, { rotate: "-16deg" }] },
+              ]}
+            />
+          </View>
+        </Animated.View>
+      )}
       <FlatList
         data={filtered}
         keyExtractor={(item) => String(item.id)}
@@ -100,7 +182,6 @@ export function DashboardScreen({ navigation }: any) {
 
             {isLoading ? (
               <View style={styles.loadingWrap}>
-                <LogoSpinner size={56} />
                 <Text style={[styles.loadingText, { color: palette.textSoft }]}>Loading your consignments...</Text>
               </View>
             ) : filtered.length === 0 ? (
@@ -132,6 +213,31 @@ function Stat({ label, value, palette }: { label: string; value: string; palette
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0f1419" },
   content: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 28 },
+  introOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 30,
+    backgroundColor: "#ffffff",
+  },
+  introStage: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  introLogo: {
+    width: 180,
+    height: 180,
+    borderRadius: 34,
+  },
+  introWipe: {
+    position: "absolute",
+    width: 96,
+    height: 260,
+    backgroundColor: "rgba(255,255,255,0.24)",
+    shadowColor: "#ffffff",
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+  },
   header: { gap: 12, marginBottom: 16 },
   brandRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, flex: 1 },
   logoSlot: {
@@ -162,7 +268,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     marginBottom: 16,
   },
-  loadingWrap: { alignItems: "center", justifyContent: "center", paddingVertical: 36, gap: 12 },
+  loadingWrap: { alignItems: "center", justifyContent: "center", paddingVertical: 20, gap: 8 },
   loadingText: { color: "#64748b", fontSize: 14 },
   emptyWrap: { backgroundColor: "#ffffff", borderRadius: 18, padding: 18, borderWidth: 1, borderColor: "#d5dbe1", marginBottom: 8 },
   emptyTitle: { color: "#111827", fontSize: 18, fontWeight: "800", marginBottom: 4 },

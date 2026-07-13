@@ -171,6 +171,7 @@ export default function CustomerDashboard() {
   const [search, setSearch] = useState("");
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
   const [seenChangeTokens, setSeenChangeTokens] = useState<Set<string>>(() => new Set(readSeenChangeTokens()));
+  const [showIntro, setShowIntro] = useState(true);
   const { canInstall, promptInstall } = useInstallPrompt();
 
   useEffect(() => {
@@ -178,6 +179,11 @@ export default function CustomerDashboard() {
     saveAccount(localStorage.getItem("intf_token"), user);
     setAccounts(savedAccounts());
   }, [user]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowIntro(false), 1600);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -291,6 +297,24 @@ export default function CustomerDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      {showIntro && (
+        <div className="dashboard-intro-overlay" aria-hidden="true">
+          <motion.img
+            src={CUSTOMER_BADGE_URL}
+            alt=""
+            initial={{ opacity: 0, scale: 1.14, x: 120, y: 220 }}
+            animate={{ opacity: [1, 1, 0], scale: [1, 0.28, 0.28], x: [120, 0, 0], y: [220, 0, 0] }}
+            transition={{ duration: 1.45, ease: "easeInOut", times: [0, 0.8, 1] }}
+            className="dashboard-intro-logo"
+          />
+          <motion.div
+            initial={{ x: -140, rotate: -16, opacity: 0 }}
+            animate={{ x: 140, rotate: -16, opacity: [0.15, 0.32, 0] }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="dashboard-intro-wipe"
+          />
+        </div>
+      )}
       <NotificationOptIn storageKey="intf_push_prompt_customer" scope={{ type: "auth" }} />
       {/* Top bar */}
       <div className="bg-secondary text-secondary-foreground shadow-lg sticky top-0 z-40">

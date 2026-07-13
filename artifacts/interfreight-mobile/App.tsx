@@ -1,12 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
-import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
-import { AppSplash } from "./src/components/AppSplash";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
 import { ShipmentDetailScreen } from "./src/screens/ShipmentDetailScreen";
@@ -32,9 +30,6 @@ function AppNavigator() {
 }
 
 function AppShell() {
-  const { loading } = useAuth();
-  const [splashDone, setSplashDone] = useState(false);
-
   const theme = useMemo(() => {
     return {
       ...DefaultTheme,
@@ -51,13 +46,10 @@ function AppShell() {
   }, []);
 
   return (
-    <View style={{ flex: 1 }}>
-      <NavigationContainer theme={theme}>
-        <StatusBar style="dark" />
-        <AppNavigator />
-      </NavigationContainer>
-      {!splashDone ? <AppSplash appReady={!loading} onFinish={() => setSplashDone(true)} /> : null}
-    </View>
+    <NavigationContainer theme={theme}>
+      <StatusBar style="dark" />
+      <AppNavigator />
+    </NavigationContainer>
   );
 }
 

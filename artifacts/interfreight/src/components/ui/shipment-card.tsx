@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   ChevronDown, FileText, Anchor, MapPin, Flag,
-  User, Box, Ship, Truck, Boxes,
+  User, Box, Ship, Truck, Boxes, Bell,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
@@ -298,14 +298,9 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
             <div className="flex flex-col items-end gap-0.5 max-w-[130px]">
               <StatusPill status={s.status} theme={theme} />
               {statusChange && (
-                <motion.span
-                  initial={{ opacity: 0.55 }}
-                  animate={{ opacity: [0.72, 1, 0.72] }}
-                  transition={{ duration: 1.4, repeat: 2 }}
-                  className="shipment-card__change-pill text-[10px] font-semibold text-white text-right truncate max-w-[138px]"
-                >
-                  {customerFriendlyStatus(statusChange.oldValue)} -&gt; {customerFriendlyStatus(statusChange.newValue)}
-                </motion.span>
+                <span className="shipment-card__change-bell" aria-label="Shipment changed">
+                  <Bell size={13} />
+                </span>
               )}
             </div>
             <div className={`transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`}>
