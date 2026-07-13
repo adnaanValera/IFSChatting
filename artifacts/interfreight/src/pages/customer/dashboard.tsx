@@ -325,13 +325,13 @@ export default function CustomerDashboard() {
               x: [0, 0, 0, logoTarget?.x ?? 0, logoTarget?.x ?? 0],
               y: [0, 0, 0, logoTarget?.y ?? 0, logoTarget?.y ?? 0],
             }}
-            transition={{ duration: 2.45, ease: [0.22, 1, 0.36, 1], times: [0, 0.22, 0.42, 0.9, 1] }}
+            transition={{ duration: 2.95, ease: [0.22, 1, 0.36, 1], times: [0, 0.2, 0.42, 0.92, 1] }}
             className="dashboard-intro-logo"
           />
           <motion.div
             initial={{ x: -140, rotate: -16, opacity: 0 }}
-            animate={{ x: [-140, -140, 156], rotate: -16, opacity: [0, 0.12, 0.32, 0] }}
-            transition={{ duration: 0.92, ease: "easeOut", times: [0, 0.25, 0.8, 1], delay: 0.5 }}
+            animate={{ x: [-140, -140, 124], rotate: -16, opacity: [0, 0.06, 0.16, 0] }}
+            transition={{ duration: 0.7, ease: "easeOut", times: [0, 0.28, 0.78, 1], delay: 0.58 }}
             className="dashboard-intro-wipe"
           />
         </div>
@@ -380,15 +380,23 @@ export default function CustomerDashboard() {
                   Review your active consignments and latest shipment changes.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleDownloadPdf}
-                disabled={isDownloadingPdf || shipmentsLoading || shipments.length === 0}
-                className={`inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-60 ${hasShipmentChanges ? "report-download-pulse" : ""}`}
-              >
-                {isDownloadingPdf ? <Spinner className="w-4 h-4" /> : <Download size={16} />}
-                Download PDF Report
-              </button>
+              <div className="flex flex-col items-start md:items-end gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={isDownloadingPdf || shipmentsLoading || shipments.length === 0}
+                  className={`inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-60 ${hasShipmentChanges ? "report-download-pulse" : ""}`}
+                >
+                  {isDownloadingPdf ? <Spinner className="w-4 h-4" /> : <Download size={16} />}
+                  Download PDF Report
+                </button>
+                {hasShipmentChanges && (
+                  <div className="inline-flex items-center gap-2 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-500 shadow-[0_0_18px_rgba(239,68,68,0.18)]">
+                    <Bell size={14} className="animate-pulse" />
+                    <span>Check the changes</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
