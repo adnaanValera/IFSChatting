@@ -13,7 +13,7 @@ import {
   UploadCloud, Clock, CheckCircle2, AlertTriangle, Ship,
   Truck, Trash2, MessageSquare, ChevronDown, ChevronUp, Send, Mail, Home, History,
   Building2, Download, Search, ChevronRight,
-  Menu, X, UserCheck, UserX, Bell, Smartphone,
+  Menu, X, UserCheck, UserX, Bell, Smartphone, ReceiptText,
 } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +25,7 @@ import { saveAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { Spinner } from "@/components/ui/spinner";
 
-type Tab = "overview" | "import" | "history" | "messages" | "cards" | "authorize";
+type Tab = "overview" | "import" | "history" | "messages" | "cards" | "authorize" | "asycuda";
 
 type Announcement = {
   id: number;
@@ -302,6 +302,8 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const masterFileInputRef = useRef<HTMLInputElement>(null);
+  const asycudaFileInputRef = useRef<HTMLInputElement>(null);
+  const masterInvoiceFileInputRef = useRef<HTMLInputElement>(null);
   const templateFileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const { canInstall, installed, promptInstall } = useInstallPrompt();
@@ -309,6 +311,10 @@ export default function Dashboard() {
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [isMasterUploading, setIsMasterUploading] = useState(false);
   const [masterUploadResult, setMasterUploadResult] = useState<any>(null);
+  const [asycudaFile, setAsycudaFile] = useState<File | null>(null);
+  const [masterInvoiceFile, setMasterInvoiceFile] = useState<File | null>(null);
+  const [isAsycudaProcessing, setIsAsycudaProcessing] = useState(false);
+  const [asycudaSummary, setAsycudaSummary] = useState<any>(null);
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
   const [isTemplateUploading, setIsTemplateUploading] = useState(false);
   const [templateStatus, setTemplateStatus] = useState<{ hasTemplate: boolean; uploadedAt?: string } | null>(null);
@@ -730,6 +736,79 @@ export default function Dashboard() {
     }
   };
 
+  const handleAsycudaFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (file && !file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      toast({ variant: "destructive", title: "Invalid file type", description: "ASYCUDA file must be an Excel workbook." });
+      if (asycudaFileInputRef.current) asycudaFileInputRef.current.value = "";
+      return;
+    }
+    setAsycudaFile(file);
+    setAsycudaSummary(null);
+  };
+
+  const handleMasterInvoiceFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (file && !file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      toast({ variant: "destructive", title: "Invalid file type", description: "Master invoicing file must be an Excel workbook." });
+      if (masterInvoiceFileInputRef.current) masterInvoiceFileInputRef.current.value = "";
+      return;
+    }
+    setMasterInvoiceFile(file);
+    setAsycudaSummary(null);
+  };
+
+  const handleProcessAsycuda = async () => {
+    if (!asycudaFile || !masterInvoiceFile) {
+      toast({ variant: "destructive", title: "Missing files", description: "Choose both the ASYCUDA and Master Invoicing files first." });
+      return;
+    }
+    setIsAsycudaProcessing(true);
+    const formData = new FormData();
+    formData.append("asycudaFile", asycudaFile);
+    formData.append("masterFile", masterInvoiceFile);
+    formData.append("filterBlanks", "true");
+    const token = localStorage.getItem("intf_token");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/asycuda/process`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error((json as any).error || "ASYCUDA processing failed");
+      }
+      const summaryHeader = res.headers.get("X-Asycuda-Summary");
+      const summary = summaryHeader ? JSON.parse(decodeURIComponent(summaryHeader)) : null;
+      setAsycudaSummary(summary);
+
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = disposition.match(/filename="([^"]+)"/);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filenameMatch?.[1] || `ASYCUDA matched (${reportDateStamp()}).xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "ASYCUDA processed",
+        description: summary
+          ? `${summary.charges + summary.freight} cells filled across ${summary.sheets} sheet${summary.sheets === 1 ? "" : "s"}.`
+          : "The completed workbook has been downloaded.",
+      });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "ASYCUDA failed", description: err.message || "Processing failed" });
+    } finally {
+      setIsAsycudaProcessing(false);
+    }
+  };
+
   const handleDownloadAllReports = async () => {
     setIsDownloadingZip(true);
     try {
@@ -1013,12 +1092,16 @@ export default function Dashboard() {
 
   const navItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: "overview", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
-    { id: "import", label: "Data Import", icon: <UploadCloud size={18} /> },
+    { id: "import", label: "Tracking Uploads", icon: <UploadCloud size={18} /> },
     { id: "cards", label: "Company Cards", icon: <Building2 size={18} />, badge: companiesLoaded ? companiesList.length : undefined },
     { id: "history", label: "File Download", icon: <History size={18} />, badge: uploads?.length },
     { id: "authorize", label: "Authorize Sign Up", icon: <UserCheck size={18} />, badge: pendingSignups.length || undefined },
     { id: "messages", label: "Messages", icon: <MessageSquare size={18} />, badge: unreadCount || undefined },
   ];
+
+  if (isAdmin) {
+    navItems.splice(2, 0, { id: "asycuda", label: "ASYCUDA", icon: <ReceiptText size={18} /> });
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f6fa] flex flex-col">
@@ -1427,7 +1510,7 @@ export default function Dashboard() {
           {activeTab === "import" && (
             <div className="space-y-6 max-w-3xl">
               <div>
-                <h2 className="text-2xl font-extrabold text-secondary mb-1">Data Import</h2>
+                <h2 className="text-2xl font-extrabold text-secondary mb-1">Tracking Uploads</h2>
                 <p className="text-sm text-muted-foreground">Upload the daily Tracking Master to generate per-client status reports</p>
               </div>
 
@@ -1673,6 +1756,83 @@ export default function Dashboard() {
           )}
 
           {/* ── UPLOAD HISTORY ────────────────────────────── */}
+          {activeTab === "asycuda" && isAdmin && (
+            <div className="space-y-6 max-w-5xl">
+              <div>
+                <h2 className="text-2xl font-extrabold text-secondary mb-1">ASYCUDA</h2>
+                <p className="text-sm text-muted-foreground">Upload the master invoicing workbook and the ASYCUDA workbook, then process and download the matched result.</p>
+              </div>
+
+              <div className="grid gap-5 lg:grid-cols-2">
+                <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                  <div className="p-5 border-b border-border flex items-center gap-2 bg-muted/20">
+                    <FileSpreadsheet size={18} className="text-primary" />
+                    <h3 className="font-bold text-secondary">Master Invoicing</h3>
+                  </div>
+                  <div className="p-6">
+                    <div className="border-2 border-dashed rounded-xl p-10 text-center transition-colors border-border hover:border-primary/50 hover:bg-muted/30 cursor-pointer" onClick={() => !isAsycudaProcessing && masterInvoiceFileInputRef.current?.click()}>
+                      <input type="file" ref={masterInvoiceFileInputRef} className="hidden" accept=".xlsx,.xls" onChange={handleMasterInvoiceFileSelect} disabled={isAsycudaProcessing} />
+                      <div className="flex flex-col items-center gap-3">
+                        <UploadCloud className="w-12 h-12 text-muted-foreground/50" />
+                        <p className="font-bold text-secondary text-lg">Choose Master Invoicing</p>
+                        <p className="text-sm text-muted-foreground">{masterInvoiceFile?.name || "Excel workbook (.xlsx / .xls)"}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                  <div className="p-5 border-b border-border flex items-center gap-2 bg-muted/20">
+                    <ReceiptText size={18} className="text-primary" />
+                    <h3 className="font-bold text-secondary">ASYCUDA Workbook</h3>
+                  </div>
+                  <div className="p-6">
+                    <div className="border-2 border-dashed rounded-xl p-10 text-center transition-colors border-border hover:border-primary/50 hover:bg-muted/30 cursor-pointer" onClick={() => !isAsycudaProcessing && asycudaFileInputRef.current?.click()}>
+                      <input type="file" ref={asycudaFileInputRef} className="hidden" accept=".xlsx,.xls" onChange={handleAsycudaFileSelect} disabled={isAsycudaProcessing} />
+                      <div className="flex flex-col items-center gap-3">
+                        <UploadCloud className="w-12 h-12 text-muted-foreground/50" />
+                        <p className="font-bold text-secondary text-lg">Choose ASYCUDA File</p>
+                        <p className="text-sm text-muted-foreground">{asycudaFile?.name || "Excel workbook (.xlsx / .xls)"}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-border shadow-sm p-6 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-secondary">Process and download</p>
+                    <p className="text-sm text-muted-foreground">The tool fills blank local charges and freight cells, marks them green, and downloads the completed workbook.</p>
+                  </div>
+                  <button type="button" onClick={handleProcessAsycuda} disabled={isAsycudaProcessing || !asycudaFile || !masterInvoiceFile} className="inline-flex items-center justify-center gap-2 bg-secondary hover:bg-secondary/90 text-white font-semibold px-5 py-3 rounded-lg transition-all disabled:opacity-60">
+                    {isAsycudaProcessing ? <Spinner className="w-4 h-4" /> : <Download size={16} />}
+                    {isAsycudaProcessing ? "Processing..." : "Process and Download"}
+                  </button>
+                </div>
+
+                {asycudaSummary && (
+                  <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-7">
+                    {[
+                      ["Charges", asycudaSummary.charges],
+                      ["Freight", asycudaSummary.freight],
+                      ["Sheets", asycudaSummary.sheets],
+                      ["Remaining", asycudaSummary.remaining],
+                      ["Missing", asycudaSummary.missing],
+                      ["Mismatch", asycudaSummary.mismatch],
+                      ["Ambiguous", asycudaSummary.ambiguous],
+                    ].map(([label, value]) => (
+                      <div key={String(label)} className="rounded-xl border border-border bg-muted/20 px-4 py-3">
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</p>
+                        <p className="text-xl font-extrabold text-secondary mt-1">{String(value)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === "history" && (
             <div className="space-y-6 max-w-4xl">
               <div className="flex items-start justify-between gap-4">
@@ -1720,7 +1880,7 @@ export default function Dashboard() {
                         onClick={() => setActiveTab("import")}
                         className="text-primary underline"
                       >
-                        Data Import
+                        Tracking Uploads
                       </button>{" "}
                       to upload your first file
                     </p>
@@ -1809,7 +1969,7 @@ export default function Dashboard() {
                     onClick={() => handleTabChange("import")}
                     className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-all"
                   >
-                    <UploadCloud size={15} /> Upload / Refresh Data
+                    <UploadCloud size={15} /> Tracking Uploads
                   </button>
                 </div>
               </div>

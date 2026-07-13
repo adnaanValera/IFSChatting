@@ -32,6 +32,7 @@ const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 // Template upload uses memory storage so we can copy to the fixed path
 const templateStorage = multer.memoryStorage();
 const templateUpload = multer({ storage: templateStorage, limits: { fileSize: 10 * 1024 * 1024 } });
+const asycudaUpload = multer({ storage: templateStorage, limits: { fileSize: 20 * 1024 * 1024 } });
 
 const router = Router();
 
@@ -107,6 +108,245 @@ async function recordShipmentChangeLog(args: {
 function displayText(value: unknown): string {
   if (value === undefined || value === null || String(value).trim() === "") return "N/A";
   return String(value).trim();
+}
+
+const asycudaAliasPairs = [
+  ["Petroda", "Namadzi"],
+  ["Amin", "Office Zone"],
+  ["Easy Pack", "Easypark"],
+  ["Mothers Food", "Mothers Foods"],
+  ["Mkango Allied", "Mkango Allied Industries"],
+  ["Kris Offset", "Kris Offset and Screen Printers"],
+  ["Imran", "DIK"],
+  ["Chikondi", "Easy Pack"],
+  ["AD Consult", "Easy Pack"],
+  ["Osman", "Interglobe"],
+  ["Sukhera", "Super Criss Cross"],
+  ["Ibrahim Patel", "Medicure"],
+  ["Mtisunge Mipando", "Barons Car Hire"],
+  ["Aniz", "Auto"],
+  ["Zainulabedin", "Crown"],
+  ["Shaesta", "KNO"],
+  ["Mahomed Patel", "Agri"],
+  ["Naeem", "Gabs"],
+] as const;
+
+const asycudaStopWords = new Set([
+  "LIMITED", "LTD", "PTY", "LLC", "INC", "THE", "AND", "OF", "PO", "BOX", "PRIVATE",
+  "COMPANY", "CO", "MR", "MS", "MRS", "MALAWI", "BLANTYRE", "LILONGWE", "LIMBE",
+  "SOUTH", "AFRICA", "TRADING", "INDUSTRIES", "INDUSTRY", "INVESTMENTS", "INVESTMENT",
+  "GROUP", "INTERNATIONAL", "CORPORATION", "CORP", "ENTERPRISE", "ENTERPRISES",
+] as const);
+
+function asycudaValueString(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+function asycudaNormalizeKey(value: unknown): string {
+  return asycudaValueString(value).replace(/\s+/g, "").toUpperCase();
+}
+
+function asycudaNormalizeWords(value: unknown): string {
+  return asycudaValueString(value).toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+}
+
+function asycudaCanonicalToken(token: string): string {
+  if (token === "MOTHERS") return "MOTHER";
+  if (token === "FOODS") return "FOOD";
+  return token.length > 4 && token.endsWith("S") && !token.endsWith("SS") ? token.slice(0, -1) : token;
+}
+
+function asycudaCompactName(value: unknown): string {
+  let text = asycudaNormalizeWords(value);
+  const canonical: Array<[RegExp, string]> = [
+    [/\bMOTHERS? FOODS?\b/g, "MOTHERSFOOD"],
+    [/\bMKANGO ALLIED(?: INDUSTRIES)?\b/g, "MKANGOALLIED"],
+    [/\bKRIS OFFSET(?: AND SCREEN PRINTERS)?\b/g, "KRISOFFSET"],
+    [/\bPETRODA\b/g, "NAMADZI"],
+    [/\bAMIN\b/g, "OFFICEZONE"],
+    [/\bOFFICE ZONE\b/g, "OFFICEZONE"],
+    [/\bEASY ?PARK\b/g, "EASYPACK"],
+    [/\bEASY PACK\b/g, "EASYPACK"],
+  ];
+  canonical.forEach(([pattern, replacement]) => {
+    text = text.replace(pattern, replacement);
+  });
+  return text.replace(/[^A-Z0-9]/g, "");
+}
+
+function asycudaNameTokens(value: unknown): string[] {
+  return [...new Set(
+    asycudaNormalizeWords(value)
+      .split(/[^A-Z0-9]+/)
+      .filter((token) => token.length >= 3 && !asycudaStopWords.has(token))
+      .map(asycudaCanonicalToken),
+  )];
+}
+
+function asycudaLevenshtein(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j++) {
+      current[j] = Math.min(
+        current[j - 1] + 1,
+        previous[j] + 1,
+        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+    previous = current;
+  }
+  return previous[b.length] ?? 0;
+}
+
+function asycudaSimilarity(a: string, b: string): number {
+  if (a === b) return 1;
+  const distance = asycudaLevenshtein(a, b);
+  return 1 - distance / Math.max(a.length, b.length, 1);
+}
+
+function asycudaPairedMatch(aText: unknown, bText: unknown, left: string, right: string): boolean {
+  const a = ` ${asycudaNormalizeWords(aText)} `;
+  const b = ` ${asycudaNormalizeWords(bText)} `;
+  const l = asycudaNormalizeWords(left);
+  const r = asycudaNormalizeWords(right);
+  return (a.includes(` ${l} `) && b.includes(` ${r} `)) || (a.includes(` ${r} `) && b.includes(` ${l} `));
+}
+
+function asycudaNamesMatch(party: unknown, client: unknown): boolean {
+  if (!asycudaValueString(party) || !asycudaValueString(client)) return false;
+  if (asycudaAliasPairs.some(([a, b]) => asycudaPairedMatch(party, client, a, b))) return true;
+  const compactParty = asycudaCompactName(party);
+  const compactClient = asycudaCompactName(client);
+  if (
+    Math.min(compactParty.length, compactClient.length) >= 4 &&
+    (compactParty.includes(compactClient) || compactClient.includes(compactParty))
+  ) return true;
+  const partyTokens = asycudaNameTokens(party);
+  const clientTokens = asycudaNameTokens(client);
+  if (partyTokens.some((token) => clientTokens.includes(token))) return true;
+  if (!partyTokens.length || !clientTokens.length) return false;
+  const average = clientTokens.reduce((sum, clientToken) => {
+    const best = Math.max(...partyTokens.map((partyToken) => asycudaSimilarity(clientToken, partyToken)));
+    return sum + best;
+  }, 0) / clientTokens.length;
+  return average >= 0.9;
+}
+
+function asycudaFindHeaderRow(rows: unknown[][], required: string[]): number {
+  const limit = Math.min(rows.length, 20);
+  for (let r = 0; r < limit; r++) {
+    const values = rows[r]?.map(asycudaValueString) ?? [];
+    if (required.every((heading) => values.includes(heading))) return r;
+  }
+  return -1;
+}
+
+type AsycudaMasterEntry = { client: string; invoice: unknown; order: number };
+
+function asycudaSetGreenCell(cell: ExcelJS.Cell, value: unknown) {
+  cell.value = value as never;
+  cell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF00B050" },
+    bgColor: { argb: "FF00B050" },
+  };
+}
+
+async function buildAsycudaMasterIndex(workbook: ExcelJS.Workbook): Promise<Map<string, AsycudaMasterEntry[]>> {
+  const sheet = workbook.worksheets.find((ws) => ws.name.toLowerCase() === "list") ?? workbook.worksheets[0];
+  if (!sheet) throw new Error("The master workbook has no worksheets.");
+  const rows = sheet.getSheetValues().slice(1) as unknown[][];
+  const headerRow = asycudaFindHeaderRow(rows, ["Client", "IFS Inv No.", "MRA Ref"]);
+  if (headerRow < 0) throw new Error("Could not find Client, IFS Inv No. and MRA Ref headers in the master workbook.");
+  const header = (rows[headerRow] ?? []).map(asycudaValueString);
+  const clientCol = header.indexOf("Client");
+  const invoiceCol = header.indexOf("IFS Inv No.");
+  const refCol = header.indexOf("MRA Ref");
+  const index = new Map<string, AsycudaMasterEntry[]>();
+  rows.slice(headerRow + 1).forEach((row, offset) => {
+    const rawRefs = asycudaValueString(row?.[refCol]);
+    const invoice = row?.[invoiceCol];
+    if (!rawRefs || asycudaValueString(invoice) === "") return;
+    const entry = { client: asycudaValueString(row?.[clientCol]), invoice, order: headerRow + 1 + offset };
+    [...new Set(rawRefs.split(/[,;\r\n]+/).map(asycudaNormalizeKey).filter(Boolean))].forEach((key) => {
+      if (!index.has(key)) index.set(key, []);
+      index.get(key)!.push(entry);
+    });
+  });
+  return index;
+}
+
+async function processAsycudaWorkbook(
+  asycudaWb: ExcelJS.Workbook,
+  masterIndex: Map<string, AsycudaMasterEntry[]>,
+  filterBlanks: boolean,
+) {
+  const summary = { charges: 0, freight: 0, sheets: 0, remaining: 0, missing: 0, mismatch: 0, ambiguous: 0 };
+  for (const sheet of asycudaWb.worksheets) {
+    const rows = sheet.getSheetValues().slice(1) as unknown[][];
+    const headerRow = asycudaFindHeaderRow(rows, ["Shipper", "Consignee", "IFS Inv L/Chgs", "IFS Inv Freight"]);
+    if (headerRow < 0) continue;
+    const header = (rows[headerRow] ?? []).map(asycudaValueString);
+    const shipCol = header.indexOf("Shipper");
+    const consCol = header.indexOf("Consignee");
+    const chargeCol = header.indexOf("IFS Inv L/Chgs");
+    const freightCol = header.indexOf("IFS Inv Freight");
+    const typeCol = shipCol - 6;
+    const numberCol = typeCol + 1;
+    summary.sheets++;
+
+    for (let r = headerRow + 1; r < rows.length; r++) {
+      const row = rows[r] ?? [];
+      const chargeBlank = asycudaValueString(row[chargeCol]) === "";
+      const freightBlank = asycudaValueString(row[freightCol]) === "";
+      if (!chargeBlank && !freightBlank) continue;
+      const type = asycudaValueString(row[typeCol]).toUpperCase();
+      const number = asycudaValueString(row[numberCol]);
+      if (!["C", "E", "S"].includes(type) || !number) continue;
+      const key = asycudaNormalizeKey(type + number);
+      const entries = masterIndex.get(key) ?? [];
+      if (!entries.length) {
+        summary.missing++;
+        continue;
+      }
+      const party = asycudaValueString(row[type === "E" ? shipCol : consCol]);
+      const matches = entries.filter((entry) => asycudaNamesMatch(party, entry.client));
+      if (!matches.length) {
+        summary.mismatch++;
+        continue;
+      }
+      if (matches.length > 2) {
+        summary.ambiguous++;
+        continue;
+      }
+      const excelRow = sheet.getRow(r + 1);
+      if (chargeBlank) {
+        asycudaSetGreenCell(excelRow.getCell(chargeCol + 1), matches[0]!.invoice);
+        summary.charges++;
+      }
+      if (matches.length >= 2 && freightBlank) {
+        asycudaSetGreenCell(excelRow.getCell(freightCol + 1), matches[1]!.invoice);
+        summary.freight++;
+      }
+    }
+
+    for (let r = headerRow + 1; r < rows.length; r++) {
+      const row = rows[r] ?? [];
+      const chargeBlank = asycudaValueString(row[chargeCol]) === "";
+      if (chargeBlank) summary.remaining++;
+      if (filterBlanks) sheet.getRow(r + 1).hidden = !chargeBlank;
+    }
+    if (filterBlanks && sheet.dimensions) {
+      sheet.autoFilter = {
+        from: { row: sheet.dimensions.top, column: sheet.dimensions.left },
+        to: { row: sheet.dimensions.bottom, column: sheet.dimensions.right },
+      };
+    }
+  }
+  return summary;
 }
 
 function smartChangeValues(oldValue: unknown, newValue: unknown): { oldValue: string; newValue: string } {
@@ -1141,6 +1381,46 @@ router.post("/staff/upload-template", requireAuth, requireStaff, templateUpload.
   );
   res.json({ message: "Template saved", sizeBytes: req.file.buffer.length });
 });
+
+router.post(
+  "/staff/asycuda/process",
+  requireAuth,
+  requireAdmin,
+  asycudaUpload.fields([
+    { name: "asycudaFile", maxCount: 1 },
+    { name: "masterFile", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    try {
+      const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+      const asycudaFile = files?.asycudaFile?.[0];
+      const masterFile = files?.masterFile?.[0];
+      if (!asycudaFile || !masterFile) {
+        return res.status(400).json({ error: "Both ASYCUDA and Master Invoicing files are required." });
+      }
+
+      const filterBlanks = String(req.body?.filterBlanks ?? "true") !== "false";
+      const asycudaWb = new ExcelJS.Workbook();
+      const masterWb = new ExcelJS.Workbook();
+      await asycudaWb.xlsx.load(asycudaFile.buffer);
+      await masterWb.xlsx.load(masterFile.buffer);
+
+      const masterIndex = await buildAsycudaMasterIndex(masterWb);
+      const summary = await processAsycudaWorkbook(asycudaWb, masterIndex, filterBlanks);
+      const output = Buffer.from(await asycudaWb.xlsx.writeBuffer());
+      const outputName = `${safeDownloadName(asycudaFile.originalname).replace(/\.(xlsx?|xls)$/i, "")} - matched.xlsx`;
+
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", contentDispositionFilename(outputName));
+      res.setHeader("X-Asycuda-Summary", encodeURIComponent(JSON.stringify(summary)));
+      res.setHeader("Content-Length", String(output.length));
+      res.end(output);
+    } catch (error: any) {
+      logger.error({ err: error }, "ASYCUDA processing failed");
+      res.status(500).json({ error: error?.message || "ASYCUDA processing failed." });
+    }
+  },
+);
 
 // ── Excel report generation helper ───────────────────────────────────────────
 
