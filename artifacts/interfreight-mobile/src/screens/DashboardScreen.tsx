@@ -86,27 +86,27 @@ export function DashboardScreen({ navigation }: any) {
       Animated.parallel([
         Animated.timing(introTranslateX, {
           toValue: targetTranslateX,
-          duration: 1520,
+          duration: 1660,
           easing: Easing.bezier(0.16, 0.9, 0.18, 1),
           useNativeDriver: true,
         }),
         Animated.timing(introTranslateY, {
           toValue: targetTranslateY,
-          duration: 1520,
+          duration: 1660,
           easing: Easing.bezier(0.16, 0.9, 0.18, 1),
           useNativeDriver: true,
         }),
         Animated.timing(introScale, {
           toValue: finalScale,
-          duration: 1520,
+          duration: 1660,
           easing: Easing.bezier(0.16, 0.9, 0.18, 1),
           useNativeDriver: true,
         }),
       ]),
-      Animated.delay(140),
+      Animated.delay(220),
       Animated.timing(introOpacity, {
         toValue: 0,
-        duration: 220,
+        duration: 140,
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }),

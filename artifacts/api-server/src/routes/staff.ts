@@ -1150,7 +1150,7 @@ const REPORT_KEYS = [
 ] as const;
 
 const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }> = {
-  ifsRef: { min: 34, max: 34 },
+  ifsRef: { min: 42, max: 42 },
   type: { min: 8, max: 8 },
   blNo: { min: 18, max: 18 },
   containerNo: { min: 17, max: 17 },
@@ -1508,7 +1508,7 @@ async function generateCompanyReportWorkbook(
     ws.columns = [
       { width: 3 },   // A spacer
       { width: 3 },   // B spacer
-      { width: 34 },  // C IFS Ref
+      { width: 42 },  // C IFS Ref
       { width: 10 },  // D Type
       { width: 20 },  // E BL / Manifest No.
       { width: 16 },  // F Container No.
@@ -1681,7 +1681,7 @@ function generateCompanyReportPdfBuffer(
   const top = 26;
   const contentWidth = pageWidth - left - right;
   const bottom = pageHeight - 28;
-  const colWidths = [62, 34, 82, 72, 76, 84, 112, 66, 38, 38, 54, 68, 56, 70];
+  const colWidths = [90, 34, 82, 72, 76, 84, 112, 66, 38, 38, 54, 68, 56, 70];
   const labels = ["IFS Ref", "Type", "BL / Manifest No.", "Container No.", "Shipper", "Consignee", "Cargo Desc", "Invoice No.", "POD", "FPD", "Agent", "MRA Ref", "Entry", "Status"];
   const pages: string[] = [];
   let content = "";
