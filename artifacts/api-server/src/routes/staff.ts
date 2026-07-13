@@ -1413,7 +1413,7 @@ router.post(
         return res.status(400).json({ error: "Both ASYCUDA and Master Invoicing files are required." });
       }
 
-      const filterBlanks = String(req.body?.filterBlanks ?? "true") !== "false";
+      const filterBlanks = String(req.body?.filterBlanks ?? "false") === "true";
       const asycudaWb = new ExcelJS.Workbook();
       const masterWb = new ExcelJS.Workbook();
       await asycudaWb.xlsx.load(asycudaFile.buffer);

@@ -794,7 +794,6 @@ export default function Dashboard() {
     const formData = new FormData();
     formData.append("asycudaFile", asycudaFile);
     formData.append("masterFile", masterInvoiceFile);
-    formData.append("filterBlanks", "true");
     const token = localStorage.getItem("intf_token");
     try {
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
