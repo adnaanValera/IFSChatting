@@ -1122,7 +1122,7 @@ export default function Dashboard() {
     { id: "cards", label: "Company Cards", icon: <Building2 size={18} />, badge: companiesLoaded ? companiesList.length : undefined },
     { id: "history", label: "File Download", icon: <History size={18} />, badge: uploads?.length },
     { id: "authorize", label: "Authorize Sign Up", icon: <UserCheck size={18} />, badge: pendingSignups.length || undefined },
-    { id: "messages", label: "Messages", icon: <MessageSquare size={18} />, badge: unreadCount || undefined },
+    { id: "messages", label: "Messages", icon: <Bell size={18} />, badge: unreadCount || undefined },
   ];
 
   if (isAdmin) {
@@ -2328,7 +2328,13 @@ export default function Dashboard() {
             <div className="space-y-6 max-w-3xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-extrabold text-secondary mb-1">Messages</h2>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h2 className="text-2xl font-extrabold text-secondary">Messages</h2>
+                    <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                      <Bell size={13} />
+                      {unreadCount} unread
+                    </span>
+                  </div>
                   <p className="text-sm text-muted-foreground">Contact form submissions from the website</p>
                 </div>
                 <button
