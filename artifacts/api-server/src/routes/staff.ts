@@ -246,7 +246,21 @@ function asycudaFindHeaderRow(rows: unknown[][], required: string[]): number {
 type AsycudaMasterEntry = { client: string; invoice: unknown; order: number };
 
 function asycudaSetGreenCell(cell: ExcelJS.Cell, value: unknown) {
-  cell.value = value as never;
+  const normalizedValue = typeof value === "number" ? value : asycudaValueString(value);
+  const baseStyle = {
+    ...(cell.style ?? {}),
+  };
+
+  // Some ASYCUDA templates use shared-formula clone cells. Replacing the cell
+  // model with a plain value cell avoids ExcelJS throwing when we overwrite
+  // those clones directly.
+  (cell as ExcelJS.Cell & { model: Record<string, unknown> }).model = {
+    address: cell.address,
+    style: baseStyle,
+    type: typeof normalizedValue === "number" ? ExcelJS.ValueType.Number : ExcelJS.ValueType.String,
+    value: normalizedValue,
+  };
+
   cell.fill = {
     type: "pattern",
     pattern: "solid",
