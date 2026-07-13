@@ -5,6 +5,8 @@ export const feedbackTable = pgTable("feedback", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   company: text("company"),
+  phoneNumber: text("phone_number"),
+  source: text("source").notNull().default("public"),
   message: text("message").notNull(),
   status: text("status").notNull().default("unread"), // "unread" | "read" | "replied"
   replyText: text("reply_text"),

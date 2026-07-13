@@ -99,6 +99,8 @@ async function createTables() {
       name text NOT NULL,
       email text NOT NULL,
       company text,
+      phone_number text,
+      source text NOT NULL DEFAULT 'public',
       message text NOT NULL,
       status text NOT NULL DEFAULT 'unread',
       reply_text text,
@@ -123,6 +125,8 @@ async function createTables() {
       title text NOT NULL,
       message text NOT NULL,
       active boolean NOT NULL DEFAULT true,
+      audience text NOT NULL DEFAULT 'all',
+      target_user_ids text,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     );
@@ -159,6 +163,10 @@ async function createTables() {
   `);
 
   await pool.query(`
+    ALTER TABLE feedback ADD COLUMN IF NOT EXISTS phone_number text;
+    ALTER TABLE feedback ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'public';
+    ALTER TABLE announcements ADD COLUMN IF NOT EXISTS audience text NOT NULL DEFAULT 'all';
+    ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target_user_ids text;
     ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_id integer;
     ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS approval_token text;
     ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS endpoint text;

@@ -452,7 +452,7 @@ export default function Home() {
   const { data: user, isLoading: userLoading } = useGetMe();
   const logoutMutation = useStaffLogout();
 
-  const [form, setForm] = useState({ name: "", email: "", company: "", message: "" });
+  const [form, setForm] = useState({ name: "", email: "", company: "", phoneNumber: "", message: "" });
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [sendError, setSendError] = useState("");
@@ -484,7 +484,7 @@ export default function Home() {
         throw new Error(json.error || "Failed to send message");
       }
       setSent(true);
-      setForm({ name: "", email: "", company: "", message: "" });
+      setForm({ name: "", email: "", company: "", phoneNumber: "", message: "" });
     } catch (err: any) {
       setSendError(err.message || "Something went wrong. Please try again.");
     } finally {
@@ -988,7 +988,7 @@ export default function Home() {
                     <CheckCircle2 className="text-green-600 mb-4" size={48} />
                     <h3 className="text-xl font-bold text-secondary mb-2">Message Sent!</h3>
                     <p className="text-muted-foreground text-sm mb-6">
-                      Thank you for reaching out. We'll get back to you within 24 hours.
+                      You will receive a text or call on the phone number you entered once we check.
                     </p>
                     <button
                       onClick={() => setSent(false)}
@@ -1038,6 +1038,20 @@ export default function Home() {
                         value={form.company}
                         onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
                         placeholder="e.g. InterFreight Solutions"
+                        className="w-full px-4 py-3 rounded-xl border border-input focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm bg-background"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-secondary mb-1.5">
+                        Phone Number <span className="text-primary">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={form.phoneNumber}
+                        onChange={(e) => setForm((f) => ({ ...f, phoneNumber: e.target.value }))}
+                        placeholder="+265..."
                         className="w-full px-4 py-3 rounded-xl border border-input focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm bg-background"
                       />
                     </div>

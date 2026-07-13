@@ -119,12 +119,12 @@ export function NotificationBell() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-all"
+        className={`relative p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-all ${unread > 0 ? "animate-pulse shadow-[0_0_18px_rgba(191,33,49,0.22)]" : ""}`}
         aria-label="Notifications"
       >
         <Bell size={20} />
         {unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none animate-pulse shadow-[0_0_16px_rgba(191,33,49,0.28)]">
             {unread > 9 ? "9+" : unread}
           </span>
         )}

@@ -33,6 +33,8 @@ type Announcement = {
   message: string;
   active: boolean;
   updatedAt: string;
+  audience?: string;
+  targetUserIds?: string | null;
 };
 
 type CompanyItem = { id: number; companyName: string; shipmentCount: number };
@@ -48,6 +50,12 @@ type PendingSignup = {
   reviewedBy?: string | null;
   reviewedAt?: string | null;
   createdAt: string;
+};
+type AnnouncementCustomer = {
+  id: number;
+  fullName: string;
+  companyName: string;
+  email: string;
 };
 type Shipment = {
   id: number; ifsRef: string; mraRef?: string; containerNo?: string;
@@ -332,6 +340,9 @@ export default function Dashboard() {
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementMessage, setAnnouncementMessage] = useState("");
   const [announcementSaving, setAnnouncementSaving] = useState(false);
+  const [announcementTargetAll, setAnnouncementTargetAll] = useState(true);
+  const [announcementCustomers, setAnnouncementCustomers] = useState<AnnouncementCustomer[]>([]);
+  const [announcementTargetIds, setAnnouncementTargetIds] = useState<number[]>([]);
   const [pendingSignups, setPendingSignups] = useState<PendingSignup[]>([]);
   const [signupHistory, setSignupHistory] = useState<PendingSignup[]>([]);
   const [pendingSignupsLoading, setPendingSignupsLoading] = useState(false);
@@ -472,6 +483,7 @@ export default function Dashboard() {
 
   const typedUser = user as any;
   const isAdmin = typedUser?.role === "admin";
+  const isStaffOrAdmin = typedUser?.role === "admin" || typedUser?.role === "staff";
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -504,7 +516,7 @@ export default function Dashboard() {
     try {
       const token = localStorage.getItem("intf_token");
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-      const res = await fetch(`${base}/api/announcements/current`, {
+      const res = await fetch(`${base}/api/staff/announcements/current`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return;
@@ -512,14 +524,38 @@ export default function Dashboard() {
       setAnnouncement(data);
       setAnnouncementTitle(data?.title ?? "");
       setAnnouncementMessage(data?.message ?? "");
+      setAnnouncementTargetAll((data?.audience ?? "all") === "all");
+      setAnnouncementTargetIds(
+        String(data?.targetUserIds ?? "")
+          .split(",")
+          .map((value) => Number(value.trim()))
+          .filter((value) => Number.isFinite(value)),
+      );
     } catch {
       setAnnouncement(null);
     }
   };
 
   useEffect(() => {
-    if (isAdmin) loadAnnouncement();
-  }, [isAdmin]);
+    if (isStaffOrAdmin) {
+      loadAnnouncement();
+      loadAnnouncementCustomers();
+    }
+  }, [isStaffOrAdmin]);
+
+  const loadAnnouncementCustomers = async () => {
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/announcement-customers`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to load customers");
+      setAnnouncementCustomers(await res.json());
+    } catch {
+      setAnnouncementCustomers([]);
+    }
+  };
 
   const saveAnnouncement = async (active = true) => {
     setAnnouncementSaving(true);
@@ -529,7 +565,13 @@ export default function Dashboard() {
       const res = await fetch(`${base}/api/staff/announcements/current`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: announcementTitle, message: announcementMessage, active }),
+        body: JSON.stringify({
+          title: announcementTitle,
+          message: announcementMessage,
+          active,
+          targetAll: announcementTargetAll,
+          targetUserIds: announcementTargetAll ? [] : announcementTargetIds,
+        }),
       });
       if (!res.ok) throw new Error("Failed to save announcement");
       const data = await res.json();
@@ -537,6 +579,8 @@ export default function Dashboard() {
       if (!data) {
         setAnnouncementTitle("");
         setAnnouncementMessage("");
+        setAnnouncementTargetAll(true);
+        setAnnouncementTargetIds([]);
       }
       toast({ title: active ? "Announcement published" : "Announcement cleared" });
     } catch (err: any) {
@@ -545,6 +589,7 @@ export default function Dashboard() {
       setAnnouncementSaving(false);
     }
   };
+
 
   // ── Company Cards functions ───────────────────────────────────────────────
   const loadCompanies = async () => {
@@ -1207,7 +1252,7 @@ export default function Dashboard() {
                 {item.icon}
                 <span className="flex-1 text-left">{item.label}</span>
                 {item.badge !== undefined && item.badge > 0 && (
-                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full leading-none ${
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full leading-none animate-pulse shadow-[0_0_14px_rgba(191,33,49,0.22)] ${
                     activeTab === item.id ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
                   }`}>
                     {item.badge}
@@ -1260,9 +1305,9 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {isAdmin && (
+              {isStaffOrAdmin && (
                 <div className="bg-secondary text-white rounded-xl border border-white/10 shadow-sm p-4 sm:p-5">
-                  <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+                  <div className="flex flex-col gap-3">
                     <div className="flex-1">
                       <p className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">Customer Announcement</p>
                       <input
@@ -1281,11 +1326,55 @@ export default function Dashboard() {
                         className="w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/35 outline-none focus:border-primary resize-none"
                       />
                     </div>
+                    <div className="flex-[2]">
+                      <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-white/70">
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="radio"
+                            checked={announcementTargetAll}
+                            onChange={() => setAnnouncementTargetAll(true)}
+                          />
+                          All customers
+                        </label>
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="radio"
+                            checked={!announcementTargetAll}
+                            onChange={() => setAnnouncementTargetAll(false)}
+                          />
+                          Selected customers
+                        </label>
+                      </div>
+                      {!announcementTargetAll && (
+                        <div className="max-h-44 overflow-y-auto rounded-lg border border-white/15 bg-white/5 p-3">
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {announcementCustomers.map((customer) => (
+                              <label key={customer.id} className="flex items-start gap-2 rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  checked={announcementTargetIds.includes(customer.id)}
+                                  onChange={(e) => setAnnouncementTargetIds((current) => (
+                                    e.target.checked
+                                      ? [...current, customer.id]
+                                      : current.filter((id) => id !== customer.id)
+                                  ))}
+                                  className="mt-0.5"
+                                />
+                                <span className="min-w-0">
+                                  <span className="block font-semibold text-white">{customer.companyName}</span>
+                                  <span className="block text-xs text-white/55 truncate">{customer.fullName} - {customer.email}</span>
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => saveAnnouncement(true)}
-                        disabled={announcementSaving || !announcementTitle.trim() || !announcementMessage.trim()}
+                        disabled={announcementSaving || !announcementTitle.trim() || !announcementMessage.trim() || (!announcementTargetAll && announcementTargetIds.length === 0)}
                         className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold disabled:opacity-50"
                       >
                         Publish
@@ -2330,7 +2419,7 @@ export default function Dashboard() {
                 <div>
                   <div className="flex items-center gap-3 mb-1">
                     <h2 className="text-2xl font-extrabold text-secondary">Messages</h2>
-                    <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                    <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary animate-pulse shadow-[0_0_14px_rgba(191,33,49,0.2)]">
                       <Bell size={13} />
                       {unreadCount} unread
                     </span>
@@ -2383,6 +2472,9 @@ export default function Dashboard() {
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="font-bold text-secondary">{msg.name}</span>
                             <span className="text-muted-foreground text-sm">&lt;{msg.email}&gt;</span>
+                            {msg.phoneNumber && (
+                              <span className="text-muted-foreground text-sm">{msg.phoneNumber}</span>
+                            )}
                             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor}`}>
                               {msg.status}
                             </span>

@@ -52,9 +52,13 @@ function reportDateStamp(): string {
 }
 
 type StatusNotification = {
+  id?: number;
+  title?: string | null;
   ifsRef?: string | null;
+  companyName?: string | null;
   message?: string | null;
   status?: string | null;
+  read?: boolean;
   createdAt?: string | null;
 };
 
@@ -277,6 +281,7 @@ export default function CustomerDashboard() {
       return next;
     });
   };
+
   const unreadTodayUpdates = notifications.filter((notification) => {
     if (!notification.status || !isToday(notification.createdAt) || !notification.ifsRef) return false;
     const change = parseStatusChange(notification.message);
