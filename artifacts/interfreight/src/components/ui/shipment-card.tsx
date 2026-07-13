@@ -302,9 +302,9 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
                   initial={{ opacity: 0.55 }}
                   animate={{ opacity: [0.72, 1, 0.72] }}
                   transition={{ duration: 1.4, repeat: 2 }}
-                  className="text-[10px] font-semibold text-white/72 text-right truncate max-w-[130px]"
+                  className="shipment-card__change-pill text-[10px] font-semibold text-white text-right truncate max-w-[138px]"
                 >
-                  Updated
+                  {customerFriendlyStatus(statusChange.oldValue)} -&gt; {customerFriendlyStatus(statusChange.newValue)}
                 </motion.span>
               )}
             </div>

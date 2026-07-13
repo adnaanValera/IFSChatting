@@ -27,7 +27,7 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => setMinDurationElapsed(true), reduceMotion ? 500 : 1400);
+    const timer = setTimeout(() => setMinDurationElapsed(true), reduceMotion ? 700 : 2200);
     return () => clearTimeout(timer);
   }, [reduceMotion]);
 
@@ -113,7 +113,7 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
       });
     };
 
-    const timer = setTimeout(startExit, reduceMotion ? 150 : 450);
+    const timer = setTimeout(startExit, reduceMotion ? 220 : 620);
     return () => clearTimeout(timer);
   }, [appReady, minDurationElapsed, onFinish, opacity, reduceMotion, visible, width, height, logoScale, logoTranslateX, logoTranslateY]);
 

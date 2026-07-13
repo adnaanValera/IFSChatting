@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
@@ -8,6 +8,8 @@ import type { Shipment } from "../types";
 import { LogoSpinner } from "../components/LogoSpinner";
 import { ShipmentCard } from "../components/ShipmentCard";
 import { appPalette } from "../theme";
+
+const topLogo = require("../assets/ifs-app-premium.png");
 
 async function fetchShipments(token: string): Promise<Shipment[]> {
   const res = await fetch(`${API_BASE_URL}/api/shipments`, {
@@ -66,6 +68,9 @@ export function DashboardScreen({ navigation }: any) {
           <>
             <View style={styles.header}>
               <View style={styles.brandRow}>
+                <View style={styles.logoSlot}>
+                  <Image source={topLogo} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.eyebrow, { color: palette.accentSoft }]}>My Tracking</Text>
                   <Text style={[styles.heading, { color: palette.text }]}>Welcome, {user?.companyName || user?.fullName || "Customer"}</Text>
@@ -129,6 +134,15 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 28 },
   header: { gap: 12, marginBottom: 16 },
   brandRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, flex: 1 },
+  logoSlot: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(213,219,225,0.95)",
+    backgroundColor: "#ffffff",
+  },
   headerActions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   eyebrow: { color: "#c2410c", fontSize: 10, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" },
   heading: { color: "#111827", fontSize: 20, fontWeight: "800", lineHeight: 26 },

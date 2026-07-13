@@ -315,6 +315,16 @@
       0 0 22px rgba(255, 255, 255, 0.34);
     animation: shipment-summary-pulse 1.15s ease-in-out infinite;
   }
+  .shipment-card__change-pill {
+    display: inline-block;
+    padding: 0.18rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.86),
+      0 0 14px rgba(255, 255, 255, 0.34);
+    animation: shipment-change-pill-pulse 1.2s ease-in-out infinite;
+  }
   .shipment-card--changed {
     border-color: rgba(255, 255, 255, 0.72) !important;
     box-shadow:
@@ -951,6 +961,19 @@
       0 0 0 2px rgba(255, 255, 255, 1),
       0 0 0 6px rgba(15, 23, 42, 0.46),
       0 0 28px rgba(255, 255, 255, 0.44);
+  }
+}
+
+@keyframes shipment-change-pill-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.82),
+      0 0 12px rgba(255, 255, 255, 0.26);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 1),
+      0 0 22px rgba(255, 255, 255, 0.46);
   }
 }
 
