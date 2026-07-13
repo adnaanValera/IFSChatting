@@ -326,17 +326,14 @@ export default function CustomerDashboard() {
         <div className="mb-5 sm:mb-8 rounded-2xl border border-border bg-card text-card-foreground shadow-sm glow-card p-4 sm:p-6">
           <div className="flex flex-col gap-5">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-              <div className="flex items-center gap-4 min-w-0">
-                <img src={CUSTOMER_BADGE_URL} alt={companyName} className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover border border-primary/20 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Secure Consignee Portal</p>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-secondary dark:text-white leading-tight">
-                    Welcome back, {companyName}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Review your active consignments and latest shipment changes.
-                  </p>
-                </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Secure Consignee Portal</p>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-secondary dark:text-white leading-tight">
+                  Welcome back, {companyName}
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Review your active consignments and latest shipment changes.
+                </p>
               </div>
               <button
                 type="button"

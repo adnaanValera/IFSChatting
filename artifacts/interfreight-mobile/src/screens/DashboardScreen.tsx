@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
@@ -8,8 +8,6 @@ import type { Shipment } from "../types";
 import { LogoSpinner } from "../components/LogoSpinner";
 import { ShipmentCard } from "../components/ShipmentCard";
 import { appPalette } from "../theme";
-
-const fullLogo = require("../assets/interfreight-full-logo.png");
 
 async function fetchShipments(token: string): Promise<Shipment[]> {
   const res = await fetch(`${API_BASE_URL}/api/shipments`, {
@@ -68,9 +66,8 @@ export function DashboardScreen({ navigation }: any) {
           <>
             <View style={styles.header}>
               <View style={styles.brandRow}>
-                <Image source={fullLogo} style={styles.logo} resizeMode="contain" />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.eyebrow, { color: palette.accentSoft }]}>Customer Dashboard</Text>
+                  <Text style={[styles.eyebrow, { color: palette.accentSoft }]}>My Tracking</Text>
                   <Text style={[styles.heading, { color: palette.text }]}>Welcome, {user?.companyName || user?.fullName || "Customer"}</Text>
                 </View>
               </View>
@@ -133,7 +130,6 @@ const styles = StyleSheet.create({
   header: { gap: 12, marginBottom: 16 },
   brandRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, flex: 1 },
   headerActions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  logo: { width: 126, height: 54, marginTop: 2 },
   eyebrow: { color: "#c2410c", fontSize: 10, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" },
   heading: { color: "#111827", fontSize: 20, fontWeight: "800", lineHeight: 26 },
   logout: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, backgroundColor: "#18222c" },

@@ -9,7 +9,7 @@ type AppSplashProps = {
 };
 
 export function AppSplash({ appReady, onFinish }: AppSplashProps) {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const [reduceMotion, setReduceMotion] = useState(false);
   const [visible, setVisible] = useState(true);
   const [minDurationElapsed, setMinDurationElapsed] = useState(false);
@@ -17,6 +17,8 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.96)).current;
   const wipeX = useRef(new Animated.Value(-240)).current;
+  const logoTranslateX = useRef(new Animated.Value(0)).current;
+  const logoTranslateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => undefined);
@@ -34,6 +36,8 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
       logoOpacity.setValue(1);
       logoScale.setValue(1);
       wipeX.setValue(240);
+      logoTranslateX.setValue(0);
+      logoTranslateY.setValue(0);
       return;
     }
 
@@ -57,18 +61,53 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [logoOpacity, logoScale, reduceMotion, wipeX]);
+  }, [logoOpacity, logoScale, reduceMotion, wipeX, logoTranslateX, logoTranslateY]);
 
   useEffect(() => {
     if (!appReady || !visible || !minDurationElapsed) return;
 
     const startExit = () => {
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: reduceMotion ? 180 : 400,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start(() => {
+      if (reduceMotion) {
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 180,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }).start(() => {
+          setVisible(false);
+          onFinish();
+        });
+        return;
+      }
+
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(logoScale, {
+            toValue: 0.24,
+            duration: 760,
+            easing: Easing.inOut(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(logoTranslateX, {
+            toValue: -(width * 0.27),
+            duration: 760,
+            easing: Easing.inOut(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(logoTranslateY, {
+            toValue: -(height * 0.39),
+            duration: 760,
+            easing: Easing.inOut(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 260,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
         setVisible(false);
         onFinish();
       });
@@ -76,7 +115,7 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
 
     const timer = setTimeout(startExit, reduceMotion ? 150 : 450);
     return () => clearTimeout(timer);
-  }, [appReady, minDurationElapsed, onFinish, opacity, reduceMotion, visible]);
+  }, [appReady, minDurationElapsed, onFinish, opacity, reduceMotion, visible, width, height, logoScale, logoTranslateX, logoTranslateY]);
 
   if (!visible) return null;
 
@@ -91,7 +130,7 @@ export function AppSplash({ appReady, onFinish }: AppSplashProps) {
               width: Math.min(width * 0.78, 340),
               height: Math.min(width * 0.78, 340),
               opacity: logoOpacity,
-              transform: [{ scale: logoScale }],
+              transform: [{ translateX: logoTranslateX }, { translateY: logoTranslateY }, { scale: logoScale }],
             }}
           />
           {!reduceMotion && (
