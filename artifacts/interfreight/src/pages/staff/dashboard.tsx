@@ -336,6 +336,7 @@ export default function Dashboard() {
   const [signupHistory, setSignupHistory] = useState<PendingSignup[]>([]);
   const [pendingSignupsLoading, setPendingSignupsLoading] = useState(false);
   const [pendingSignupAction, setPendingSignupAction] = useState<string | null>(null);
+  const [clearingSignupId, setClearingSignupId] = useState<number | null>(null);
   const [pendingSignupPictures, setPendingSignupPictures] = useState<Record<number, string>>({});
 
   const { data: user } = useGetMe();
@@ -428,6 +429,32 @@ export default function Dashboard() {
       toast({ variant: "destructive", title: "Action failed", description: err.message });
     } finally {
       setPendingSignupAction(null);
+    }
+  };
+
+  const clearSignupRequest = async (id: number) => {
+    setClearingSignupId(id);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/pending-signups/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok && res.status !== 204) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Could not clear signup request");
+      }
+      toast({
+        title: "Signup request cleared",
+        description: "That person can now sign up again from scratch.",
+      });
+      await loadPendingSignups();
+      await loadSignupHistory();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Clear failed", description: err.message });
+    } finally {
+      setClearingSignupId(null);
     }
   };
 
@@ -2245,6 +2272,7 @@ export default function Dashboard() {
                           <th className="px-4 py-3">Status</th>
                           <th className="px-4 py-3">Requested</th>
                           <th className="px-4 py-3">Reviewed</th>
+                          <th className="px-4 py-3 text-right">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
@@ -2271,6 +2299,21 @@ export default function Dashboard() {
                             <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                               {signup.reviewedAt ? formatDate(signup.reviewedAt) : "N/A"}
                               {signup.reviewedBy && <div className="text-[11px]">{signup.reviewedBy}</div>}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {signup.status !== "approved" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => clearSignupRequest(signup.id)}
+                                  disabled={clearingSignupId === signup.id || !!pendingSignupAction}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+                                >
+                                  {clearingSignupId === signup.id ? <Spinner className="h-[14px] w-[14px]" /> : <Trash2 size={14} />}
+                                  Clear
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-muted-foreground">Locked</span>
+                              )}
                             </td>
                           </tr>
                         ))}

@@ -2474,6 +2474,21 @@ router.post("/staff/pending-signups/:id/reject", requireAuth, requireStaff, asyn
   res.status(204).send();
 });
 
+router.delete("/staff/pending-signups/:id", requireAuth, requireStaff, async (req, res) => {
+  const id = Number(req.params["id"]);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid pending signup id" }); return; }
+
+  const [pending] = await db.select().from(pendingSignupsTable).where(eq(pendingSignupsTable.id, id)).limit(1);
+  if (!pending) { res.status(404).json({ error: "Signup request not found" }); return; }
+  if (pending.status === "approved") {
+    res.status(400).json({ error: "Approved signup requests cannot be cleared here." });
+    return;
+  }
+
+  await db.delete(pendingSignupsTable).where(eq(pendingSignupsTable.id, id));
+  res.status(204).send();
+});
+
 router.get("/staff/users", requireAuth, requireAdmin, async (_req, res) => {
   const users = await db
     .select({
