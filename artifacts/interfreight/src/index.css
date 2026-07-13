@@ -432,7 +432,7 @@
     aspect-ratio: 1 / 1;
     transform: translate(-50%, -50%);
     transition:
-      transform 3000ms linear,
+      transform 2500ms linear,
       opacity 220ms linear;
     will-change: transform;
   }
