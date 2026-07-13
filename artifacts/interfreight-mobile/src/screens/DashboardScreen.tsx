@@ -56,13 +56,6 @@ export function DashboardScreen({ navigation }: any) {
         easing: Easing.linear,
         useNativeDriver: true,
       }),
-      Animated.delay(260),
-      Animated.timing(introOpacity, {
-        toValue: 0,
-        duration: 140,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
     ]).start(() => setShowIntro(false));
   }, [introOpacity, introProgress, logoTarget]);
 
@@ -144,7 +137,7 @@ export function DashboardScreen({ navigation }: any) {
           <>
             <View style={styles.header}>
               <View style={styles.brandRow}>
-                <View ref={logoSlotRef} style={[styles.logoSlot, showIntro && styles.logoSlotHidden]}>
+                <View ref={logoSlotRef} style={styles.logoSlot}>
                   <Image source={topLogo} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -231,9 +224,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(213,219,225,0.95)",
     backgroundColor: "#ffffff",
-  },
-  logoSlotHidden: {
-    opacity: 0,
   },
   headerActions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   eyebrow: { color: "#c2410c", fontSize: 10, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" },

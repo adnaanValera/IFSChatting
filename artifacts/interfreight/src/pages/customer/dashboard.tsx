@@ -325,12 +325,12 @@ export default function CustomerDashboard() {
             alt=""
             initial={{ opacity: 0, scale: 1, x: 0, y: 0 }}
             animate={{
-              opacity: [0, 1, 1, 1, 0],
-              scale: [1, 1, 0.22, 0.22, 0.22],
-              x: [0, 0, logoTarget?.x ?? 0, logoTarget?.x ?? 0, logoTarget?.x ?? 0],
-              y: [0, 0, logoTarget?.y ?? 0, logoTarget?.y ?? 0, logoTarget?.y ?? 0],
+              opacity: [0, 1, 1, 1],
+              scale: [1, 1, 0.22, 0.22],
+              x: [0, 0, logoTarget?.x ?? 0, logoTarget?.x ?? 0],
+              y: [0, 0, logoTarget?.y ?? 0, logoTarget?.y ?? 0],
             }}
-            transition={{ duration: 6.8, ease: "linear", times: [0, 0.1, 0.96, 0.99, 1] }}
+            transition={{ duration: 6.8, ease: "linear", times: [0, 0.1, 0.97, 1] }}
             className="dashboard-intro-logo"
           />
         </div>
@@ -340,7 +340,7 @@ export default function CustomerDashboard() {
       <div className="bg-secondary text-secondary-foreground shadow-lg sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <img ref={logoTargetRef} src={CUSTOMER_BADGE_URL} alt={typedUser?.fullName || typedUser?.name || "Profile"} className={`h-10 w-10 rounded-xl object-cover border border-white/15 shrink-0 ${showIntro ? "opacity-0" : "opacity-100"} transition-opacity duration-200`} />
+            <img ref={logoTargetRef} src={CUSTOMER_BADGE_URL} alt={typedUser?.fullName || typedUser?.name || "Profile"} className="h-10 w-10 rounded-xl object-cover border border-white/15 shrink-0" />
             <div className="min-w-0">
               <p className="text-xs text-gray-400 uppercase tracking-widest">My Tracking</p>
               <h1 className="text-sm sm:text-lg font-bold text-white leading-tight truncate">
