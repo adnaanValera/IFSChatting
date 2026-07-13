@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useGetMe, useListShipments } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -172,6 +172,8 @@ export default function CustomerDashboard() {
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
   const [seenChangeTokens, setSeenChangeTokens] = useState<Set<string>>(() => new Set(readSeenChangeTokens()));
   const [showIntro, setShowIntro] = useState(true);
+  const logoTargetRef = useRef<HTMLImageElement | null>(null);
+  const [logoTarget, setLogoTarget] = useState<{ x: number; y: number } | null>(null);
   const { canInstall, promptInstall } = useInstallPrompt();
 
   useEffect(() => {
@@ -181,8 +183,22 @@ export default function CustomerDashboard() {
   }, [user]);
 
   useEffect(() => {
+    const measure = () => {
+      const rect = logoTargetRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setLogoTarget({
+        x: rect.left + rect.width / 2 - window.innerWidth / 2,
+        y: rect.top + rect.height / 2 - window.innerHeight / 2,
+      });
+    };
+    const frame = window.requestAnimationFrame(measure);
     const timer = window.setTimeout(() => setShowIntro(false), 1600);
-    return () => window.clearTimeout(timer);
+    window.addEventListener("resize", measure);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+      window.removeEventListener("resize", measure);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -302,8 +318,13 @@ export default function CustomerDashboard() {
           <motion.img
             src={CUSTOMER_BADGE_URL}
             alt=""
-            initial={{ opacity: 0, scale: 1.14, x: 120, y: 220 }}
-            animate={{ opacity: [1, 1, 0], scale: [1, 0.28, 0.28], x: [120, 0, 0], y: [220, 0, 0] }}
+            initial={{ opacity: 0, scale: 1.08, x: 0, y: 0 }}
+            animate={{
+              opacity: [1, 1, 0],
+              scale: [1, 0.22, 0.22],
+              x: [0, logoTarget?.x ?? 0, logoTarget?.x ?? 0],
+              y: [0, logoTarget?.y ?? 0, logoTarget?.y ?? 0],
+            }}
             transition={{ duration: 1.45, ease: "easeInOut", times: [0, 0.8, 1] }}
             className="dashboard-intro-logo"
           />
@@ -320,7 +341,7 @@ export default function CustomerDashboard() {
       <div className="bg-secondary text-secondary-foreground shadow-lg sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <img src={CUSTOMER_BADGE_URL} alt={typedUser?.fullName || typedUser?.name || "Profile"} className="h-10 w-10 rounded-xl object-cover border border-white/15 shrink-0" />
+            <img ref={logoTargetRef} src={CUSTOMER_BADGE_URL} alt={typedUser?.fullName || typedUser?.name || "Profile"} className={`h-10 w-10 rounded-xl object-cover border border-white/15 shrink-0 ${showIntro ? "opacity-0" : "opacity-100"} transition-opacity duration-200`} />
             <div className="min-w-0">
               <p className="text-xs text-gray-400 uppercase tracking-widest">My Tracking</p>
               <h1 className="text-sm sm:text-lg font-bold text-white leading-tight truncate">

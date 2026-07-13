@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
+import { Animated, Easing, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
@@ -29,20 +29,28 @@ function activeSectionCount(shipments: Shipment[], label: string) {
 export function DashboardScreen({ navigation }: any) {
   const { token, user, signOut } = useAuth();
   const palette = appPalette();
+  const { width, height } = useWindowDimensions();
   const [search, setSearch] = useState("");
+  const logoSlotRef = useRef<View | null>(null);
+  const [logoTarget, setLogoTarget] = useState<{ x: number; y: number } | null>(null);
   const introOpacity = useRef(new Animated.Value(0)).current;
-  const introScale = useRef(new Animated.Value(1.14)).current;
-  const introTranslateX = useRef(new Animated.Value(88)).current;
-  const introTranslateY = useRef(new Animated.Value(188)).current;
+  const introScale = useRef(new Animated.Value(1.08)).current;
+  const introTranslateX = useRef(new Animated.Value(0)).current;
+  const introTranslateY = useRef(new Animated.Value(0)).current;
   const wipeX = useRef(new Animated.Value(-120)).current;
   const [showIntro, setShowIntro] = useState(true);
 
   useEffect(() => {
+    if (!logoTarget) return;
+    const finalScale = 44 / 180;
+    const targetTranslateX = logoTarget.x - width / 2;
+    const targetTranslateY = logoTarget.y - height / 2;
+
     Animated.sequence([
       Animated.parallel([
         Animated.timing(introOpacity, {
           toValue: 1,
-          duration: 320,
+          duration: 360,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
@@ -61,20 +69,20 @@ export function DashboardScreen({ navigation }: any) {
       ]),
       Animated.parallel([
         Animated.timing(introTranslateX, {
-          toValue: 0,
-          duration: 820,
+          toValue: targetTranslateX,
+          duration: 920,
           easing: Easing.inOut(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(introTranslateY, {
-          toValue: 0,
-          duration: 820,
+          toValue: targetTranslateY,
+          duration: 920,
           easing: Easing.inOut(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(introScale, {
-          toValue: 0.28,
-          duration: 820,
+          toValue: finalScale,
+          duration: 920,
           easing: Easing.inOut(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -86,7 +94,16 @@ export function DashboardScreen({ navigation }: any) {
         useNativeDriver: true,
       }),
     ]).start(() => setShowIntro(false));
-  }, [introOpacity, introScale, introTranslateX, introTranslateY, wipeX]);
+  }, [height, introOpacity, introScale, introTranslateX, introTranslateY, logoTarget, width, wipeX]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      logoSlotRef.current?.measureInWindow((x, y, w, h) => {
+        setLogoTarget({ x: x + w / 2, y: y + h / 2 });
+      });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, []);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["mobile-shipments", token],
@@ -150,7 +167,7 @@ export function DashboardScreen({ navigation }: any) {
           <>
             <View style={styles.header}>
               <View style={styles.brandRow}>
-                <View style={styles.logoSlot}>
+                <View ref={logoSlotRef} style={[styles.logoSlot, showIntro && styles.logoSlotHidden]}>
                   <Image source={topLogo} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -248,6 +265,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(213,219,225,0.95)",
     backgroundColor: "#ffffff",
+  },
+  logoSlotHidden: {
+    opacity: 0,
   },
   headerActions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   eyebrow: { color: "#c2410c", fontSize: 10, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" },
