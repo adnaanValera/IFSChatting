@@ -318,20 +318,20 @@ export default function CustomerDashboard() {
           <motion.img
             src={CUSTOMER_BADGE_URL}
             alt=""
-            initial={{ opacity: 0, scale: 1.08, x: 0, y: 0 }}
+            initial={{ opacity: 0, scale: 1.12, x: 0, y: 0 }}
             animate={{
-              opacity: [1, 1, 0],
-              scale: [1, 0.22, 0.22],
-              x: [0, logoTarget?.x ?? 0, logoTarget?.x ?? 0],
-              y: [0, logoTarget?.y ?? 0, logoTarget?.y ?? 0],
+              opacity: [0, 1, 1, 1, 0],
+              scale: [1.12, 1, 1, 0.22, 0.22],
+              x: [0, 0, 0, logoTarget?.x ?? 0, logoTarget?.x ?? 0],
+              y: [0, 0, 0, logoTarget?.y ?? 0, logoTarget?.y ?? 0],
             }}
-            transition={{ duration: 1.45, ease: "easeInOut", times: [0, 0.8, 1] }}
+            transition={{ duration: 2.45, ease: [0.22, 1, 0.36, 1], times: [0, 0.22, 0.42, 0.9, 1] }}
             className="dashboard-intro-logo"
           />
           <motion.div
             initial={{ x: -140, rotate: -16, opacity: 0 }}
-            animate={{ x: 140, rotate: -16, opacity: [0.15, 0.32, 0] }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            animate={{ x: [-140, -140, 156], rotate: -16, opacity: [0, 0.12, 0.32, 0] }}
+            transition={{ duration: 0.92, ease: "easeOut", times: [0, 0.25, 0.8, 1], delay: 0.5 }}
             className="dashboard-intro-wipe"
           />
         </div>

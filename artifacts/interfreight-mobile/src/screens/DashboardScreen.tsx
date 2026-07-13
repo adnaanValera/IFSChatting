@@ -34,7 +34,7 @@ export function DashboardScreen({ navigation }: any) {
   const logoSlotRef = useRef<View | null>(null);
   const [logoTarget, setLogoTarget] = useState<{ x: number; y: number } | null>(null);
   const introOpacity = useRef(new Animated.Value(0)).current;
-  const introScale = useRef(new Animated.Value(1.08)).current;
+  const introScale = useRef(new Animated.Value(1.12)).current;
   const introTranslateX = useRef(new Animated.Value(0)).current;
   const introTranslateY = useRef(new Animated.Value(0)).current;
   const wipeX = useRef(new Animated.Value(-120)).current;
@@ -50,46 +50,49 @@ export function DashboardScreen({ navigation }: any) {
       Animated.parallel([
         Animated.timing(introOpacity, {
           toValue: 1,
-          duration: 360,
+          duration: 520,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(introScale, {
           toValue: 1,
-          duration: 420,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(wipeX, {
-          toValue: 120,
-          duration: 520,
+          duration: 620,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]),
+      Animated.delay(260),
+      Animated.timing(wipeX, {
+        toValue: 140,
+        duration: 620,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.delay(120),
       Animated.parallel([
         Animated.timing(introTranslateX, {
           toValue: targetTranslateX,
-          duration: 920,
+          duration: 1320,
           easing: Easing.inOut(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(introTranslateY, {
           toValue: targetTranslateY,
-          duration: 920,
+          duration: 1320,
           easing: Easing.inOut(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(introScale, {
           toValue: finalScale,
-          duration: 920,
+          duration: 1320,
           easing: Easing.inOut(Easing.cubic),
           useNativeDriver: true,
         }),
       ]),
+      Animated.delay(80),
       Animated.timing(introOpacity, {
         toValue: 0,
-        duration: 220,
+        duration: 260,
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }),
