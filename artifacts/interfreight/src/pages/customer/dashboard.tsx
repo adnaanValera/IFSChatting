@@ -198,8 +198,8 @@ export default function CustomerDashboard() {
     const morphTimer = window.setTimeout(() => {
       measure();
       setIntroMorphing(true);
-    }, 720);
-    const hideTimer = window.setTimeout(() => setShowIntro(false), 6200);
+    }, 520);
+    const hideTimer = window.setTimeout(() => setShowIntro(false), 4580);
     window.addEventListener("resize", measure);
     return () => {
       window.cancelAnimationFrame(frame);
