@@ -44,6 +44,8 @@ export function DashboardScreen({ navigation }: any) {
     const finalScale = 44 / 180;
     const targetTranslateX = logoTarget.x - width / 2;
     const targetTranslateY = logoTarget.y - height / 2;
+    const midwayFactor = 0.78;
+    const midwayScale = 0.42;
 
     Animated.sequence([
       Animated.parallel([
@@ -63,21 +65,41 @@ export function DashboardScreen({ navigation }: any) {
       Animated.delay(560),
       Animated.parallel([
         Animated.timing(introTranslateX, {
+          toValue: targetTranslateX * midwayFactor,
+          duration: 1560,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(introTranslateY, {
+          toValue: targetTranslateY * midwayFactor,
+          duration: 1560,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(introScale, {
+          toValue: midwayScale,
+          duration: 1560,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(introTranslateX, {
           toValue: targetTranslateX,
-          duration: 2360,
-          easing: Easing.bezier(0.2, 0.92, 0.24, 1),
+          duration: 1520,
+          easing: Easing.bezier(0.16, 0.9, 0.18, 1),
           useNativeDriver: true,
         }),
         Animated.timing(introTranslateY, {
           toValue: targetTranslateY,
-          duration: 2360,
-          easing: Easing.bezier(0.2, 0.92, 0.24, 1),
+          duration: 1520,
+          easing: Easing.bezier(0.16, 0.9, 0.18, 1),
           useNativeDriver: true,
         }),
         Animated.timing(introScale, {
           toValue: finalScale,
-          duration: 2360,
-          easing: Easing.bezier(0.2, 0.92, 0.24, 1),
+          duration: 1520,
+          easing: Easing.bezier(0.16, 0.9, 0.18, 1),
           useNativeDriver: true,
         }),
       ]),
@@ -220,7 +242,7 @@ const styles = StyleSheet.create({
   introOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 30,
-    backgroundColor: "#ffffff",
+    backgroundColor: "transparent",
   },
   introStage: {
     flex: 1,

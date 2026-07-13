@@ -421,7 +421,7 @@
     display: grid;
     place-items: center;
     pointer-events: none;
-    background: rgba(255, 255, 255, 0.98);
+    background: transparent;
     overflow: hidden;
   }
   .dashboard-intro-logo {
@@ -429,6 +429,7 @@
     aspect-ratio: 1 / 1;
     border-radius: 2rem;
     object-fit: cover;
+    filter: drop-shadow(0 16px 34px rgba(15, 23, 42, 0.14));
   }
   .dashboard-intro-wipe {
     position: absolute;

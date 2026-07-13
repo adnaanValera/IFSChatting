@@ -170,6 +170,7 @@ export default function CustomerDashboard() {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [search, setSearch] = useState("");
   const [showChangedOnly, setShowChangedOnly] = useState(false);
+  const [changedOnlyRefs, setChangedOnlyRefs] = useState<string[] | null>(null);
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
   const [seenChangeTokens, setSeenChangeTokens] = useState<Set<string>>(() => new Set(readSeenChangeTokens()));
   const [showIntro, setShowIntro] = useState(true);
@@ -289,11 +290,12 @@ export default function CustomerDashboard() {
       .map(([ifsRef]) => ifsRef),
   ]);
   const hasShipmentChanges = changedShipmentRefs.size > 0;
+  const activeChangedFilter = changedOnlyRefs ? new Set(changedOnlyRefs) : changedShipmentRefs;
   const filteredShipments = useMemo(() => (
     showChangedOnly
-      ? searchedShipments.filter((shipment: any) => changedShipmentRefs.has(shipment.ifsRef))
+      ? searchedShipments.filter((shipment: any) => activeChangedFilter.has(shipment.ifsRef))
       : searchedShipments
-  ), [changedShipmentRefs, searchedShipments, showChangedOnly]);
+  ), [activeChangedFilter, searchedShipments, showChangedOnly]);
   const sectionRows = STATUS_SECTIONS.map((section) => ({
     ...section,
     rows: filteredShipments.filter((shipment: any) => shipmentSectionLabel(shipment) === section.reportLabel),
@@ -324,11 +326,11 @@ export default function CustomerDashboard() {
             initial={{ opacity: 0, scale: 1.12, x: 0, y: 0 }}
             animate={{
               opacity: [0, 1, 1, 1, 0],
-              scale: [1.12, 1, 1, 0.22, 0.22],
-              x: [0, 0, 0, logoTarget?.x ?? 0, logoTarget?.x ?? 0],
-              y: [0, 0, 0, logoTarget?.y ?? 0, logoTarget?.y ?? 0],
+              scale: [1.12, 1, 1, 0.4, 0.22, 0.22],
+              x: [0, 0, 0, (logoTarget?.x ?? 0) * 0.78, logoTarget?.x ?? 0, logoTarget?.x ?? 0],
+              y: [0, 0, 0, (logoTarget?.y ?? 0) * 0.78, logoTarget?.y ?? 0, logoTarget?.y ?? 0],
             }}
-            transition={{ duration: 4.2, ease: [0.2, 0.92, 0.24, 1], times: [0, 0.17, 0.42, 0.95, 1] }}
+            transition={{ duration: 4.9, ease: [0.16, 0.9, 0.18, 1], times: [0, 0.15, 0.38, 0.74, 0.97, 1] }}
             className="dashboard-intro-logo"
           />
         </div>
@@ -392,6 +394,7 @@ export default function CustomerDashboard() {
                     type="button"
                     onClick={() => {
                       setSearch("");
+                      setChangedOnlyRefs([...changedShipmentRefs]);
                       setShowChangedOnly(true);
                       window.requestAnimationFrame(() => {
                         document.getElementById("customer-shipments")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -501,11 +504,14 @@ export default function CustomerDashboard() {
             </div>
             {showChangedOnly && (
               <button
-                type="button"
-                onClick={() => setShowChangedOnly(false)}
-                className="inline-flex items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-500/15"
-              >
-                Showing changed cards
+              type="button"
+              onClick={() => {
+                setShowChangedOnly(false);
+                setChangedOnlyRefs(null);
+              }}
+              className="inline-flex items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-500/15"
+            >
+              Showing changed cards
               </button>
             )}
           </div>
