@@ -34,19 +34,11 @@ export function DashboardScreen({ navigation }: any) {
   const logoSlotRef = useRef<View | null>(null);
   const [logoTarget, setLogoTarget] = useState<{ x: number; y: number } | null>(null);
   const introOpacity = useRef(new Animated.Value(0)).current;
-  const introScale = useRef(new Animated.Value(1.12)).current;
-  const introTranslateX = useRef(new Animated.Value(0)).current;
-  const introTranslateY = useRef(new Animated.Value(0)).current;
+  const introProgress = useRef(new Animated.Value(0)).current;
   const [showIntro, setShowIntro] = useState(true);
 
   useEffect(() => {
     if (!logoTarget) return;
-    const finalScale = 44 / 180;
-    const targetTranslateX = logoTarget.x - width / 2;
-    const targetTranslateY = logoTarget.y - height / 2;
-    const stageOneFactor = 0.18;
-    const stageTwoFactor = 0.48;
-    const stageThreeFactor = 0.78;
 
     Animated.sequence([
       Animated.parallel([
@@ -56,94 +48,14 @@ export function DashboardScreen({ navigation }: any) {
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
-        Animated.timing(introScale, {
-          toValue: 1,
-          duration: 900,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
       ]),
       Animated.delay(560),
-      Animated.parallel([
-        Animated.timing(introTranslateX, {
-          toValue: targetTranslateX * stageOneFactor,
-          duration: 720,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(introTranslateY, {
-          toValue: targetTranslateY * stageOneFactor,
-          duration: 720,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(introScale, {
-          toValue: 0.76,
-          duration: 720,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.parallel([
-        Animated.timing(introTranslateX, {
-          toValue: targetTranslateX * stageTwoFactor,
-          duration: 960,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(introTranslateY, {
-          toValue: targetTranslateY * stageTwoFactor,
-          duration: 960,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(introScale, {
-          toValue: 0.46,
-          duration: 960,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.parallel([
-        Animated.timing(introTranslateX, {
-          toValue: targetTranslateX * stageThreeFactor,
-          duration: 920,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(introTranslateY, {
-          toValue: targetTranslateY * stageThreeFactor,
-          duration: 920,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(introScale, {
-          toValue: 0.3,
-          duration: 920,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.parallel([
-        Animated.timing(introTranslateX, {
-          toValue: targetTranslateX,
-          duration: 1180,
-          easing: Easing.bezier(0.16, 0.9, 0.18, 1),
-          useNativeDriver: true,
-        }),
-        Animated.timing(introTranslateY, {
-          toValue: targetTranslateY,
-          duration: 1180,
-          easing: Easing.bezier(0.16, 0.9, 0.18, 1),
-          useNativeDriver: true,
-        }),
-        Animated.timing(introScale, {
-          toValue: finalScale,
-          duration: 1180,
-          easing: Easing.bezier(0.16, 0.9, 0.18, 1),
-          useNativeDriver: true,
-        }),
-      ]),
+      Animated.timing(introProgress, {
+        toValue: 1,
+        duration: 3360,
+        easing: Easing.bezier(0.16, 0.88, 0.2, 1),
+        useNativeDriver: true,
+      }),
       Animated.delay(220),
       Animated.timing(introOpacity, {
         toValue: 0,
@@ -152,7 +64,7 @@ export function DashboardScreen({ navigation }: any) {
         useNativeDriver: true,
       }),
     ]).start(() => setShowIntro(false));
-  }, [height, introOpacity, introScale, introTranslateX, introTranslateY, logoTarget, width]);
+  }, [introOpacity, introProgress, logoTarget]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -187,6 +99,19 @@ export function DashboardScreen({ navigation }: any) {
       ].some((value) => String(value || "").toLowerCase().includes(query)),
     );
   }, [search, shipments]);
+
+  const introTranslateX = introProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, (logoTarget?.x ?? width / 2) - width / 2],
+  });
+  const introTranslateY = introProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, (logoTarget?.y ?? height / 2) - height / 2],
+  });
+  const introScale = introProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 44 / 180],
+  });
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: palette.background }]}>

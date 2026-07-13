@@ -325,28 +325,12 @@ export default function CustomerDashboard() {
             alt=""
             initial={{ opacity: 0, scale: 1.08, x: 0, y: 0 }}
             animate={{
-              opacity: [0, 1, 1, 1, 1, 1, 0],
-              scale: [1.08, 1, 1, 0.76, 0.46, 0.22, 0.22],
-              x: [
-                0,
-                0,
-                (logoTarget?.x ?? 0) * 0.18,
-                (logoTarget?.x ?? 0) * 0.48,
-                (logoTarget?.x ?? 0) * 0.78,
-                logoTarget?.x ?? 0,
-                logoTarget?.x ?? 0,
-              ],
-              y: [
-                0,
-                0,
-                (logoTarget?.y ?? 0) * 0.18,
-                (logoTarget?.y ?? 0) * 0.48,
-                (logoTarget?.y ?? 0) * 0.78,
-                logoTarget?.y ?? 0,
-                logoTarget?.y ?? 0,
-              ],
+              opacity: [0, 1, 1, 1, 0],
+              scale: [1.08, 1, 1, 0.22, 0.22],
+              x: [0, 0, logoTarget?.x ?? 0, logoTarget?.x ?? 0, logoTarget?.x ?? 0],
+              y: [0, 0, logoTarget?.y ?? 0, logoTarget?.y ?? 0, logoTarget?.y ?? 0],
             }}
-            transition={{ duration: 5.4, ease: [0.16, 0.9, 0.18, 1], times: [0, 0.12, 0.24, 0.46, 0.72, 0.97, 1] }}
+            transition={{ duration: 5, ease: [0.16, 0.88, 0.2, 1], times: [0, 0.14, 0.24, 0.97, 1] }}
             className="dashboard-intro-logo"
           />
         </div>
