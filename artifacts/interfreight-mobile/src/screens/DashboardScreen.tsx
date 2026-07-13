@@ -52,8 +52,8 @@ export function DashboardScreen({ navigation }: any) {
       Animated.delay(720),
       Animated.timing(introProgress, {
         toValue: 1,
-        duration: 4280,
-        easing: Easing.bezier(0.16, 0.88, 0.2, 1),
+        duration: 5200,
+        easing: Easing.linear,
         useNativeDriver: true,
       }),
       Animated.delay(260),
