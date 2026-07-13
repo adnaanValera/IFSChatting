@@ -351,13 +351,15 @@ async function processAsycudaWorkbook(
       const row = rows[r] ?? [];
       const chargeBlank = asycudaValueString(row[chargeCol]) === "";
       if (chargeBlank) summary.remaining++;
-      if (filterBlanks) sheet.getRow(r + 1).hidden = !chargeBlank;
+      sheet.getRow(r + 1).hidden = filterBlanks ? !chargeBlank : false;
     }
     if (filterBlanks && sheet.dimensions) {
       sheet.autoFilter = {
         from: { row: sheet.dimensions.top, column: sheet.dimensions.left },
         to: { row: sheet.dimensions.bottom, column: sheet.dimensions.right },
       };
+    } else {
+      sheet.autoFilter = undefined;
     }
   }
   return summary;
