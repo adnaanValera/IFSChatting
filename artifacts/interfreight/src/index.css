@@ -430,11 +430,13 @@
     left: 50%;
     width: min(38vw, 180px);
     aspect-ratio: 1 / 1;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(0.92);
     transition:
-      transform 2500ms linear,
+      transform 1780ms linear,
       opacity 220ms linear;
     will-change: transform;
+    opacity: 0;
+    animation: dashboard-intro-appear 540ms ease-out forwards;
   }
   .dashboard-intro-stage--morphing {
     transform:
@@ -449,6 +451,16 @@
     object-fit: cover;
     filter: drop-shadow(0 16px 34px rgba(15, 23, 42, 0.14));
     display: block;
+  }
+  @keyframes dashboard-intro-appear {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.92);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
   }
   .dashboard-intro-wipe {
     position: absolute;
