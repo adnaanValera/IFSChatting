@@ -232,6 +232,7 @@ export default function CustomerDashboard() {
     ...todayUpdatedRefs,
     ...statusChangesByIfsRef.keys(),
   ]);
+  const hasShipmentChanges = changedShipmentRefs.size > 0;
   const sectionRows = STATUS_SECTIONS.map((section) => ({
     ...section,
     rows: filteredShipments.filter((shipment: any) => shipmentSectionLabel(shipment) === section.reportLabel),
@@ -320,7 +321,7 @@ export default function CustomerDashboard() {
                 type="button"
                 onClick={handleDownloadPdf}
                 disabled={isDownloadingPdf || shipmentsLoading || shipments.length === 0}
-                className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-60"
+                className={`inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-60 ${hasShipmentChanges ? "report-download-pulse" : ""}`}
               >
                 {isDownloadingPdf ? <Spinner className="w-4 h-4" /> : <Download size={16} />}
                 Download PDF Report

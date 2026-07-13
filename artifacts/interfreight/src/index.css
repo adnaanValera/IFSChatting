@@ -319,9 +319,8 @@
     animation: shipment-change-glow 0.95s ease-in-out infinite;
   }
   .shipment-card--changed::before {
-    opacity: 1;
-    background:
-      radial-gradient(260px circle at var(--glow-x, 50%) var(--glow-y, 42%), rgba(255,255,255,0.58), transparent 62%);
+    opacity: 0;
+    background: none;
   }
   .shipment-card--changed:hover,
   .shipment-card--changed:focus-within {
@@ -369,6 +368,12 @@
     box-shadow:
       0 0 0 1px rgba(34, 197, 94, 0.2),
       0 0 14px rgba(34, 197, 94, 0.22);
+  }
+  .report-download-pulse {
+    box-shadow:
+      0 0 0 1px rgba(183, 28, 28, 0.2),
+      0 0 16px rgba(183, 28, 28, 0.18);
+    animation: report-download-pulse 1.45s ease-in-out infinite;
   }
   .brand-intro-overlay {
     position: fixed;
@@ -887,6 +892,21 @@
       0 0 0 11px rgba(34, 197, 94, 0.24),
       0 0 40px rgba(34, 197, 94, 0.5),
       0 22px 48px rgba(15, 23, 42, 0.18);
+  }
+}
+
+@keyframes report-download-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(183, 28, 28, 0.28),
+      0 0 16px rgba(183, 28, 28, 0.22),
+      0 10px 26px rgba(183, 28, 28, 0.16);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(183, 28, 28, 0.42),
+      0 0 28px rgba(183, 28, 28, 0.34),
+      0 14px 34px rgba(183, 28, 28, 0.22);
   }
 }
 
