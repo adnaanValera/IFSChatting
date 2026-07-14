@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { BriefcaseBusiness, Check, Users } from "lucide-react";
-import { SavedAccount, savedAccounts, switchSavedAccount } from "@/lib/saved-accounts";
+import { SavedAccount, savedAccounts, setSavedAccounts, switchSavedAccount } from "@/lib/saved-accounts";
 
 const CUSTOMER_BADGE_URL = "/ifs-app-premium.png";
 
@@ -15,8 +15,51 @@ function initials(value?: string) {
 
 export function AccountSwitcher({ currentToken }: { currentToken?: string | null }) {
   const [open, setOpen] = useState(false);
-  const accounts = useMemo(() => savedAccounts(), [open, currentToken]);
+  const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
   const current = accounts.find((account) => account.token === currentToken);
+
+  useEffect(() => {
+    setAccounts(savedAccounts());
+  }, [open, currentToken]);
+
+  useEffect(() => {
+    if (!open || accounts.length === 0) return;
+
+    let cancelled = false;
+
+    const validateAccounts = async () => {
+      const survivors: SavedAccount[] = [];
+      for (const account of accounts) {
+        try {
+          const response = await fetch("/api/auth/me", {
+            headers: { Authorization: `Bearer ${account.token}` },
+          });
+          if (!response.ok) continue;
+          const user = await response.json().catch(() => null);
+          if (!user?.email) continue;
+          survivors.push({
+            ...account,
+            fullName: user.fullName || account.fullName,
+            companyName: user.companyName || account.companyName,
+            email: user.email || account.email,
+            role: user.role || account.role,
+            profilePictureUrl: user.profilePictureUrl || account.profilePictureUrl,
+          });
+        } catch {
+          // Ignore individual account validation failures and just drop invalid entries.
+        }
+      }
+
+      if (cancelled) return;
+      setSavedAccounts(survivors);
+      setAccounts(survivors);
+    };
+
+    void validateAccounts();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   return (
     <div className="relative">

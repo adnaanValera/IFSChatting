@@ -100,7 +100,7 @@ function Spinner({ className, ...props }: React.ComponentProps<"div">) {
       />
       <canvas
         ref={canvasRef}
-        className="h-full w-full"
+        className="h-full w-full scale-[3] sm:scale-110 origin-center"
         aria-hidden="true"
       />
     </div>

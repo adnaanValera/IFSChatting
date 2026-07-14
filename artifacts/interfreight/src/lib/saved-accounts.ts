@@ -44,6 +44,10 @@ export function removeSavedAccountByToken(token?: string | null) {
   localStorage.setItem("intf_saved_accounts", JSON.stringify(accounts));
 }
 
+export function setSavedAccounts(accounts: SavedAccount[]) {
+  localStorage.setItem("intf_saved_accounts", JSON.stringify(accounts.slice(0, 8)));
+}
+
 export function switchSavedAccount(account: SavedAccount) {
   localStorage.setItem("intf_token", account.token);
   localStorage.setItem("intf_session_duration_confirmed", "1");
