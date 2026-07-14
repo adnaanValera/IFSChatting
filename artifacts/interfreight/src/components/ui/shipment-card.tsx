@@ -280,17 +280,17 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
                 {theme.label}
                 {typeLabel ? ` - ${typeLabel}` : ""}
               </p>
-              <div className="flex items-center gap-2 min-w-0">
-                <p className="text-white font-bold text-[13px] sm:text-[15px] leading-tight truncate flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <p className="text-white font-bold text-sm sm:text-[15px] leading-tight truncate max-w-full">
                   {collapsedIdentifier}
                 </p>
-                {s.entry && <span className="hidden sm:inline text-[11px] text-zinc-400 truncate shrink-0">{s.entry}</span>}
+                {s.entry && <span className="text-[11px] text-zinc-400 truncate">{s.entry}</span>}
               </div>
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 items-center">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 <p className="text-[11px] text-zinc-500 truncate">{s.companyName || s.consignee || "N/A"}</p>
-                {s.invoiceNo && <span className="text-[10px] sm:text-[11px] text-zinc-500 truncate shrink-0">Inv: {s.invoiceNo}</span>}
+                {s.invoiceNo && <span className="text-[11px] text-zinc-500 truncate">Inv: {s.invoiceNo}</span>}
               </div>
-              <p className="text-[10px] sm:text-[11px] text-zinc-400 truncate">{s.cargoDescription?.trim() || "N/A"}</p>
+              <p className="text-[11px] text-zinc-400 truncate">{s.cargoDescription?.trim() || "N/A"}</p>
             </div>
           </div>
 
@@ -312,7 +312,7 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
 
       {isOpen && (
         <div className="overflow-hidden">
-          <div className="px-4 sm:px-5 pt-5 pb-5 relative overflow-hidden" style={{ background: theme.headerBg }}>
+          <div className="px-4 sm:px-5 pt-4 pb-4 relative overflow-hidden" style={{ background: theme.headerBg }}>
             <div
               className="absolute inset-0 opacity-10 pointer-events-none"
               style={{
@@ -331,23 +331,23 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
                 : <Ship size={120} strokeWidth={0.7} />}
             </div>
 
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.25em] mb-3 relative z-10" style={{ color: theme.dotColor }}>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.22em] mb-2 relative z-10" style={{ color: theme.dotColor }}>
               {theme.label}
             </p>
 
-            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0 ${theme.iconWrap}`}>
+            <div className="relative z-10 grid grid-cols-[auto_minmax(0,1fr)] gap-3 sm:flex sm:flex-row sm:items-center">
+              <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center shrink-0 ${theme.iconWrap}`}>
                 <span className={theme.iconColor}>{theme.headerIcon}</span>
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-zinc-500 uppercase tracking-widest font-semibold mb-0.5">IFS Ref</p>
-                <p className="text-xl sm:text-2xl font-extrabold text-white leading-tight break-all">
+                <p className="text-[11px] text-zinc-500 uppercase tracking-[0.22em] font-semibold mb-0.5">IFS Ref</p>
+                <p className="text-lg sm:text-2xl font-extrabold text-white leading-tight break-all">
                   {s.ifsRef || "—"}
                 </p>
               </div>
 
-              <div className="flex flex-col items-start sm:items-end gap-1">
+              <div className="col-span-2 flex flex-col items-start sm:col-auto sm:items-end gap-1 pt-1 sm:pt-0">
                 <StatusPill status={s.status} theme={theme} />
                 {statusChange && (
                   <motion.span
@@ -372,11 +372,11 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
           </div>
 
           <div className={`divide-y ${theme.fieldBorder}`}>
-            <div className={`grid grid-cols-1 sm:grid-cols-2 sm:divide-x ${theme.fieldBorder} px-4 sm:px-5`}>
-              <div className="sm:pr-5">
+            <div className={`grid grid-cols-2 px-4 sm:px-5 ${theme.fieldBorder} sm:grid-cols-2 sm:divide-x`}>
+              <div className="pr-3 sm:pr-5">
                 <FieldCell icon={<FileText size={11} />} label="MRA Ref" value={s.mraRef} theme={theme} />
               </div>
-              <div className="sm:pl-5">
+              <div className="pl-3 sm:pl-5">
                 <FieldCell
                   icon={variant === "container" ? <Box size={11} /> : <FileText size={11} />}
                   label={variant === "container" ? "Container No." : "BL / Manifest No."}
@@ -386,17 +386,17 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
               </div>
             </div>
 
-            <div className={`grid grid-cols-1 sm:grid-cols-2 sm:divide-x ${theme.fieldBorder} px-4 sm:px-5`}>
-              <div className="sm:pr-5">
+            <div className={`grid grid-cols-2 px-4 sm:px-5 ${theme.fieldBorder} sm:grid-cols-2 sm:divide-x`}>
+              <div className="pr-3 sm:pr-5">
                 <FieldCell icon={<User size={11} />} label="Shipper" value={s.shipper} theme={theme} />
               </div>
-              <div className="sm:pl-5">
+              <div className="pl-3 sm:pl-5">
                 <FieldCell icon={<User size={11} />} label="Consignee" value={s.consignee || s.companyName} theme={theme} />
               </div>
             </div>
 
-            <div className={`px-4 sm:px-5 flex items-center justify-between gap-4 relative overflow-hidden`} style={{ background: theme.cargoBg }}>
-              <div className="flex-1 py-4">
+            <div className={`px-4 sm:px-5 flex items-center justify-between gap-3 relative overflow-hidden`} style={{ background: theme.cargoBg }}>
+              <div className="flex-1 py-3">
                 <FieldCell icon={<Box size={11} />} label="Cargo Description" value={s.cargoDescription} theme={theme} />
               </div>
               <div className={`shrink-0 opacity-20 ${theme.cargoDecor}`} style={{ color: theme.dotColor }}>
@@ -408,14 +408,14 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
               </div>
             </div>
 
-            <div className={`grid grid-cols-1 sm:grid-cols-3 sm:divide-x ${theme.fieldBorder} px-4 sm:px-5`}>
-              <div className="sm:pr-5">
+            <div className={`grid grid-cols-3 px-4 sm:px-5 ${theme.fieldBorder} sm:grid-cols-3 sm:divide-x`}>
+              <div className="pr-2 sm:pr-5">
                 <FieldCell icon={<FileText size={11} />} label="Invoice No." value={s.invoiceNo} theme={theme} />
               </div>
-              <div className="sm:px-5">
+              <div className="px-2 sm:px-5">
                 <FieldCell icon={<Anchor size={11} />} label="POD" value={s.pod} theme={theme} />
               </div>
-              <div className="sm:pl-5">
+              <div className="pl-2 sm:pl-5">
                 <FieldCell icon={<MapPin size={11} />} label="Entry" value={s.entry} theme={theme} />
               </div>
             </div>
@@ -426,7 +426,7 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
 
             <ShipmentJourney status={s.status} theme={theme} variant={variant} sourceSection={sourceSection} />
 
-            <div className="px-4 sm:px-5 pt-4 pb-5" style={{ background: theme.statusFooterBg }}>
+            <div className="px-4 sm:px-5 pt-3 pb-4" style={{ background: theme.statusFooterBg }}>
               <p className="text-[10px] text-zinc-600 uppercase tracking-[0.22em] text-center mb-3 font-semibold">
                 Status
               </p>
