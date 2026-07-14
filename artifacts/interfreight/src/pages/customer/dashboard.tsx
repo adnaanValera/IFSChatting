@@ -148,7 +148,7 @@ function readSeenChangeTokens(): string[] {
 }
 
 export default function CustomerDashboard() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { data: user, isLoading: userLoading } = useGetMe();
   const { data: shipmentsPage, isLoading: shipmentsLoading } = useListShipments({ limit: 200 });
@@ -212,6 +212,29 @@ export default function CustomerDashboard() {
       window.removeEventListener("resize", measure);
     };
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedSearch = params.get("search")?.trim() || "";
+    const focus = params.get("focus");
+    const changedOnly = params.get("changed") === "1";
+
+    if (requestedSearch) {
+      setSearch(requestedSearch);
+      if (changedOnly) {
+        setShowChangedOnly(true);
+      }
+      window.requestAnimationFrame(() => {
+        document.getElementById("customer-shipments")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
+    if (focus === "announcement") {
+      window.requestAnimationFrame(() => {
+        document.getElementById("customer-announcement")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+  }, [location]);
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -434,6 +457,7 @@ export default function CustomerDashboard() {
 
         {announcement && (
           <motion.div
+            id="customer-announcement"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-4 sm:mb-6 rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 sm:px-5 sm:py-4 flex items-start gap-3 glow-primary"

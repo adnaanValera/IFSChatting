@@ -305,7 +305,7 @@ function renderOperationalAlertTable(
 }
 
 export default function Dashboard() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const knownFeedbackIdsRef = useRef<number[]>([]);
@@ -807,6 +807,18 @@ export default function Dashboard() {
     if (tab === "cards") loadCompanies();
     if (tab === "import") checkTemplateStatus();
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedTab = params.get("tab");
+    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "cards", "authorize", "asycuda"];
+    if (requestedTab && allowedTabs.includes(requestedTab as Tab)) {
+      const nextTab = requestedTab as Tab;
+      setActiveTab(nextTab);
+      if (nextTab === "messages") void loadFeedback(true);
+      if (nextTab === "cards") void loadCompanies();
+    }
+  }, [location]);
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {

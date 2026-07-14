@@ -278,24 +278,24 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
             <div className="min-w-0 flex-1">
               <p className="text-[9px] font-bold uppercase tracking-[0.18em]" style={{ color: theme.dotColor }}>
                 {theme.label}
-                {typeLabel ? ` · ${typeLabel}` : ""}
+                {typeLabel ? ` - ${typeLabel}` : ""}
               </p>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <p className="text-white font-bold text-sm sm:text-[15px] leading-tight truncate max-w-full">
+              <div className="flex items-center gap-2 min-w-0">
+                <p className="text-white font-bold text-[13px] sm:text-[15px] leading-tight truncate flex-1 min-w-0">
                   {collapsedIdentifier}
                 </p>
-                {s.entry && <span className="text-[11px] text-zinc-400 truncate">{s.entry}</span>}
+                {s.entry && <span className="hidden sm:inline text-[11px] text-zinc-400 truncate shrink-0">{s.entry}</span>}
               </div>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 items-center">
                 <p className="text-[11px] text-zinc-500 truncate">{s.companyName || s.consignee || "N/A"}</p>
-                {s.invoiceNo && <span className="text-[11px] text-zinc-500 truncate">Inv: {s.invoiceNo}</span>}
+                {s.invoiceNo && <span className="text-[10px] sm:text-[11px] text-zinc-500 truncate shrink-0">Inv: {s.invoiceNo}</span>}
               </div>
-              <p className="text-[11px] text-zinc-400 truncate">{s.cargoDescription?.trim() || "N/A"}</p>
+              <p className="text-[10px] sm:text-[11px] text-zinc-400 truncate">{s.cargoDescription?.trim() || "N/A"}</p>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 shrink-0 min-w-[116px]">
-            <div className="flex flex-col items-end gap-0.5 max-w-[130px]">
+          <div className="flex items-center justify-end gap-1.5 shrink-0 min-w-[88px] sm:min-w-[116px]">
+            <div className="flex flex-col items-end gap-0.5 max-w-[104px] sm:max-w-[130px]">
               <StatusPill status={s.status} theme={theme} />
               {statusChange && (
                 <span className="shipment-card__change-bell" aria-label="Shipment changed">

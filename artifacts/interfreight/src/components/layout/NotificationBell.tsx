@@ -41,6 +41,24 @@ function notificationCompany(n: Notification) {
   return n.companyName?.trim() || "Shipment Updates";
 }
 
+function notificationTarget(n: Notification, role?: string): string {
+  const isStaff = role === "staff" || role === "admin";
+
+  if (isStaff) {
+    if (n.status === "Contact Message") return "/staff/dashboard?tab=messages";
+    if (n.status === "Admin review" || n.status === "Staff review") return "/staff/dashboard?tab=authorize";
+    return "/staff/dashboard";
+  }
+
+  if (n.ifsRef) {
+    return `/dashboard?search=${encodeURIComponent(n.ifsRef)}&changed=1`;
+  }
+  if (n.status === "Announcement") {
+    return "/dashboard?focus=announcement";
+  }
+  return "/dashboard";
+}
+
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -112,7 +130,7 @@ export function NotificationBell() {
   function handleNotifClick(n: Notification) {
     markOne.mutate(n.id);
     setOpen(false);
-    navigate(dashboardHref);
+    navigate(notificationTarget(n, typedUser?.role));
   }
 
   return (
