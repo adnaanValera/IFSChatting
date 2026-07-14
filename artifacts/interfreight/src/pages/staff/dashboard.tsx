@@ -308,6 +308,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const knownFeedbackIdsRef = useRef<number[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const masterFileInputRef = useRef<HTMLInputElement>(null);
   const asycudaFileInputRef = useRef<HTMLInputElement>(null);
@@ -710,6 +711,47 @@ export default function Dashboard() {
       setFeedbackLoading(false);
     }
   };
+
+  useEffect(() => {
+    const currentIds = feedback.map((item) => Number(item.id)).filter((id) => Number.isFinite(id));
+    if (currentIds.length === 0) {
+      knownFeedbackIdsRef.current = currentIds;
+      return;
+    }
+
+    if (knownFeedbackIdsRef.current.length === 0) {
+      knownFeedbackIdsRef.current = currentIds;
+      return;
+    }
+
+    const newMessages = feedback.filter((item) => !knownFeedbackIdsRef.current.includes(Number(item.id)));
+    if (newMessages.length > 0) {
+      const latest = newMessages[0] as any;
+      toast({
+        title: "New Contact Message",
+        description: `${latest.name}${latest.phoneNumber ? ` · ${latest.phoneNumber}` : ""}`,
+      });
+
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        try {
+          new Notification("New Contact Message", {
+            body: `${latest.name}${latest.phoneNumber ? ` · ${latest.phoneNumber}` : ""}`,
+            icon: "/ifs-app-icon-2026.png",
+            badge: "/ifs-app-icon-2026.png",
+            tag: `feedback-${latest.id}`,
+          });
+        } catch {
+          // Ignore browser notification failures and keep the in-app alert.
+        }
+      }
+
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate?.([180, 80, 180]);
+      }
+    }
+
+    knownFeedbackIdsRef.current = currentIds;
+  }, [feedback, toast]);
 
   useEffect(() => {
     if (!isStaffOrAdmin) return;
