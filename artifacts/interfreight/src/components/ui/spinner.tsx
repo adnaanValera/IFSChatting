@@ -5,7 +5,7 @@ function Spinner({ className, ...props }: React.ComponentProps<"div">) {
     <div
       role="status"
       aria-label="Loading"
-      className={cn("relative inline-flex aspect-square size-5 items-center justify-center overflow-hidden rounded-2xl", className)}
+      className={cn("relative inline-flex aspect-square size-[12.5rem] items-center justify-center overflow-hidden rounded-2xl", className)}
       {...props}
     >
       <video
