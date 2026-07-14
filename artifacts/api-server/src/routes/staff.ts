@@ -1491,14 +1491,17 @@ function cellTextLength(value: unknown): number {
   return String(value).length;
 }
 
-// Keep report columns locked to the sample template widths.
+// Auto-fit report columns using the real sample template as the minimum layout.
 function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
+  const maxLen: Record<number, number> = {};
   const columnKeys: Record<number, typeof REPORT_KEYS[number]> = {};
 
   ws.eachRow((row) => {
     row.eachCell({ includeEmpty: false }, (cell, colIdx) => {
       const headerKey = reportKeyFromHeader(cellStr(cell.value) ?? "");
       if (headerKey) columnKeys[colIdx] = headerKey;
+      const len = cellTextLength(cell.value);
+      maxLen[colIdx] = Math.max(maxLen[colIdx] ?? 0, len);
     });
   });
 
@@ -1506,6 +1509,7 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
   const firstDataColumn = mappedColumnIndexes.length > 0 ? Math.min(...mappedColumnIndexes) : 3;
 
   const usedColumnIndexes = new Set<number>([
+    ...Object.keys(maxLen).map((key) => Number(key)),
     ...Object.keys(columnKeys).map((key) => Number(key)),
     1,
   ]);
@@ -1520,12 +1524,18 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
     const key = columnKeys[colIdx];
     if (key) {
       const baseWidth = SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0;
-      if (baseWidth > 0) col.width = baseWidth;
+      const limits = REPORT_WIDTHS[key];
+      const best = maxLen[colIdx] ?? 0;
+      const padding = key === "ifsRef" ? 6 : 2;
+      const computedWidth = Math.min(Math.max(best + padding, limits.min), limits.max);
+      col.width = Math.max(baseWidth, computedWidth);
       continue;
     }
 
     const baseWidth = SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0;
-    if (baseWidth > 0) col.width = baseWidth;
+    const best = maxLen[colIdx] ?? 0;
+    const computedWidth = best > 0 ? Math.min(Math.max(best + 2, 8), 24) : 0;
+    if (baseWidth > 0 || computedWidth > 0) col.width = Math.max(baseWidth, computedWidth);
   }
 
   ws.eachRow((row) => {
