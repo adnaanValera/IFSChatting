@@ -1734,7 +1734,7 @@ function findTemplateSections(ws: ExcelJS.Worksheet): Record<string, { sectionRo
     sections[current.label] = {
       sectionRow: current.row,
       headerRow,
-      dataStart: headerRow + 1,
+      dataStart: headerRow + 2,
       dataEnd: Math.max(headerRow + 1, nextRow - 1),
     };
   }
@@ -1758,24 +1758,27 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
     const rows = sortRowsForSection(label, grouped.get(label) ?? []);
     const dataStart = section.dataStart + rowOffset;
     const dataEnd = section.dataEnd + rowOffset;
+    const reservedBlankRow = section.headerRow + 1 + rowOffset;
     const columnMap = headerColumnMap(ws.getRow(section.headerRow + rowOffset));
     const columnsToClear = columnMap.length > 0 ? columnMap.map((mapping) => mapping.col) : Array.from({ length: 14 }, (_v, i) => i + 3);
-    const gapRow = dataEnd;
-    const expandableEnd = Math.max(dataStart, gapRow - 1);
-    const availableRows = Math.max(1, expandableEnd - dataStart + 1);
+    const availableRows = Math.max(0, dataEnd - dataStart + 1);
     const neededRows = Math.max(1, rows.length);
     const templateRow = ws.getRow(dataStart);
-    const gapTemplateRow = ws.getRow(gapRow);
+    const blankTemplateRow = ws.getRow(reservedBlankRow);
 
     if (neededRows > availableRows) {
       const insertedCount = neededRows - availableRows;
-      ws.spliceRows(gapRow, 0, ...Array.from({ length: insertedCount }, () => []));
-      for (let rowNumber = gapRow; rowNumber < gapRow + insertedCount; rowNumber++) {
+      ws.spliceRows(dataStart, 0, ...Array.from({ length: insertedCount }, () => []));
+      for (let rowNumber = dataStart; rowNumber < dataStart + insertedCount; rowNumber++) {
         copyRowStyle(templateRow, ws.getRow(rowNumber));
       }
-      copyRowStyle(gapTemplateRow, ws.getRow(gapRow + insertedCount));
+      copyRowStyle(blankTemplateRow, ws.getRow(reservedBlankRow));
       rowOffset += insertedCount;
     }
+
+    const preservedBlankRow = ws.getRow(reservedBlankRow);
+    columnsToClear.forEach((col) => { preservedBlankRow.getCell(col).value = ""; });
+    preservedBlankRow.commit();
 
     for (let rowNumber = dataStart; rowNumber < dataStart + neededRows; rowNumber++) {
       const row = ws.getRow(rowNumber);
@@ -1794,10 +1797,6 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
       }
       row.commit();
     }
-
-    const preservedGapRow = ws.getRow(gapRow + Math.max(0, neededRows - availableRows));
-    columnsToClear.forEach((col) => { preservedGapRow.getCell(col).value = ""; });
-    preservedGapRow.commit();
   }
 
   return true;
