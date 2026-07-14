@@ -1489,20 +1489,32 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
     });
   });
 
-  ws.columns.forEach((col, idx) => {
-    const colIdx = idx + 1;
-    if (colIdx <= 2) { col.width = 3; return; }
+  const usedColumnIndexes = new Set<number>([
+    ...Object.keys(maxLen).map((key) => Number(key)),
+    ...Object.keys(columnKeys).map((key) => Number(key)),
+    1,
+    2,
+  ]);
+
+  for (const colIdx of [...usedColumnIndexes].sort((a, b) => a - b)) {
+    const col = ws.getColumn(colIdx);
+    if (colIdx <= 2) {
+      col.width = 3;
+      continue;
+    }
+
     const key = columnKeys[colIdx];
     if (key) {
       const limits = REPORT_WIDTHS[key];
       const best = maxLen[colIdx] ?? 0;
       const padding = key === "ifsRef" ? 6 : 2;
       col.width = Math.min(Math.max(best + padding, limits.min), limits.max);
-      return;
+      continue;
     }
+
     const best = maxLen[colIdx] ?? 0;
     if (best > 0) col.width = Math.min(Math.max(best + 2, 8), 16);
-  });
+  }
 
   ws.eachRow((row) => {
     row.eachCell({ includeEmpty: false }, (cell, colIdx) => {
