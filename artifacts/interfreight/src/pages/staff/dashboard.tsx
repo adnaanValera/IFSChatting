@@ -2389,19 +2389,15 @@ export default function Dashboard() {
                               {signup.reviewedBy && <div className="text-[11px]">{signup.reviewedBy}</div>}
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {signup.status !== "approved" ? (
-                                <button
-                                  type="button"
-                                  onClick={() => clearSignupRequest(signup.id)}
-                                  disabled={clearingSignupId === signup.id || !!pendingSignupAction}
-                                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
-                                >
-                                  {clearingSignupId === signup.id ? <Spinner className="h-[14px] w-[14px]" /> : <Trash2 size={14} />}
-                                  Clear
-                                </button>
-                              ) : (
-                                <span className="text-[11px] text-muted-foreground">Locked</span>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => clearSignupRequest(signup.id)}
+                                disabled={clearingSignupId === signup.id || !!pendingSignupAction}
+                                className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+                              >
+                                {clearingSignupId === signup.id ? <Spinner className="h-[14px] w-[14px]" /> : <Trash2 size={14} />}
+                                Clear
+                              </button>
                             </td>
                           </tr>
                         ))}

@@ -2482,10 +2482,6 @@ router.delete("/staff/pending-signups/:id", requireAuth, requireStaff, async (re
 
   const [pending] = await db.select().from(pendingSignupsTable).where(eq(pendingSignupsTable.id, id)).limit(1);
   if (!pending) { res.status(404).json({ error: "Signup request not found" }); return; }
-  if (pending.status === "approved") {
-    res.status(400).json({ error: "Approved signup requests cannot be cleared here." });
-    return;
-  }
 
   await db.delete(pendingSignupsTable).where(eq(pendingSignupsTable.id, id));
   res.status(204).send();

@@ -30,6 +30,20 @@ export function saveAccount(token: string | null, user: any) {
   localStorage.setItem("intf_saved_accounts", JSON.stringify(accounts.slice(0, 8)));
 }
 
+export function removeSavedAccountByEmail(email?: string | null) {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  if (!cleanEmail) return;
+  const accounts = savedAccounts().filter((account) => String(account.email || "").trim().toLowerCase() !== cleanEmail);
+  localStorage.setItem("intf_saved_accounts", JSON.stringify(accounts));
+}
+
+export function removeSavedAccountByToken(token?: string | null) {
+  const cleanToken = String(token || "").trim();
+  if (!cleanToken) return;
+  const accounts = savedAccounts().filter((account) => account.token !== cleanToken);
+  localStorage.setItem("intf_saved_accounts", JSON.stringify(accounts));
+}
+
 export function switchSavedAccount(account: SavedAccount) {
   localStorage.setItem("intf_token", account.token);
   localStorage.setItem("intf_session_duration_confirmed", "1");

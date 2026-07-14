@@ -4,7 +4,7 @@ import { Users, Shield, LogOut, ArrowLeft, Trash2, KeyRound, Save } from "lucide
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
-import { saveAccount } from "@/lib/saved-accounts";
+import { removeSavedAccountByEmail, saveAccount } from "@/lib/saved-accounts";
 import { Spinner } from "@/components/ui/spinner";
 
 export default function UsersList() {
@@ -54,6 +54,7 @@ export default function UsersList() {
         const json = await res.json().catch(() => ({}));
         throw new Error(json.error || "Failed to delete user");
       }
+      removeSavedAccountByEmail(user.email);
       queryClient.invalidateQueries();
     } catch (err: any) {
       alert(err.message || "Failed to delete user");
