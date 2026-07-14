@@ -84,7 +84,7 @@ function Spinner({ className, ...props }: React.ComponentProps<"div">) {
     <div
       role="status"
       aria-label="Loading"
-      className={cn("relative inline-flex aspect-square size-[12rem] sm:size-[5rem] items-center justify-center", className)}
+      className={cn("relative inline-flex aspect-square size-[18rem] sm:size-[7rem] items-center justify-center", className)}
       {...props}
     >
       <video
