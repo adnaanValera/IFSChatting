@@ -1734,7 +1734,7 @@ function findTemplateSections(ws: ExcelJS.Worksheet): Record<string, { sectionRo
     sections[current.label] = {
       sectionRow: current.row,
       headerRow,
-      dataStart: headerRow + 2,
+      dataStart: headerRow + 1,
       dataEnd: Math.max(headerRow + 1, nextRow - 1),
     };
   }
@@ -1758,15 +1758,10 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
     const rows = sortRowsForSection(label, grouped.get(label) ?? []);
     const dataStart = section.dataStart + rowOffset;
     const dataEnd = section.dataEnd + rowOffset;
-    const reservedBlankRow = section.headerRow + 1 + rowOffset;
     const columnMap = headerColumnMap(ws.getRow(section.headerRow + rowOffset));
     const columnsToClear = columnMap.length > 0 ? columnMap.map((mapping) => mapping.col) : Array.from({ length: 14 }, (_v, i) => i + 3);
     const availableRows = Math.max(0, dataEnd - dataStart + 1);
     const rowsToWrite = rows.slice(0, availableRows);
-
-    const preservedBlankRow = ws.getRow(reservedBlankRow);
-    columnsToClear.forEach((col) => { preservedBlankRow.getCell(col).value = ""; });
-    preservedBlankRow.commit();
 
     for (let rowNumber = dataStart; rowNumber <= dataEnd; rowNumber++) {
       const row = ws.getRow(rowNumber);
