@@ -1446,37 +1446,54 @@ const REPORT_KEYS = [
 ] as const;
 
 const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }> = {
-  ifsRef: { min: 10, max: 80 },
-  type: { min: 6, max: 16 },
-  blNo: { min: 8, max: 40 },
-  containerNo: { min: 8, max: 32 },
-  shipper: { min: 8, max: 40, wrap: true },
-  consignee: { min: 8, max: 40, wrap: true },
-  cargoDescription: { min: 10, max: 52, wrap: true },
-  invoiceNo: { min: 8, max: 24 },
-  pod: { min: 6, max: 18 },
-  finalPortDestination: { min: 6, max: 24 },
-  agent: { min: 8, max: 28, wrap: true },
-  mraRef: { min: 8, max: 30 },
-  entry: { min: 8, max: 24 },
-  status: { min: 8, max: 36, wrap: true },
+  ifsRef: { min: 10, max: 22.14 },
+  type: { min: 5, max: 6.71 },
+  blNo: { min: 8, max: 20.71 },
+  containerNo: { min: 8, max: 22.86 },
+  shipper: { min: 8, max: 27.86, wrap: true },
+  consignee: { min: 8, max: 27.86, wrap: true },
+  cargoDescription: { min: 10, max: 27.86, wrap: true },
+  invoiceNo: { min: 8, max: 23.57 },
+  pod: { min: 6, max: 7.86 },
+  finalPortDestination: { min: 6, max: 7.86 },
+  agent: { min: 8, max: 13.57, wrap: true },
+  mraRef: { min: 8, max: 13.57 },
+  entry: { min: 8, max: 12.14 },
+  status: { min: 8, max: 27.86, wrap: true },
 };
 
 const SAMPLE_TEMPLATE_BASE_WIDTHS: Record<number, number> = {
-  2: 22.14, // B 160px
-  3: 6.71,  // C 52px
-  4: 20.71, // D 150px
-  5: 22.86, // E 165px
-  6: 27.86, // F 200px
-  7: 27.86, // G 200px
-  8: 27.86, // H 200px
-  9: 23.57, // I 170px
-  10: 7.86, // J 60px
-  11: 7.86, // K 60px
-  12: 13.57, // L 100px
-  13: 13.57, // M 100px
-  14: 12.14, // N 90px
-  15: 27.86, // O 200px
+  2: 17.77734375, // B from current Sample.xlsx
+  3: 5.77734375,  // C
+  4: 16.6640625,  // D
+  5: 18.33203125, // E
+  6: 22.21875,    // F
+  7: 22.21875,    // G
+  8: 22.21875,    // H
+  9: 18.88671875, // I
+  10: 6.6640625,  // J
+  11: 6.6640625,  // K
+  12: 11.44140625, // L
+  13: 8.33203125, // M
+  14: 5.44140625, // N
+  15: 22.33203125, // O
+};
+
+const SAMPLE_TEMPLATE_MAX_WIDTHS: Record<number, number> = {
+  2: 22.14,
+  3: 6.71,
+  4: 20.71,
+  5: 22.86,
+  6: 27.86,
+  7: 27.86,
+  8: 27.86,
+  9: 23.57,
+  10: 7.86,
+  11: 7.86,
+  12: 13.57,
+  13: 13.57,
+  14: 12.14,
+  15: 27.86,
 };
 
 function cellTextLength(value: unknown): number {
@@ -1527,13 +1544,16 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
       const best = maxLen[colIdx] ?? 0;
       const padding = key === "ifsRef" ? 6 : 2;
       const computedWidth = Math.min(Math.max(best + padding, limits.min), limits.max);
-      col.width = computedWidth;
+      const baseWidth = SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0;
+      col.width = Math.min(Math.max(computedWidth, baseWidth), limits.max);
       continue;
     }
 
     const best = maxLen[colIdx] ?? 0;
     const computedWidth = best > 0 ? Math.min(Math.max(best + 2, 8), 24) : 0;
-    if (computedWidth > 0) col.width = computedWidth;
+    const baseWidth = SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0;
+    const maxWidth = SAMPLE_TEMPLATE_MAX_WIDTHS[colIdx] ?? 24;
+    if (computedWidth > 0 || baseWidth > 0) col.width = Math.min(Math.max(computedWidth, baseWidth), maxWidth);
   }
 
   ws.eachRow((row) => {
