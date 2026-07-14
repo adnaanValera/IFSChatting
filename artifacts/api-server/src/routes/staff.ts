@@ -1481,7 +1481,6 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
 
   ws.eachRow((row) => {
     row.eachCell({ includeEmpty: false }, (cell, colIdx) => {
-      if (colIdx <= 2) return; // keep spacer cols narrow
       const headerKey = reportKeyFromHeader(cellStr(cell.value) ?? "");
       if (headerKey) columnKeys[colIdx] = headerKey;
       const len = cellTextLength(cell.value);
@@ -1489,16 +1488,18 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
     });
   });
 
+  const mappedColumnIndexes = Object.keys(columnKeys).map((key) => Number(key)).filter((value) => Number.isFinite(value));
+  const firstDataColumn = mappedColumnIndexes.length > 0 ? Math.min(...mappedColumnIndexes) : 3;
+
   const usedColumnIndexes = new Set<number>([
     ...Object.keys(maxLen).map((key) => Number(key)),
     ...Object.keys(columnKeys).map((key) => Number(key)),
     1,
-    2,
   ]);
 
   for (const colIdx of [...usedColumnIndexes].sort((a, b) => a - b)) {
     const col = ws.getColumn(colIdx);
-    if (colIdx <= 2) {
+    if (colIdx < firstDataColumn) {
       col.width = 3;
       continue;
     }
