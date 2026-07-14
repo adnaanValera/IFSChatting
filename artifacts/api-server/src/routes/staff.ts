@@ -1447,19 +1447,19 @@ const REPORT_KEYS = [
 
 const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }> = {
   ifsRef: { min: 36, max: 72 },
-  type: { min: 8, max: 8 },
-  blNo: { min: 18, max: 18 },
-  containerNo: { min: 17, max: 17 },
-  shipper: { min: 18, max: 18, wrap: true },
-  consignee: { min: 20, max: 20, wrap: true },
-  cargoDescription: { min: 24, max: 24, wrap: true },
-  invoiceNo: { min: 14, max: 14 },
-  pod: { min: 10, max: 10 },
-  finalPortDestination: { min: 10, max: 10 },
-  agent: { min: 15, max: 15, wrap: true },
-  mraRef: { min: 16, max: 16 },
-  entry: { min: 16, max: 16 },
-  status: { min: 16, max: 16 },
+  type: { min: 8, max: 12 },
+  blNo: { min: 18, max: 28 },
+  containerNo: { min: 17, max: 24 },
+  shipper: { min: 18, max: 30, wrap: true },
+  consignee: { min: 20, max: 32, wrap: true },
+  cargoDescription: { min: 24, max: 40, wrap: true },
+  invoiceNo: { min: 14, max: 20 },
+  pod: { min: 10, max: 16 },
+  finalPortDestination: { min: 10, max: 18 },
+  agent: { min: 15, max: 24, wrap: true },
+  mraRef: { min: 16, max: 24 },
+  entry: { min: 16, max: 22 },
+  status: { min: 16, max: 28, wrap: true },
 };
 
 function cellTextLength(value: unknown): number {
@@ -1759,16 +1759,21 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
     const dataEnd = section.dataEnd + rowOffset;
     const columnMap = headerColumnMap(ws.getRow(section.headerRow + rowOffset));
     const columnsToClear = columnMap.length > 0 ? columnMap.map((mapping) => mapping.col) : Array.from({ length: 14 }, (_v, i) => i + 3);
-    const availableRows = Math.max(1, dataEnd - dataStart + 1);
+    const gapRow = dataEnd;
+    const expandableEnd = Math.max(dataStart, gapRow - 1);
+    const availableRows = Math.max(1, expandableEnd - dataStart + 1);
     const neededRows = Math.max(1, rows.length);
     const templateRow = ws.getRow(dataStart);
+    const gapTemplateRow = ws.getRow(gapRow);
 
     if (neededRows > availableRows) {
-      ws.spliceRows(dataEnd + 1, 0, ...Array.from({ length: neededRows - availableRows }, () => []));
-      for (let rowNumber = dataEnd + 1; rowNumber <= dataEnd + neededRows - availableRows; rowNumber++) {
+      const insertedCount = neededRows - availableRows;
+      ws.spliceRows(gapRow, 0, ...Array.from({ length: insertedCount }, () => []));
+      for (let rowNumber = gapRow; rowNumber < gapRow + insertedCount; rowNumber++) {
         copyRowStyle(templateRow, ws.getRow(rowNumber));
       }
-      rowOffset += neededRows - availableRows;
+      copyRowStyle(gapTemplateRow, ws.getRow(gapRow + insertedCount));
+      rowOffset += insertedCount;
     }
 
     for (let rowNumber = dataStart; rowNumber < dataStart + neededRows; rowNumber++) {
@@ -1788,6 +1793,10 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
       }
       row.commit();
     }
+
+    const preservedGapRow = ws.getRow(gapRow + Math.max(0, neededRows - availableRows));
+    columnsToClear.forEach((col) => { preservedGapRow.getCell(col).value = ""; });
+    preservedGapRow.commit();
   }
 
   return true;
