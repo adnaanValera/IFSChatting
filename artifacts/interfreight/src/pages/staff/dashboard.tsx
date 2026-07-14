@@ -691,8 +691,7 @@ export default function Dashboard() {
     }
   };
 
-  const loadFeedback = async () => {
-    if (feedbackLoaded) return;
+  const loadFeedback = async (silent = false) => {
     setFeedbackLoading(true);
     try {
       const token = localStorage.getItem("intf_token");
@@ -704,11 +703,22 @@ export default function Dashboard() {
       setFeedback(await res.json());
       setFeedbackLoaded(true);
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message });
+      if (!silent) {
+        toast({ variant: "destructive", title: "Error", description: err.message });
+      }
     } finally {
       setFeedbackLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!isStaffOrAdmin) return;
+    void loadFeedback(true);
+    const timer = window.setInterval(() => {
+      void loadFeedback(true);
+    }, 30000);
+    return () => window.clearInterval(timer);
+  }, [isStaffOrAdmin]);
 
   const checkTemplateStatus = async () => {
     try {
