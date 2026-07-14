@@ -1363,15 +1363,15 @@ router.delete("/staff/uploads/:id", requireAuth, requireStaff, async (req, res) 
 // ── Report template upload / status ─────────────────────────────────────────
 
 async function getReportTemplate(): Promise<{ buffer: Buffer; uploadedAt?: string } | null> {
+  if (fs.existsSync(TEMPLATE_PATH)) {
+    const stat = fs.statSync(TEMPLATE_PATH);
+    return { buffer: fs.readFileSync(TEMPLATE_PATH), uploadedAt: stat.mtime.toISOString() };
+  }
   const result = await pool.query<{ content: Buffer; uploaded_at: Date }>(
     "SELECT content, uploaded_at FROM report_templates WHERE id = 1",
   );
   if (result.rows[0]) {
     return { buffer: result.rows[0].content, uploadedAt: result.rows[0].uploaded_at.toISOString() };
-  }
-  if (fs.existsSync(TEMPLATE_PATH)) {
-    const stat = fs.statSync(TEMPLATE_PATH);
-    return { buffer: fs.readFileSync(TEMPLATE_PATH), uploadedAt: stat.mtime.toISOString() };
   }
   return null;
 }
