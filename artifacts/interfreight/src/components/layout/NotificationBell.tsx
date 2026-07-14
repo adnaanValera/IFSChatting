@@ -100,9 +100,10 @@ export function NotificationBell() {
     knownIdsRef.current = currentIds;
   }, [notifications, toast]);
 
-  const unread = notifications.filter((n) => !n.read).length;
-  const statusUpdates = notifications.filter((n) => n.status).length;
-  const groupedNotifications = notifications.reduce<Record<string, Notification[]>>((groups, notification) => {
+  const unreadNotifications = notifications.filter((n) => !n.read);
+  const unread = unreadNotifications.length;
+  const statusUpdates = unreadNotifications.filter((n) => n.status).length;
+  const groupedNotifications = unreadNotifications.reduce<Record<string, Notification[]>>((groups, notification) => {
     const key = notificationCompany(notification);
     groups[key] ??= [];
     groups[key].push(notification);
@@ -179,7 +180,7 @@ export function NotificationBell() {
             </div>
           </div>
 
-          {notifications.length > 0 && (
+          {unreadNotifications.length > 0 && (
             <div className="px-4 py-3 border-b border-white/10 bg-white/[0.03]">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
@@ -196,10 +197,10 @@ export function NotificationBell() {
 
           {/* List */}
           <div className="max-h-80 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {unreadNotifications.length === 0 ? (
               <div className="py-10 text-center">
                 <Bell size={28} className="text-white/20 mx-auto mb-2" />
-                <p className="text-white/40 text-sm">No notifications yet</p>
+                <p className="text-white/40 text-sm">No unread notifications</p>
               </div>
             ) : (
               Object.entries(groupedNotifications).map(([company, items]) => (
@@ -246,7 +247,7 @@ export function NotificationBell() {
             )}
           </div>
 
-          {notifications.length > 0 && (
+          {unreadNotifications.length > 0 && (
             <div className="px-4 py-2.5 border-t border-white/10">
               <button
                 onClick={() => { setOpen(false); navigate(dashboardHref); }}

@@ -21,6 +21,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDate } from "@/lib/utils";
 import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
 import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { saveAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { Spinner } from "@/components/ui/spinner";
@@ -1261,7 +1262,7 @@ export default function Dashboard() {
             <Home size={12} /> Home
           </Link>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           {typedUser && (
             <span className="text-sm text-white/60 hidden sm:block">
               {typedUser.fullName || typedUser.name}
@@ -1270,6 +1271,9 @@ export default function Dashboard() {
               )}
             </span>
           )}
+          <div className="rounded-xl border border-white/10 bg-white/5 px-1.5 py-1">
+            <NotificationBell />
+          </div>
           <AccountSwitcher currentToken={localStorage.getItem("intf_token")} />
           <button
             onClick={handleLogout}
