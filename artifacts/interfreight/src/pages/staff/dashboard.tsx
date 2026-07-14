@@ -812,12 +812,18 @@ export default function Dashboard() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requestedTab = params.get("tab");
+    const focus = params.get("focus");
     const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "cards", "authorize", "asycuda"];
     if (requestedTab && allowedTabs.includes(requestedTab as Tab)) {
       const nextTab = requestedTab as Tab;
       setActiveTab(nextTab);
       if (nextTab === "messages") void loadFeedback(true);
       if (nextTab === "cards") void loadCompanies();
+    }
+    if (focus === "announcement") {
+      window.requestAnimationFrame(() => {
+        document.getElementById("staff-announcement")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
     }
   }, [location]);
 
@@ -1374,7 +1380,7 @@ export default function Dashboard() {
               </div>
 
               {isStaffOrAdmin && (
-                <div className="bg-secondary text-white rounded-xl border border-white/10 shadow-sm p-4 sm:p-5">
+                <div id="staff-announcement" className="bg-secondary text-white rounded-xl border border-white/10 shadow-sm p-4 sm:p-5">
                   <div className="flex flex-col gap-3">
                     <div className="flex-1">
                       <p className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2">Customer Announcement</p>

@@ -49,6 +49,7 @@ router.get("/staff/announcement-customers", requireAuth, requireStaff, async (_r
 });
 
 router.put("/staff/announcements/current", requireAuth, requireStaff, async (req, res) => {
+  const authReq = req as typeof req & { user: { userId: number } };
   const { title, message, active = true, targetAll = true, targetUserIds = [] } = req.body as {
     title?: string; message?: string; active?: boolean; targetAll?: boolean; targetUserIds?: number[];
   };
@@ -81,9 +82,19 @@ router.put("/staff/announcements/current", requireAuth, requireStaff, async (req
     .from(usersTable)
     .where(targetAll ? eq(usersTable.role, "customer") : inArray(usersTable.id, parsedTargetIds));
 
-  if (customers.length > 0) {
+  const staffAndAdmins = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(inArray(usersTable.role, ["staff", "admin"]));
+
+  const recipientIds = [...new Set([
+    ...customers.map(({ id }) => id),
+    ...staffAndAdmins.map(({ id }) => id),
+  ])];
+
+  if (recipientIds.length > 0) {
     await db.insert(notificationsTable).values(
-      customers.map(({ id: userId }) => ({
+      recipientIds.map((userId) => ({
         userId,
         title: cleanTitle,
         message: cleanMessage,
@@ -92,12 +103,14 @@ router.put("/staff/announcements/current", requireAuth, requireStaff, async (req
       })),
     );
 
-    await Promise.all(customers.map(({ id: userId }) =>
+    await Promise.all(recipientIds.map((userId) =>
       sendPushToUser(userId, {
         title: cleanTitle,
         body: cleanMessage,
-        url: "/dashboard",
-        tag: `announcement-${announcement.id}`,
+        url: userId === authReq.user.userId ? "/staff/dashboard?tab=overview&focus=announcement" : (staffAndAdmins.some((row) => row.id === userId)
+          ? "/staff/dashboard?tab=overview&focus=announcement"
+          : "/dashboard?focus=announcement"),
+        tag: `announcement-${announcement.id}-${userId}`,
       }),
     ));
   }

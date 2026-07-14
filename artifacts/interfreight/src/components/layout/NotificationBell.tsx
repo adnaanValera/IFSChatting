@@ -47,6 +47,7 @@ function notificationTarget(n: Notification, role?: string): string {
   if (isStaff) {
     if (n.status === "Contact Message") return "/staff/dashboard?tab=messages";
     if (n.status === "Admin review" || n.status === "Staff review") return "/staff/dashboard?tab=authorize";
+    if (n.status === "Announcement") return "/staff/dashboard?tab=overview&focus=announcement";
     return "/staff/dashboard";
   }
 
