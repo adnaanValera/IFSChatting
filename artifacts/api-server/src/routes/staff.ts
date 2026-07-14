@@ -1508,6 +1508,25 @@ function cellTextLength(value: unknown): number {
   return String(value).length;
 }
 
+function wrappedCellFitLength(value: unknown): number {
+  if (value == null) return 0;
+  const text = typeof value === "string"
+    ? value
+    : typeof value === "object" && (value as any).richText
+      ? ((value as any).richText as any[]).map((r: any) => r.text ?? "").join("")
+      : typeof value === "object" && (value as any).text
+        ? String((value as any).text)
+        : String(value);
+
+  const chunks = text
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (chunks.length === 0) return 0;
+  return Math.max(...chunks.map((chunk) => chunk.length));
+}
+
 // Auto-fit report columns by content.
 function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
   const maxLen: Record<number, number> = {};
@@ -1517,7 +1536,10 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
     row.eachCell({ includeEmpty: false }, (cell, colIdx) => {
       const headerKey = reportKeyFromHeader(cellStr(cell.value) ?? "");
       if (headerKey) columnKeys[colIdx] = headerKey;
-      const len = cellTextLength(cell.value);
+      const activeKey = headerKey ?? columnKeys[colIdx];
+      const len = activeKey && REPORT_WIDTHS[activeKey]?.wrap
+        ? wrappedCellFitLength(cell.value)
+        : cellTextLength(cell.value);
       maxLen[colIdx] = Math.max(maxLen[colIdx] ?? 0, len);
     });
   });
@@ -1542,7 +1564,7 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
     if (key) {
       const limits = REPORT_WIDTHS[key];
       const best = maxLen[colIdx] ?? 0;
-      const padding = key === "ifsRef" ? 6 : 2;
+      const padding = REPORT_WIDTHS[key]?.wrap ? 1 : (key === "ifsRef" ? 2 : 1);
       const computedWidth = Math.min(Math.max(best + padding, limits.min), limits.max);
       const baseWidth = SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0;
       col.width = Math.min(Math.max(computedWidth, baseWidth), limits.max);
