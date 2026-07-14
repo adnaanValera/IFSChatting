@@ -1706,7 +1706,14 @@ function copyRowStyle(source: ExcelJS.Row, target: ExcelJS.Row): void {
   });
 }
 
-function findTemplateSections(ws: ExcelJS.Worksheet): Record<string, { sectionRow: number; headerRow: number; dataStart: number; dataEnd: number }> {
+function findTemplateSections(ws: ExcelJS.Worksheet): Record<string, {
+  sectionRow: number;
+  headerRow: number;
+  firstDataRow: number;
+  extraDataStart: number;
+  extraDataEnd: number;
+  footerRow: number;
+}> {
   const found: Array<{ label: string; row: number }> = [];
   ws.eachRow((row, rowNumber) => {
     const values = row.values as unknown[];
@@ -1718,7 +1725,14 @@ function findTemplateSections(ws: ExcelJS.Worksheet): Record<string, { sectionRo
     }
   });
 
-  const sections: Record<string, { sectionRow: number; headerRow: number; dataStart: number; dataEnd: number }> = {};
+  const sections: Record<string, {
+    sectionRow: number;
+    headerRow: number;
+    firstDataRow: number;
+    extraDataStart: number;
+    extraDataEnd: number;
+    footerRow: number;
+  }> = {};
   for (let i = 0; i < found.length; i++) {
     const current = found[i];
     const nextRow = found[i + 1]?.row ?? ((ws.lastRow?.number ?? current.row) + 1);
@@ -1734,8 +1748,10 @@ function findTemplateSections(ws: ExcelJS.Worksheet): Record<string, { sectionRo
     sections[current.label] = {
       sectionRow: current.row,
       headerRow,
-      dataStart: headerRow + 1,
-      dataEnd: Math.max(headerRow + 1, nextRow - 1),
+      firstDataRow: headerRow + 1,
+      extraDataStart: headerRow + 2,
+      extraDataEnd: Math.max(headerRow + 2, nextRow - 2),
+      footerRow: Math.max(headerRow + 1, nextRow - 1),
     };
   }
   return sections;
@@ -1756,17 +1772,34 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
   for (const label of orderedLabels) {
     const section = sections[label];
     const rows = sortRowsForSection(label, grouped.get(label) ?? []);
-    const dataStart = section.dataStart + rowOffset;
-    const dataEnd = section.dataEnd + rowOffset;
+    const firstDataRow = section.firstDataRow + rowOffset;
+    const extraDataStart = section.extraDataStart + rowOffset;
+    const extraDataEnd = section.extraDataEnd + rowOffset;
     const columnMap = headerColumnMap(ws.getRow(section.headerRow + rowOffset));
     const columnsToClear = columnMap.length > 0 ? columnMap.map((mapping) => mapping.col) : Array.from({ length: 14 }, (_v, i) => i + 3);
-    const availableRows = Math.max(0, dataEnd - dataStart + 1);
-    const rowsToWrite = rows.slice(0, availableRows);
+    const firstRow = ws.getRow(firstDataRow);
+    columnsToClear.forEach((col) => { firstRow.getCell(col).value = ""; });
+    const firstShipment = rows[0];
+    if (firstShipment) {
+      if (columnMap.length > 0) {
+        columnMap.forEach(({ col, key }) => {
+          firstRow.getCell(col).value = shipmentReportValueByKey(firstShipment, key);
+        });
+      } else {
+        shipmentReportValues(firstShipment).forEach((value, i) => {
+          firstRow.getCell(i + 3).value = value;
+        });
+      }
+    }
+    firstRow.commit();
 
-    for (let rowNumber = dataStart; rowNumber < dataStart + rowsToWrite.length; rowNumber++) {
+    const availableExtraRows = Math.max(0, extraDataEnd - extraDataStart + 1);
+    const extraRowsToWrite = rows.slice(1, 1 + availableExtraRows);
+
+    for (let rowNumber = extraDataStart; rowNumber < extraDataStart + extraRowsToWrite.length; rowNumber++) {
       const row = ws.getRow(rowNumber);
       columnsToClear.forEach((col) => { row.getCell(col).value = ""; });
-      const shipment = rowsToWrite[rowNumber - dataStart];
+      const shipment = extraRowsToWrite[rowNumber - extraDataStart];
       if (shipment) {
         if (columnMap.length > 0) {
           columnMap.forEach(({ col, key }) => {
@@ -1781,9 +1814,9 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
       row.commit();
     }
 
-    const unusedRows = Math.max(0, availableRows - rowsToWrite.length);
+    const unusedRows = Math.max(0, availableExtraRows - extraRowsToWrite.length);
     if (unusedRows > 0) {
-      ws.spliceRows(dataStart + rowsToWrite.length, unusedRows);
+      ws.spliceRows(extraDataStart + extraRowsToWrite.length, unusedRows);
       rowOffset -= unusedRows;
     }
   }
