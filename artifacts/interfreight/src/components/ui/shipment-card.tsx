@@ -266,11 +266,11 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
     >
       <button className="w-full text-left" onClick={handleToggle}>
         <div
-          className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 hover:brightness-110 transition-all ${highlight && !isOpen ? "shipment-card__summary--changed" : ""}`}
+          className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3.5 px-3.5 sm:px-4 py-3 sm:py-3 hover:brightness-110 transition-all ${highlight && !isOpen ? "shipment-card__summary--changed" : ""}`}
           style={{ background: isOpen ? "transparent" : theme.headerBg }}
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${theme.collapsedIconWrap}`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${theme.collapsedIconWrap}`}>
               <span className={theme.collapsedIconColor}>
                 {variant === "truck" ? <Truck size={16} /> : variant === "pallet" ? <Boxes size={16} /> : <Ship size={16} />}
               </span>
@@ -281,7 +281,7 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
                 {typeLabel ? ` - ${typeLabel}` : ""}
               </p>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <p className="text-white font-bold text-sm sm:text-[15px] leading-tight truncate max-w-full">
+                <p className="text-white font-bold text-[15px] sm:text-[15px] leading-tight truncate max-w-full">
                   {collapsedIdentifier}
                 </p>
                 {s.entry && <span className="text-[11px] text-zinc-400 truncate">{s.entry}</span>}
@@ -294,8 +294,8 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-1.5 shrink-0 min-w-[88px] sm:min-w-[116px]">
-            <div className="flex flex-col items-end gap-0.5 max-w-[104px] sm:max-w-[130px]">
+          <div className="flex items-center justify-end gap-2 shrink-0 min-w-[96px] sm:min-w-[116px]">
+            <div className="flex flex-col items-end gap-0.5 max-w-[112px] sm:max-w-[130px]">
               <StatusPill status={s.status} theme={theme} />
               {statusChange && (
                 <span className="shipment-card__change-bell" aria-label="Shipment changed">
