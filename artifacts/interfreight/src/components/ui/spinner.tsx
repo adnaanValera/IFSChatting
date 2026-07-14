@@ -5,11 +5,11 @@ function Spinner({ className, ...props }: React.ComponentProps<"div">) {
     <div
       role="status"
       aria-label="Loading"
-      className={cn("relative inline-flex aspect-square size-[12.5rem] items-center justify-center overflow-hidden rounded-2xl", className)}
+      className={cn("relative inline-flex aspect-square size-[15rem] sm:size-[12.5rem] items-center justify-center", className)}
       {...props}
     >
       <video
-        className="h-full w-full object-cover"
+        className="h-full w-full object-contain"
         src="/ifs-loader.mp4"
         autoPlay
         loop
