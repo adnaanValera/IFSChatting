@@ -1446,7 +1446,7 @@ const REPORT_KEYS = [
 ] as const;
 
 const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }> = {
-  ifsRef: { min: 24, max: 60 },
+  ifsRef: { min: 36, max: 72 },
   type: { min: 8, max: 8 },
   blNo: { min: 18, max: 18 },
   containerNo: { min: 17, max: 17 },
@@ -1496,7 +1496,8 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
     if (key) {
       const limits = REPORT_WIDTHS[key];
       const best = maxLen[colIdx] ?? 0;
-      col.width = Math.min(Math.max(best + 2, limits.min), limits.max);
+      const padding = key === "ifsRef" ? 6 : 2;
+      col.width = Math.min(Math.max(best + padding, limits.min), limits.max);
       return;
     }
     const best = maxLen[colIdx] ?? 0;
