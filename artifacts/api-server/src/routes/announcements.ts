@@ -105,8 +105,8 @@ router.put("/staff/announcements/current", requireAuth, requireStaff, async (req
 
     await Promise.all(recipientIds.map((userId) =>
       sendPushToUser(userId, {
-        title: cleanTitle,
-        body: cleanMessage,
+        title: `InterFreight Alert: ${cleanTitle}`,
+        body: `${cleanMessage} Tap to open.`,
         url: userId === authReq.user.userId ? "/staff/dashboard?tab=overview&focus=announcement" : (staffAndAdmins.some((row) => row.id === userId)
           ? "/staff/dashboard?tab=overview&focus=announcement"
           : "/dashboard?focus=announcement"),

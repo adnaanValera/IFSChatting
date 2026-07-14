@@ -657,15 +657,15 @@ async function notifyCustomersOfStatusChange(args: {
   for (const { id: userId } of customers) {
     await db.insert(notificationsTable).values({
       userId,
-      title: "Shipment Status Updated",
+      title: "InterFreight Alert: Status Changed",
       message: `${shipmentIdentifier(args)} status changed: ${args.change.oldValue} -> ${args.change.newValue}. Tap to view your dashboard.`,
       ifsRef: args.ifsRef,
       companyName: args.companyName,
       status: args.change.newValue,
     });
     await sendPushToUser(userId, {
-      title: "Shipment Status Updated",
-      body: `${shipmentIdentifier(args)} status changed: ${args.change.oldValue} -> ${args.change.newValue}`,
+      title: "InterFreight Alert: Status Changed",
+      body: `${shipmentIdentifier(args)} is now ${args.change.newValue}. Tap to view.`,
       url: "/dashboard",
       tag: `shipment-${args.ifsRef}-${Date.now()}`,
     });
@@ -695,15 +695,15 @@ async function notifyCustomersOfNewShipment(args: {
   for (const { id: userId } of customers) {
     await db.insert(notificationsTable).values({
       userId,
-      title: "New Shipment Added",
+      title: "InterFreight Alert: New Shipment",
       message: `${shipmentIdentifier(args)} was added to your dashboard with status ${displayText(args.status)}.`,
       ifsRef: args.ifsRef,
       companyName: args.companyName,
       status: args.status,
     });
     await sendPushToUser(userId, {
-      title: "New Shipment Added",
-      body: `${shipmentIdentifier(args)} was added to your dashboard.`,
+      title: "InterFreight Alert: New Shipment",
+      body: `${shipmentIdentifier(args)} was added to your dashboard. Tap to view.`,
       url: "/dashboard",
       tag: `shipment-new-${args.ifsRef}-${Date.now()}`,
     });

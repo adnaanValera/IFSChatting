@@ -48,8 +48,8 @@ router.post("/feedback", async (req, res) => {
     );
     await Promise.all(targets.map(({ id: userId }) =>
       sendPushToUser(userId, {
-        title: "New Contact Message",
-        body: `${name.trim()} sent a website message.`,
+        title: "InterFreight Alert: New Message",
+        body: `${name.trim()} sent a website message. Tap to open messages.`,
         url: "/staff/dashboard",
         tag: `contact-message-${row.id}`,
       }),

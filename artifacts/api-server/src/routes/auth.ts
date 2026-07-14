@@ -70,8 +70,8 @@ async function notifyStaffAndAdminsOfPendingSignup(args: {
 
   await Promise.all(reviewers.map(({ id: userId }) =>
     sendPushToUser(userId, {
-      title: "Signup Waiting Approval",
-      body: `${args.fullName} from ${args.companyName} is waiting for approval.`,
+      title: "InterFreight Alert: Approval Needed",
+      body: `${args.fullName} from ${args.companyName} is waiting for approval. Tap to review.`,
       url: "/staff/dashboard",
       tag: `pending-signup-${args.email.toLowerCase()}-${Date.now()}`,
     }),
