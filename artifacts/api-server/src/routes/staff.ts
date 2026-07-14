@@ -667,7 +667,7 @@ async function notifyCustomersOfStatusChange(args: {
       title: "Shipment Status Updated",
       body: `${shipmentIdentifier(args)} status changed: ${args.change.oldValue} -> ${args.change.newValue}`,
       url: "/dashboard",
-      tag: `shipment-${args.ifsRef}`,
+      tag: `shipment-${args.ifsRef}-${Date.now()}`,
     });
   }
 }
@@ -705,7 +705,7 @@ async function notifyCustomersOfNewShipment(args: {
       title: "New Shipment Added",
       body: `${shipmentIdentifier(args)} was added to your dashboard.`,
       url: "/dashboard",
-      tag: `shipment-new-${args.ifsRef}`,
+      tag: `shipment-new-${args.ifsRef}-${Date.now()}`,
     });
   }
 }

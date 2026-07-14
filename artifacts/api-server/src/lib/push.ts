@@ -44,7 +44,11 @@ async function deliver(subscriptions: StoredSubscription[], payload: PushPayload
           p256dh: subscription.p256dh,
           auth: subscription.auth,
         },
-      }, body);
+      }, body, {
+        TTL: 60,
+        urgency: "high",
+        topic: payload.tag?.slice(0, 32),
+      });
     } catch (error: any) {
       const statusCode = Number(error?.statusCode ?? 0);
       if (statusCode === 404 || statusCode === 410) {

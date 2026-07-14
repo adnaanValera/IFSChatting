@@ -73,7 +73,7 @@ async function notifyStaffAndAdminsOfPendingSignup(args: {
       title: "Signup Waiting Approval",
       body: `${args.fullName} from ${args.companyName} is waiting for approval.`,
       url: "/staff/dashboard",
-      tag: `pending-signup-${args.email.toLowerCase()}`,
+      tag: `pending-signup-${args.email.toLowerCase()}-${Date.now()}`,
     }),
   ));
 }
