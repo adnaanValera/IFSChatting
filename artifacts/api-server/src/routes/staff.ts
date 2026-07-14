@@ -1762,28 +1762,16 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
     const columnMap = headerColumnMap(ws.getRow(section.headerRow + rowOffset));
     const columnsToClear = columnMap.length > 0 ? columnMap.map((mapping) => mapping.col) : Array.from({ length: 14 }, (_v, i) => i + 3);
     const availableRows = Math.max(0, dataEnd - dataStart + 1);
-    const neededRows = Math.max(1, rows.length);
-    const templateRow = ws.getRow(dataStart);
-    const blankTemplateRow = ws.getRow(reservedBlankRow);
-
-    if (neededRows > availableRows) {
-      const insertedCount = neededRows - availableRows;
-      ws.spliceRows(dataStart, 0, ...Array.from({ length: insertedCount }, () => []));
-      for (let rowNumber = dataStart; rowNumber < dataStart + insertedCount; rowNumber++) {
-        copyRowStyle(templateRow, ws.getRow(rowNumber));
-      }
-      copyRowStyle(blankTemplateRow, ws.getRow(reservedBlankRow));
-      rowOffset += insertedCount;
-    }
+    const rowsToWrite = rows.slice(0, availableRows);
 
     const preservedBlankRow = ws.getRow(reservedBlankRow);
     columnsToClear.forEach((col) => { preservedBlankRow.getCell(col).value = ""; });
     preservedBlankRow.commit();
 
-    for (let rowNumber = dataStart; rowNumber < dataStart + neededRows; rowNumber++) {
+    for (let rowNumber = dataStart; rowNumber <= dataEnd; rowNumber++) {
       const row = ws.getRow(rowNumber);
       columnsToClear.forEach((col) => { row.getCell(col).value = ""; });
-      const shipment = rows[rowNumber - dataStart];
+      const shipment = rowsToWrite[rowNumber - dataStart];
       if (shipment) {
         if (columnMap.length > 0) {
           columnMap.forEach(({ col, key }) => {
