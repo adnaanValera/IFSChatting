@@ -1446,20 +1446,20 @@ const REPORT_KEYS = [
 ] as const;
 
 const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }> = {
-  ifsRef: { min: 36, max: 72 },
-  type: { min: 8, max: 12 },
-  blNo: { min: 18, max: 28 },
-  containerNo: { min: 17, max: 24 },
-  shipper: { min: 18, max: 30, wrap: true },
-  consignee: { min: 20, max: 32, wrap: true },
-  cargoDescription: { min: 24, max: 40, wrap: true },
-  invoiceNo: { min: 14, max: 20 },
-  pod: { min: 10, max: 16 },
-  finalPortDestination: { min: 10, max: 18 },
-  agent: { min: 15, max: 24, wrap: true },
-  mraRef: { min: 16, max: 24 },
-  entry: { min: 16, max: 22 },
-  status: { min: 16, max: 28, wrap: true },
+  ifsRef: { min: 10, max: 80 },
+  type: { min: 6, max: 16 },
+  blNo: { min: 8, max: 40 },
+  containerNo: { min: 8, max: 32 },
+  shipper: { min: 8, max: 40, wrap: true },
+  consignee: { min: 8, max: 40, wrap: true },
+  cargoDescription: { min: 10, max: 52, wrap: true },
+  invoiceNo: { min: 8, max: 24 },
+  pod: { min: 6, max: 18 },
+  finalPortDestination: { min: 6, max: 24 },
+  agent: { min: 8, max: 28, wrap: true },
+  mraRef: { min: 8, max: 30 },
+  entry: { min: 8, max: 24 },
+  status: { min: 8, max: 36, wrap: true },
 };
 
 function cellTextLength(value: unknown): number {
@@ -1763,7 +1763,7 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
     const availableRows = Math.max(0, dataEnd - dataStart + 1);
     const rowsToWrite = rows.slice(0, availableRows);
 
-    for (let rowNumber = dataStart; rowNumber <= dataEnd; rowNumber++) {
+    for (let rowNumber = dataStart; rowNumber < dataStart + rowsToWrite.length; rowNumber++) {
       const row = ws.getRow(rowNumber);
       columnsToClear.forEach((col) => { row.getCell(col).value = ""; });
       const shipment = rowsToWrite[rowNumber - dataStart];
@@ -1779,6 +1779,12 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
         }
       }
       row.commit();
+    }
+
+    const unusedRows = Math.max(0, availableRows - rowsToWrite.length);
+    if (unusedRows > 0) {
+      ws.spliceRows(dataStart + rowsToWrite.length, unusedRows);
+      rowOffset -= unusedRows;
     }
   }
 
