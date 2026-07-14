@@ -13,6 +13,11 @@ self.addEventListener("push", (event) => {
     body: data.body || "You have a new update.",
     icon: "/ifs-app-icon-2026.png",
     badge: "/ifs-app-icon-2026.png",
+    vibrate: [220, 120, 220],
+    renotify: true,
+    requireInteraction: true,
+    silent: false,
+    timestamp: Date.now(),
     data: {
       url: data.url || "/dashboard",
     },
