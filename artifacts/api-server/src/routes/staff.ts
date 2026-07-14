@@ -1462,6 +1462,23 @@ const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }
   status: { min: 8, max: 36, wrap: true },
 };
 
+const SAMPLE_TEMPLATE_BASE_WIDTHS: Record<number, number> = {
+  2: 22.14, // B 160px
+  3: 6.71,  // C 52px
+  4: 20.71, // D 150px
+  5: 22.86, // E 165px
+  6: 27.86, // F 200px
+  7: 27.86, // G 200px
+  8: 27.86, // H 200px
+  9: 23.57, // I 170px
+  10: 7.86, // J 60px
+  11: 7.86, // K 60px
+  12: 13.57, // L 100px
+  13: 13.57, // M 100px
+  14: 12.14, // N 90px
+  15: 27.86, // O 200px
+};
+
 function cellTextLength(value: unknown): number {
   if (value == null) return 0;
   if (typeof value === "string") return value.length;
@@ -1509,12 +1526,15 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
       const limits = REPORT_WIDTHS[key];
       const best = maxLen[colIdx] ?? 0;
       const padding = key === "ifsRef" ? 6 : 2;
-      col.width = Math.min(Math.max(best + padding, limits.min), limits.max);
+      const computedWidth = Math.min(Math.max(best + padding, limits.min), limits.max);
+      const baseWidth = SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0;
+      col.width = Math.max(baseWidth, computedWidth);
       continue;
     }
 
     const best = maxLen[colIdx] ?? 0;
-    if (best > 0) col.width = Math.min(Math.max(best + 2, 8), 16);
+    const baseWidth = SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0;
+    if (best > 0) col.width = Math.max(baseWidth, Math.min(Math.max(best + 2, 8), 16));
   }
 
   ws.eachRow((row) => {
@@ -1735,7 +1755,7 @@ function findTemplateSections(ws: ExcelJS.Worksheet): Record<string, {
   }> = {};
   for (let i = 0; i < found.length; i++) {
     const current = found[i];
-    const nextRow = found[i + 1]?.row ?? ((ws.lastRow?.number ?? current.row) + 1);
+    const nextRow = found[i + 1]?.row ?? ((ws.lastRow?.number ?? current.row));
     let headerRow = current.row + 1;
     for (let rowNumber = current.row + 1; rowNumber < nextRow; rowNumber++) {
       const row = ws.getRow(rowNumber);
@@ -1772,11 +1792,20 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
   for (const label of orderedLabels) {
     const section = sections[label];
     const rows = sortRowsForSection(label, grouped.get(label) ?? []);
+    const sectionRow = section.sectionRow + rowOffset;
     const firstDataRow = section.firstDataRow + rowOffset;
     const extraDataStart = section.extraDataStart + rowOffset;
     const extraDataEnd = section.extraDataEnd + rowOffset;
+    const footerRow = section.footerRow + rowOffset;
     const columnMap = headerColumnMap(ws.getRow(section.headerRow + rowOffset));
     const columnsToClear = columnMap.length > 0 ? columnMap.map((mapping) => mapping.col) : Array.from({ length: 14 }, (_v, i) => i + 3);
+
+    try {
+      ws.mergeCells(`B${sectionRow}:O${sectionRow}`);
+    } catch {}
+    const titleCell = ws.getCell(`B${sectionRow}`);
+    titleCell.alignment = { ...(titleCell.alignment ?? {}), horizontal: "center", vertical: "middle" };
+
     const firstRow = ws.getRow(firstDataRow);
     columnsToClear.forEach((col) => { firstRow.getCell(col).value = ""; });
     const firstShipment = rows[0];
@@ -1819,6 +1848,9 @@ function fillTemplateSections(ws: ExcelJS.Worksheet, shipments: (typeof shipment
       ws.spliceRows(extraDataStart + extraRowsToWrite.length, unusedRows);
       rowOffset -= unusedRows;
     }
+
+    const footer = ws.getRow(footerRow + Math.min(0, rowOffset));
+    footer.commit();
   }
 
   return true;
