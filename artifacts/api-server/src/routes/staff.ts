@@ -1491,7 +1491,7 @@ function cellTextLength(value: unknown): number {
   return String(value).length;
 }
 
-// Auto-fit report columns using the real sample template as the minimum layout.
+// Auto-fit report columns by content.
 function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
   const maxLen: Record<number, number> = {};
   const columnKeys: Record<number, typeof REPORT_KEYS[number]> = {};
@@ -1523,19 +1523,17 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
 
     const key = columnKeys[colIdx];
     if (key) {
-      const baseWidth = SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0;
       const limits = REPORT_WIDTHS[key];
       const best = maxLen[colIdx] ?? 0;
       const padding = key === "ifsRef" ? 6 : 2;
       const computedWidth = Math.min(Math.max(best + padding, limits.min), limits.max);
-      col.width = Math.max(baseWidth, computedWidth);
+      col.width = computedWidth;
       continue;
     }
 
-    const baseWidth = SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0;
     const best = maxLen[colIdx] ?? 0;
     const computedWidth = best > 0 ? Math.min(Math.max(best + 2, 8), 24) : 0;
-    if (baseWidth > 0 || computedWidth > 0) col.width = Math.max(baseWidth, computedWidth);
+    if (computedWidth > 0) col.width = computedWidth;
   }
 
   ws.eachRow((row) => {
