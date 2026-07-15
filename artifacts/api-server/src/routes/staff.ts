@@ -5,6 +5,7 @@ import { ZipArchive } from "archiver";
 import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
 import { db, pool, shipmentsTable, companiesTable, uploadsTable, usersTable, notificationsTable, sessionsTable, pendingSignupsTable } from "@workspace/db";
 import { eq, asc, desc, and, or, isNull, ilike, sql } from "drizzle-orm";
 import { requireAuth, requireStaff, requireAdmin } from "../middlewares/auth";
@@ -35,6 +36,33 @@ const templateUpload = multer({ storage: templateStorage, limits: { fileSize: 10
 const asycudaUpload = multer({ storage: templateStorage, limits: { fileSize: 20 * 1024 * 1024 } });
 
 const router = Router();
+const runtimeDir = path.dirname(fileURLToPath(import.meta.url));
+const REPORT_TITLE_IMAGE_PATH = path.resolve(runtimeDir, "assets", "interfreightsolutions-title.png");
+
+function applyReportTitleImage(
+  wb: ExcelJS.Workbook,
+  ws: ExcelJS.Worksheet,
+  options?: {
+    clearCell?: string;
+    topLeft?: { col: number; row: number };
+    ext?: { width: number; height: number };
+  },
+): void {
+  if (!fs.existsSync(REPORT_TITLE_IMAGE_PATH)) return;
+
+  if (options?.clearCell) ws.getCell(options.clearCell).value = null;
+
+  const imageId = wb.addImage({
+    filename: REPORT_TITLE_IMAGE_PATH,
+    extension: "png",
+  });
+
+  ws.addImage(imageId, {
+    tl: options?.topLeft ?? { col: 1.1, row: 3.02 },
+    ext: options?.ext ?? { width: 350, height: 30 },
+    editAs: "oneCell",
+  });
+}
 
 function safeDownloadName(value: string): string {
   return value.replace(/[\/\\?%*:|"<>]/g, "-").trim() || "download.xlsx";
@@ -1911,6 +1939,11 @@ async function generateCompanyReportWorkbook(
     // ── Template-based path ───────────────────────────────────────────────
     await wb.xlsx.load(templateBuf);
     ws = wb.worksheets[0];
+    applyReportTitleImage(wb, ws, {
+      clearCell: "B4",
+      topLeft: { col: 1.1, row: 3.02 },
+      ext: { width: 350, height: 30 },
+    });
     updateTemplateDate(ws, dateStr);
     if (fillTemplateSections(ws, shipments)) {
       autoFitWorksheet(ws);
@@ -2019,6 +2052,11 @@ async function generateCompanyReportWorkbook(
     ws.getCell("M5").font = { size: 10 };
     ws.getCell("M5").alignment = { horizontal: "right" };
     r5.height = 20;
+    applyReportTitleImage(wb, ws, {
+      clearCell: "C4",
+      topLeft: { col: 2.05, row: 3.0 },
+      ext: { width: 330, height: 28 },
+    });
 
     ws.addRow([]);
   }

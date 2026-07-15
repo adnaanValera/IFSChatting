@@ -136,6 +136,8 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
 
   await copyRuntimePackage("@swc/helpers", distDir, "@swc/helpers/cjs/_define_property.cjs", 1);
   await copyRuntimePackage("tslib", distDir, "tslib/tslib.js");
+  const assetsDir = path.resolve(artifactDir, "assets");
+  await cp(assetsDir, path.join(distDir, "assets"), { recursive: true, force: true }).catch(() => undefined);
 }
 
 buildAll().catch((err) => {
