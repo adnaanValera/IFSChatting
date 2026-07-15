@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
 import {
   ChevronDown, FileText, Anchor, MapPin, Flag,
   User, Box, Ship, Truck, Boxes, Bell,
@@ -350,14 +349,9 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
               <div className="col-span-2 flex flex-col items-start sm:col-auto sm:items-end gap-1 pt-1 sm:pt-0">
                 <StatusPill status={s.status} theme={theme} />
                 {statusChange && (
-                  <motion.span
-                    initial={{ opacity: 0.45 }}
-                    animate={{ opacity: [0.65, 1, 0.65] }}
-                    transition={{ duration: 1.4, repeat: 1 }}
-                    className="text-[11px] font-semibold text-white/70"
-                  >
+                  <span className="text-[11px] font-semibold text-white/70">
                     {customerFriendlyStatus(statusChange.oldValue)} -&gt; {customerFriendlyStatus(statusChange.newValue)}
-                  </motion.span>
+                  </span>
                 )}
               </div>
             </div>
@@ -432,14 +426,9 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
               </p>
               <StatusPill status={s.status} theme={theme} large />
               {statusChange && (
-                <motion.p
-                  initial={{ opacity: 0.5, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="text-center text-xs font-semibold text-zinc-300 mt-3"
-                >
+                <p className="text-center text-xs font-semibold text-zinc-300 mt-3">
                   {customerFriendlyStatus(statusChange.oldValue)} -&gt; {customerFriendlyStatus(statusChange.newValue)}
-                </motion.p>
+                </p>
               )}
               {s.lastUpdated && (
                 <p className="text-center text-[10px] text-zinc-600 mt-3">
