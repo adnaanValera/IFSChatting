@@ -321,15 +321,22 @@ export default function CustomerDashboard() {
   const companyName = String(typedUser?.companyName || typedUser?.fullName || typedUser?.name || "InterFreight Client");
   const statusChangesByIfsRef = new Map<string, { oldValue: string; newValue: string }>();
   const statusChangeTokenByIfsRef = new Map<string, string>();
+  const notificationIdsByChangeToken = new Map<string, number[]>();
   for (const notification of notifications) {
-    if (!notification.ifsRef || statusChangesByIfsRef.has(notification.ifsRef)) continue;
+    if (!notification.ifsRef) continue;
     const change = parseStatusChange(notification.message);
     if (change) {
-      statusChangesByIfsRef.set(notification.ifsRef, change);
-      statusChangeTokenByIfsRef.set(notification.ifsRef, `${notification.ifsRef}::${change.oldValue}::${change.newValue}`);
+      const token = `${notification.ifsRef}::${change.oldValue}::${change.newValue}`;
+      if (!statusChangesByIfsRef.has(notification.ifsRef)) {
+        statusChangesByIfsRef.set(notification.ifsRef, change);
+        statusChangeTokenByIfsRef.set(notification.ifsRef, token);
+      }
+      if (notification.id) {
+        notificationIdsByChangeToken.set(token, [...(notificationIdsByChangeToken.get(token) ?? []), notification.id]);
+      }
     }
   }
-  const markChangeAsSeen = (token?: string) => {
+  const markChangeAsSeen = async (token?: string) => {
     if (!token || seenChangeTokens.has(token)) return;
     setSeenChangeTokens((current) => {
       const next = new Set(current);
@@ -337,6 +344,11 @@ export default function CustomerDashboard() {
       localStorage.setItem(READ_CHANGES_STORAGE_KEY, JSON.stringify([...next]));
       return next;
     });
+    const notificationIds = notificationIdsByChangeToken.get(token) ?? [];
+    if (notificationIds.length > 0) {
+      await Promise.allSettled(notificationIds.map((id) => authFetch(`/api/notifications/${id}/read`, { method: "PATCH" })));
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    }
   };
 
   const unreadTodayUpdates = notifications.filter((notification) => {
@@ -457,23 +469,6 @@ export default function CustomerDashboard() {
                   {isDownloadingPdf ? <Spinner className="w-4 h-4" /> : <Download size={16} />}
                   Download PDF Report
                 </button>
-                {hasShipmentChanges && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearch("");
-                      setChangedOnlyRefs([...changedShipmentRefs]);
-                      setShowChangedOnly(true);
-                      window.requestAnimationFrame(() => {
-                        document.getElementById("customer-shipments")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      });
-                    }}
-                    className="inline-flex items-center gap-2 rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-500 shadow-[0_0_18px_rgba(239,68,68,0.18)] transition-all hover:bg-red-500/15"
-                  >
-                    <Bell size={14} className="animate-pulse" />
-                    <span>Check the changes</span>
-                  </button>
-                )}
               </div>
             </div>
 
