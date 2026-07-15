@@ -80,9 +80,24 @@ function authFetch(path: string, options: RequestInit = {}) {
 }
 
 function parseStatusChange(message?: string | null): { oldValue: string; newValue: string } | undefined {
-  const match = String(message ?? "").match(/status changed:\s*(.*?)\s*->\s*(.*?)\.\s*Tap/i);
-  if (!match) return undefined;
-  return { oldValue: match[1]?.trim() || "N/A", newValue: match[2]?.trim() || "N/A" };
+  const text = String(message ?? "").trim();
+  const legacyMatch = text.match(/status changed:\s*(.*?)\s*->\s*(.*?)\.\s*Tap/i);
+  if (legacyMatch) {
+    return {
+      oldValue: legacyMatch[1]?.trim() || "N/A",
+      newValue: legacyMatch[2]?.trim() || "N/A",
+    };
+  }
+
+  const currentMatch = text.match(/:\s*(.*?)\s*->\s*(.*?)\.\s*Tap to view more\.?$/i);
+  if (currentMatch) {
+    return {
+      oldValue: currentMatch[1]?.trim() || "N/A",
+      newValue: currentMatch[2]?.trim() || "N/A",
+    };
+  }
+
+  return undefined;
 }
 
 function isToday(value?: string | null): boolean {
