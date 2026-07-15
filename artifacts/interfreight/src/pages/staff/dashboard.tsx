@@ -26,7 +26,7 @@ import { saveAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { Spinner } from "@/components/ui/spinner";
 
-type Tab = "overview" | "import" | "history" | "messages" | "cards" | "authorize" | "asycuda";
+type Tab = "overview" | "import" | "history" | "messages" | "problems" | "cards" | "authorize" | "asycuda" | "activity";
 
 type Announcement = {
   id: number;
@@ -57,6 +57,30 @@ type AnnouncementCustomer = {
   fullName: string;
   companyName: string;
   email: string;
+};
+type FeedbackItem = {
+  id: number;
+  name: string;
+  email: string;
+  company?: string | null;
+  phoneNumber?: string | null;
+  source: string;
+  category?: string | null;
+  message: string;
+  status: string;
+  replyText?: string | null;
+  repliedAt?: string | null;
+  createdAt: string;
+};
+type ActivityItem = {
+  id: number;
+  fullName: string;
+  companyName: string;
+  email: string;
+  role: string;
+  lastSeenAt?: string | null;
+  lastLoginAt?: string | null;
+  activeSessions?: number;
 };
 type Shipment = {
   id: number; ifsRef: string; mraRef?: string; containerNo?: string;
@@ -360,9 +384,11 @@ export default function Dashboard() {
   const { data: recentActivity, isLoading: activityLoading } = useGetRecentActivity();
   const { data: uploads, isLoading: uploadsLoading } = useListUploads();
 
-  const [feedback, setFeedback] = useState<any[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackLoaded, setFeedbackLoaded] = useState(false);
+  const [activityRows, setActivityRows] = useState<ActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
     nearbyConsignments: OperationalAlert[];
     needsChecking: OperationalAlert[];
@@ -713,6 +739,25 @@ export default function Dashboard() {
     }
   };
 
+  const loadActivity = async (silent = false) => {
+    setActivityLoading(true);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/activity`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to load activity");
+      setActivityRows(await res.json());
+    } catch (err: any) {
+      if (!silent) {
+        toast({ variant: "destructive", title: "Error", description: err.message });
+      }
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
   useEffect(() => {
     const currentIds = feedback.map((item) => Number(item.id)).filter((id) => Number.isFinite(id));
     if (currentIds.length === 0) {
@@ -727,16 +772,21 @@ export default function Dashboard() {
 
     const newMessages = feedback.filter((item) => !knownFeedbackIdsRef.current.includes(Number(item.id)));
     if (newMessages.length > 0) {
-      const latest = newMessages[0] as any;
+      const latest = newMessages[0] as FeedbackItem;
+      const isProblem = latest.source === "customer_problem";
+      const title = isProblem ? "New Customer Problem" : "New Contact Message";
+      const description = isProblem
+        ? `${latest.name}${latest.category ? ` · ${latest.category}` : ""}`
+        : `${latest.name}${latest.phoneNumber ? ` · ${latest.phoneNumber}` : ""}`;
       toast({
-        title: "New Contact Message",
-        description: `${latest.name}${latest.phoneNumber ? ` · ${latest.phoneNumber}` : ""}`,
+        title,
+        description,
       });
 
       if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
         try {
-          new Notification("New Contact Message", {
-            body: `${latest.name}${latest.phoneNumber ? ` · ${latest.phoneNumber}` : ""}`,
+          new Notification(title, {
+            body: description,
             icon: "/ifs-app-icon-2026.png",
             badge: "/ifs-app-icon-2026.png",
             tag: `feedback-${latest.id}`,
@@ -804,21 +854,23 @@ export default function Dashboard() {
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
     setIsMobileNavOpen(false);
-    if (tab === "messages") loadFeedback();
+    if (tab === "messages" || tab === "problems") loadFeedback();
     if (tab === "cards") loadCompanies();
     if (tab === "import") checkTemplateStatus();
+    if (tab === "activity") loadActivity();
   };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requestedTab = params.get("tab");
     const focus = params.get("focus");
-    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "cards", "authorize", "asycuda"];
+    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "problems", "cards", "authorize", "asycuda", "activity"];
     if (requestedTab && allowedTabs.includes(requestedTab as Tab)) {
       const nextTab = requestedTab as Tab;
       setActiveTab(nextTab);
-      if (nextTab === "messages") void loadFeedback(true);
+      if (nextTab === "messages" || nextTab === "problems") void loadFeedback(true);
       if (nextTab === "cards") void loadCompanies();
+      if (nextTab === "activity") void loadActivity(true);
     }
     if (focus === "announcement") {
       window.requestAnimationFrame(() => {
@@ -1176,7 +1228,10 @@ export default function Dashboard() {
     );
   }
 
-  const unreadCount = feedback.filter((f) => f.status === "unread").length;
+  const messageFeedback = feedback.filter((item) => item.source === "public");
+  const problemFeedback = feedback.filter((item) => item.source === "customer_problem");
+  const unreadCount = messageFeedback.filter((f) => f.status === "unread").length;
+  const unreadProblemCount = problemFeedback.filter((f) => f.status === "unread").length;
   const dashboardStats = stats as any;
   const activityPayload = recentActivity as any;
   const recentUpdates = Array.isArray(activityPayload) ? activityPayload : (activityPayload?.recentActivity ?? []);
@@ -1239,11 +1294,134 @@ export default function Dashboard() {
     { id: "history", label: "File Download", icon: <History size={18} />, badge: uploads?.length },
     { id: "authorize", label: "Authorize Sign Up", icon: <UserCheck size={18} />, badge: pendingSignups.length || undefined },
     { id: "messages", label: "Messages", icon: <Bell size={18} />, badge: unreadCount || undefined },
+    { id: "problems", label: "Problems", icon: <AlertTriangle size={18} />, badge: unreadProblemCount || undefined },
   ];
 
   if (isAdmin) {
     navItems.splice(2, 0, { id: "asycuda", label: "ASYCUDA", icon: <ReceiptText size={18} /> });
+    navItems.push({ id: "activity", label: "Activity", icon: <Clock size={18} /> });
   }
+
+  const renderFeedbackCards = (items: FeedbackItem[], emptyTitle: string, emptyDescription: string, kind: "message" | "problem") => (
+    feedbackLoading ? (
+      <div className="flex items-center justify-center py-20">
+        <Spinner className="w-8 h-8" />
+      </div>
+    ) : items.length === 0 ? (
+      <div className="bg-white rounded-2xl border border-border shadow-sm py-20 text-center">
+        {kind === "problem" ? (
+          <AlertTriangle className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
+        ) : (
+          <Mail className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
+        )}
+        <p className="text-lg font-semibold text-secondary mb-2">{emptyTitle}</p>
+        <p className="text-sm text-muted-foreground">{emptyDescription}</p>
+      </div>
+    ) : (
+      items.map((msg) => {
+        const isExpanded = expandedFeedback === msg.id;
+        const statusColor =
+          msg.status === "unread"
+            ? "bg-primary/10 text-primary"
+            : msg.status === "replied"
+            ? "bg-green-100 text-green-700"
+            : "bg-muted text-muted-foreground";
+
+        const categoryLabel = msg.category
+          ? msg.category.charAt(0).toUpperCase() + msg.category.slice(1)
+          : "General";
+
+        return (
+          <div
+            key={msg.id}
+            className={`bg-white rounded-xl border shadow-sm transition-all ${
+              msg.status === "unread" ? "border-primary/30" : "border-border"
+            }`}
+          >
+            <div
+              className="flex items-start gap-4 p-5 cursor-pointer"
+              onClick={() => {
+                setExpandedFeedback(isExpanded ? null : msg.id);
+                if (msg.status === "unread") handleMarkRead(msg.id);
+              }}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="font-bold text-secondary">{msg.name}</span>
+                  <span className="text-muted-foreground text-sm">&lt;{msg.email}&gt;</span>
+                  {msg.phoneNumber && (
+                    <span className="text-muted-foreground text-sm">{msg.phoneNumber}</span>
+                  )}
+                  {kind === "problem" && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                      {categoryLabel}
+                    </span>
+                  )}
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor}`}>
+                    {msg.status}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-1">
+                  <span className="font-semibold text-secondary">{msg.company || "No company"}</span>
+                  {kind === "problem" && <span>Customer dashboard problem</span>}
+                </div>
+                <p className="text-sm text-muted-foreground truncate">{msg.message}</p>
+                <p className="text-xs text-muted-foreground mt-1">{formatDate(msg.createdAt)}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDeleteFeedback(msg.id); }}
+                  disabled={deletingFeedbackId === msg.id}
+                  className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                  title={kind === "problem" ? "Delete problem" : "Delete message"}
+                >
+                  {deletingFeedbackId === msg.id
+                    ? <Spinner className="h-[14px] w-[14px]" />
+                    : <Trash2 size={14} />
+                  }
+                </button>
+                {isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
+              </div>
+            </div>
+
+            {isExpanded && (
+              <div className="px-5 pb-5 border-t border-border/60 pt-4">
+                <p className="text-sm text-secondary leading-relaxed whitespace-pre-wrap mb-5">{msg.message}</p>
+
+                {msg.replyText && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <p className="text-xs font-semibold text-green-700 mb-1">Reply saved:</p>
+                    <p className="text-sm text-green-800 whitespace-pre-wrap">{msg.replyText}</p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    {msg.replyText ? "Update note" : "Write a note"}
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={replyTexts[msg.id] ?? ""}
+                    onChange={(e) => setReplyTexts((prev) => ({ ...prev, [msg.id]: e.target.value }))}
+                    placeholder={kind === "problem" ? "Write an internal note or resolution..." : "Write a reply here..."}
+                    className="w-full px-4 py-3 rounded-xl border border-input focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-sm bg-background resize-none transition-all"
+                  />
+                  <button
+                    onClick={() => handleSendReply(msg.id)}
+                    disabled={sendingReply === msg.id || !replyTexts[msg.id]?.trim()}
+                    className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all disabled:opacity-50"
+                  >
+                    {sendingReply === msg.id ? <Spinner className="h-[14px] w-[14px]" /> : <Send size={14} />}
+                    Save
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })
+    )
+  );
 
   return (
     <div className="min-h-screen bg-[#f5f6fa] flex flex-col">
@@ -2503,107 +2681,119 @@ export default function Dashboard() {
                   Refresh
                 </button>
               </div>
+              {renderFeedbackCards(
+                messageFeedback,
+                "No messages yet",
+                "Messages from the website contact form will appear here.",
+                "message",
+              )}
+            </div>
+          )}
 
-              {feedbackLoading ? (
+          {activeTab === "problems" && (
+            <div className="space-y-6 max-w-3xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h2 className="text-2xl font-extrabold text-secondary">Problems</h2>
+                    <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary animate-pulse shadow-[0_0_14px_rgba(191,33,49,0.2)]">
+                      <Bell size={13} />
+                      {unreadProblemCount} unread
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Bug and problem reports sent from the customer dashboard.</p>
+                </div>
+                <button
+                  onClick={() => { setFeedbackLoaded(false); loadFeedback(); }}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {renderFeedbackCards(
+                problemFeedback,
+                "No problems yet",
+                "Customer dashboard problem reports will appear here.",
+                "problem",
+              )}
+            </div>
+          )}
+
+          {activeTab === "activity" && isAdmin && (
+            <div className="space-y-6 max-w-5xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-secondary">Activity</h2>
+                  <p className="text-sm text-muted-foreground">See when each account last entered the app or website.</p>
+                </div>
+                <button
+                  onClick={() => { void loadActivity(); }}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {activityLoading ? (
                 <div className="flex items-center justify-center py-20">
                   <Spinner className="w-8 h-8" />
                 </div>
-              ) : feedback.length === 0 ? (
+              ) : activityRows.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-border shadow-sm py-20 text-center">
-                  <Mail className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
-                  <p className="text-lg font-semibold text-secondary mb-2">No messages yet</p>
-                  <p className="text-sm text-muted-foreground">Messages from the website contact form will appear here.</p>
+                  <Clock className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
+                  <p className="text-lg font-semibold text-secondary mb-2">No activity yet</p>
+                  <p className="text-sm text-muted-foreground">Account entry activity will appear here once users start logging in.</p>
                 </div>
               ) : (
-                feedback.map((msg) => {
-                  const isExpanded = expandedFeedback === msg.id;
-                  const statusColor =
-                    msg.status === "unread"
-                      ? "bg-primary/10 text-primary"
-                      : msg.status === "replied"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-muted text-muted-foreground";
-
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`bg-white rounded-xl border shadow-sm transition-all ${
-                        msg.status === "unread" ? "border-primary/30" : "border-border"
-                      }`}
-                    >
-                      <div
-                        className="flex items-start gap-4 p-5 cursor-pointer"
-                        onClick={() => {
-                          setExpandedFeedback(isExpanded ? null : msg.id);
-                          if (msg.status === "unread") handleMarkRead(msg.id);
-                        }}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="font-bold text-secondary">{msg.name}</span>
-                            <span className="text-muted-foreground text-sm">&lt;{msg.email}&gt;</span>
-                            {msg.phoneNumber && (
-                              <span className="text-muted-foreground text-sm">{msg.phoneNumber}</span>
-                            )}
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColor}`}>
-                              {msg.status}
-                            </span>
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate">{msg.message}</p>
-                          <p className="text-xs text-muted-foreground mt-1">{formatDate(msg.createdAt)}</p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDeleteFeedback(msg.id); }}
-                            disabled={deletingFeedbackId === msg.id}
-                            className="text-muted-foreground hover:text-destructive transition-colors p-1"
-                            title="Delete message"
-                          >
-                            {deletingFeedbackId === msg.id
-                              ? <Spinner className="h-[14px] w-[14px]" />
-                              : <Trash2 size={14} />
-                            }
-                          </button>
-                          {isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
-                        </div>
-                      </div>
-
-                      {isExpanded && (
-                        <div className="px-5 pb-5 border-t border-border/60 pt-4">
-                          <p className="text-sm text-secondary leading-relaxed whitespace-pre-wrap mb-5">{msg.message}</p>
-
-                          {msg.replyText && (
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                              <p className="text-xs font-semibold text-green-700 mb-1">Your reply:</p>
-                              <p className="text-sm text-green-800 whitespace-pre-wrap">{msg.replyText}</p>
-                            </div>
-                          )}
-
-                          <div className="space-y-2">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              {msg.replyText ? "Update reply" : "Write a reply"} (internal note)
-                            </label>
-                            <textarea
-                              rows={3}
-                              value={replyTexts[msg.id] ?? ""}
-                              onChange={(e) => setReplyTexts((prev) => ({ ...prev, [msg.id]: e.target.value }))}
-                              placeholder="Type your reply here…"
-                              className="w-full px-4 py-3 rounded-xl border border-input focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-sm bg-background resize-none transition-all"
-                            />
-                            <button
-                              onClick={() => handleSendReply(msg.id)}
-                              disabled={sendingReply === msg.id || !replyTexts[msg.id]?.trim()}
-                              className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all disabled:opacity-50"
-                            >
-                              {sendingReply === msg.id ? <Spinner className="h-[14px] w-[14px]" /> : <Send size={14} />}
-                              Save Reply
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
+                <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-muted/40 text-muted-foreground uppercase tracking-wider border-b border-border">
+                        <tr>
+                          <th className="px-4 py-3">Account</th>
+                          <th className="px-4 py-3">Company</th>
+                          <th className="px-4 py-3">Role</th>
+                          <th className="px-4 py-3">Last Entered</th>
+                          <th className="px-4 py-3">Last Login</th>
+                          <th className="px-4 py-3">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {activityRows.map((row) => {
+                          const activeSessions = Number(row.activeSessions ?? 0);
+                          return (
+                            <tr key={`activity-${row.id}`} className="hover:bg-muted/20">
+                              <td className="px-4 py-3">
+                                <div className="font-semibold text-secondary">{row.fullName}</div>
+                                <div className="text-muted-foreground break-all">{row.email}</div>
+                              </td>
+                              <td className="px-4 py-3 text-muted-foreground">{row.companyName || "N/A"}</td>
+                              <td className="px-4 py-3">
+                                <span className="text-xs font-bold px-2 py-1 rounded-full bg-muted text-muted-foreground uppercase">
+                                  {row.role}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 font-semibold text-secondary whitespace-nowrap">
+                                {row.lastSeenAt ? formatDate(row.lastSeenAt) : "Never"}
+                              </td>
+                              <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                                {row.lastLoginAt ? formatDate(row.lastLoginAt) : "Never"}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                                  activeSessions > 0 ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+                                }`}>
+                                  {activeSessions > 0 ? `Active (${activeSessions})` : "Offline"}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               )}
             </div>
           )}

@@ -101,6 +101,7 @@ async function createTables() {
       company text,
       phone_number text,
       source text NOT NULL DEFAULT 'public',
+      category text NOT NULL DEFAULT 'general',
       message text NOT NULL,
       status text NOT NULL DEFAULT 'unread',
       reply_text text,
@@ -165,6 +166,7 @@ async function createTables() {
   await pool.query(`
     ALTER TABLE feedback ADD COLUMN IF NOT EXISTS phone_number text;
     ALTER TABLE feedback ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'public';
+    ALTER TABLE feedback ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'general';
     ALTER TABLE announcements ADD COLUMN IF NOT EXISTS audience text NOT NULL DEFAULT 'all';
     ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target_user_ids text;
     ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_id integer;

@@ -2680,6 +2680,32 @@ router.get("/staff/users", requireAuth, requireAdmin, async (_req, res) => {
   res.json(users);
 });
 
+router.get("/staff/activity", requireAuth, requireAdmin, async (_req, res) => {
+  const rows = await db
+    .select({
+      id: usersTable.id,
+      fullName: usersTable.fullName,
+      companyName: usersTable.companyName,
+      email: usersTable.email,
+      role: usersTable.role,
+      lastSeenAt: sql<string | null>`max(${sessionsTable.lastSeenAt})`,
+      lastLoginAt: sql<string | null>`max(${sessionsTable.createdAt})`,
+      activeSessions: sql<number>`count(case when ${sessionsTable.revokedAt} is null and ${sessionsTable.expiresAt} > now() then 1 end)`,
+    })
+    .from(usersTable)
+    .leftJoin(sessionsTable, eq(sessionsTable.userId, usersTable.id))
+    .groupBy(
+      usersTable.id,
+      usersTable.fullName,
+      usersTable.companyName,
+      usersTable.email,
+      usersTable.role,
+    )
+    .orderBy(desc(sql`max(${sessionsTable.last_seen_at}) nulls last`), asc(usersTable.fullName));
+
+  res.json(rows);
+});
+
 router.patch("/staff/users/:id/profile-picture", requireAuth, requireAdmin, async (req, res) => {
   const id = parseInt(req.params["id"] as string, 10);
   const profilePictureUrl = typeof req.body?.profilePictureUrl === "string" ? req.body.profilePictureUrl.trim() : "";
