@@ -2701,7 +2701,7 @@ router.get("/staff/activity", requireAuth, requireAdmin, async (_req, res) => {
       usersTable.email,
       usersTable.role,
     )
-    .orderBy(desc(sql`max(${sessionsTable.last_seen_at}) nulls last`), asc(usersTable.fullName));
+    .orderBy(desc(sql`max(${sessionsTable.lastSeenAt}) nulls last`), asc(usersTable.fullName));
 
   res.json(rows);
 });
