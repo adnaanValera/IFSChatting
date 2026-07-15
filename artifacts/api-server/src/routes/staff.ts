@@ -2681,27 +2681,21 @@ router.get("/staff/users", requireAuth, requireAdmin, async (_req, res) => {
 });
 
 router.get("/staff/activity", requireAuth, requireAdmin, async (_req, res) => {
-  const rows = await db
-    .select({
-      id: usersTable.id,
-      fullName: usersTable.fullName,
-      companyName: usersTable.companyName,
-      email: usersTable.email,
-      role: usersTable.role,
-      lastSeenAt: sql<string | null>`max(${sessionsTable.lastSeenAt})`,
-      lastLoginAt: sql<string | null>`max(${sessionsTable.createdAt})`,
-      activeSessions: sql<number>`count(case when ${sessionsTable.revokedAt} is null and ${sessionsTable.expiresAt} > now() then 1 end)`,
-    })
-    .from(usersTable)
-    .leftJoin(sessionsTable, eq(sessionsTable.userId, usersTable.id))
-    .groupBy(
-      usersTable.id,
-      usersTable.fullName,
-      usersTable.companyName,
-      usersTable.email,
-      usersTable.role,
-    )
-    .orderBy(desc(sql`max(${sessionsTable.lastSeenAt}) nulls last`), asc(usersTable.fullName));
+  const { rows } = await pool.query(`
+    SELECT
+      u.id,
+      u.full_name AS "fullName",
+      u.company_name AS "companyName",
+      u.email,
+      u.role,
+      MAX(s.last_seen_at) AS "lastSeenAt",
+      MAX(s.created_at) AS "lastLoginAt",
+      COUNT(CASE WHEN s.revoked_at IS NULL AND s.expires_at > NOW() THEN 1 END)::int AS "activeSessions"
+    FROM users u
+    LEFT JOIN sessions s ON s.user_id = u.id
+    GROUP BY u.id, u.full_name, u.company_name, u.email, u.role
+    ORDER BY MAX(s.last_seen_at) DESC NULLS LAST, u.full_name ASC
+  `);
 
   res.json(rows);
 });

@@ -221,6 +221,7 @@ export default function CustomerDashboard() {
   const [problemMessage, setProblemMessage] = useState("");
   const [problemSending, setProblemSending] = useState(false);
   const [problemSent, setProblemSent] = useState(false);
+  const [showQuickMenu, setShowQuickMenu] = useState(false);
   const logoTargetRef = useRef<HTMLImageElement | null>(null);
   const [logoTarget, setLogoTarget] = useState<{ x: number; y: number } | null>(null);
   const { canInstall, promptInstall } = useInstallPrompt();
@@ -430,6 +431,14 @@ export default function CustomerDashboard() {
   const scrollToSection = (targetId: string) => {
     document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  const scrollToProblemSection = () => {
+    document.getElementById("customer-problem-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setShowQuickMenu(false);
+  };
+  const scrollToTrackingSection = () => {
+    document.getElementById("customer-shipments")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setShowQuickMenu(false);
+  };
   const sectionRows = STATUS_SECTIONS.map((section) => ({
     ...section,
     rows: filteredShipments.filter((shipment: any) => shipmentSectionLabel(shipment) === section.reportLabel),
@@ -470,8 +479,33 @@ export default function CustomerDashboard() {
       {/* Top bar */}
       <div className="bg-secondary text-secondary-foreground shadow-lg sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <img ref={logoTargetRef} src={CUSTOMER_BADGE_URL} alt={typedUser?.fullName || typedUser?.name || "Profile"} className={`h-10 w-10 rounded-xl object-cover border border-white/15 shrink-0 transition-opacity duration-200 ${showIntro ? "opacity-0" : "opacity-100"}`} />
+          <div className="flex items-center gap-3 min-w-0 relative">
+            <button
+              type="button"
+              onClick={() => setShowQuickMenu((current) => !current)}
+              className="shrink-0 rounded-xl transition-opacity duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              aria-label="Open dashboard menu"
+            >
+              <img ref={logoTargetRef} src={CUSTOMER_BADGE_URL} alt={typedUser?.fullName || typedUser?.name || "Profile"} className={`h-10 w-10 rounded-xl object-cover border border-white/15 ${showIntro ? "opacity-0" : "opacity-100"}`} />
+            </button>
+            {showQuickMenu && (
+              <div className="absolute left-0 top-12 z-50 min-w-[180px] rounded-xl border border-white/10 bg-secondary/95 p-2 shadow-xl backdrop-blur">
+                <button
+                  type="button"
+                  onClick={scrollToTrackingSection}
+                  className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  My Tracking
+                </button>
+                <button
+                  type="button"
+                  onClick={scrollToProblemSection}
+                  className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  Bug/Problem
+                </button>
+              </div>
+            )}
             <div className="min-w-0">
               <p className="text-xs text-gray-400 uppercase tracking-widest">My Tracking</p>
               <h1 className="text-sm sm:text-lg font-bold text-white leading-tight truncate">
@@ -637,7 +671,7 @@ export default function CustomerDashboard() {
           </p>
         </div>
 
-        <div className="mb-6 rounded-2xl border border-border bg-card shadow-sm glow-card p-4 sm:p-5">
+        <div id="customer-problem-section" className="mb-6 rounded-2xl border border-border bg-card shadow-sm glow-card p-4 sm:p-5">
           <div className="flex flex-col gap-4">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Support</p>
@@ -655,7 +689,7 @@ export default function CustomerDashboard() {
                   muted
                   loop
                   playsInline
-                  className="mx-auto h-28 w-28 object-contain sm:h-36 sm:w-36"
+                  className="mx-auto h-28 w-28 bg-transparent object-contain mix-blend-multiply sm:h-36 sm:w-36"
                 />
                 <p className="mt-3 text-sm font-semibold text-secondary dark:text-white">
                   As soon as we see your message we will work on it right away.
