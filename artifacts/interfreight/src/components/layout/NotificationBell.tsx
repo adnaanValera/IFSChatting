@@ -153,10 +153,15 @@ export function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  function handleNotifClick(n: Notification) {
-    markOne.mutate(n.id);
+  async function handleNotifClick(n: Notification) {
+    try {
+      await markOne.mutateAsync(n.id);
+    } catch {
+      // Keep navigation working even if the read request fails.
+    }
     setOpen(false);
-    navigate(notificationTarget(n, typedUser?.role));
+    const target = notificationTarget(n, typedUser?.role);
+    window.location.assign(target);
   }
 
   return (
@@ -175,7 +180,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-[20rem] max-w-[calc(100vw-0.75rem)] sm:w-[22rem] bg-[#111315] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
+        <div className="fixed right-2 top-[4.25rem] w-[min(22rem,calc(100vw-1rem))] sm:absolute sm:right-0 sm:top-12 sm:w-[22rem] bg-[#111315] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
             <div className="flex items-center gap-2">

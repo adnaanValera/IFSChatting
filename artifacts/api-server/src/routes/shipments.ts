@@ -21,6 +21,30 @@ function isIgnoredShipmentStatus(status: unknown): boolean {
   return normalized.includes("completed") || normalized.includes("offloaded") || normalized === "mt" || normalized.startsWith("mt ") || normalized.includes("mt turn");
 }
 
+function matchText(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function namesMatch(a: unknown, b: unknown): boolean {
+  const aKey = matchText(a);
+  const bKey = matchText(b);
+  if (!aKey || !bKey) return false;
+  return aKey === bKey || aKey.includes(bKey) || bKey.includes(aKey);
+}
+
+function shipmentVisibleToCustomer(shipment: {
+  companyName?: string | null;
+  consignee?: string | null;
+}, userCompany?: string | null) {
+  if (!userCompany) return false;
+  return namesMatch(shipment.companyName, userCompany) || namesMatch(shipment.consignee, userCompany);
+}
+
 const router = Router();
 
 // ── List shipments ────────────────────────────────────────────────────────────
@@ -42,10 +66,7 @@ router.get("/shipments", optionalAuth, async (req, res) => {
 
   conditions.push(activeShipmentSql);
 
-  // Authenticated customers are locked to their own company — no exceptions
-  if (role === "customer" && userCompany) {
-    conditions.push(sql`lower(${shipmentsTable.companyName}) = lower(${userCompany})`);
-  } else if (companyFilter) {
+  if (role !== "customer" && companyFilter) {
     conditions.push(sql`lower(${shipmentsTable.companyName}) = lower(${companyFilter})`);
   }
 
@@ -82,12 +103,23 @@ router.get("/shipments", optionalAuth, async (req, res) => {
     countQuery = countQuery.where(combined);
   }
 
-  const [items, countResult] = await Promise.all([
-    query.orderBy(desc(shipmentsTable.lastUpdated)).limit(limit).offset(offset),
+  const queryLimit = role === "customer" ? 2000 : limit;
+  const queryOffset = role === "customer" ? 0 : offset;
+
+  const [rawItems, countResult] = await Promise.all([
+    query.orderBy(desc(shipmentsTable.lastUpdated)).limit(queryLimit).offset(queryOffset),
     countQuery,
   ]);
 
-  const total = Number(countResult[0]?.count ?? 0);
+  let items = rawItems;
+  let total = Number(countResult[0]?.count ?? 0);
+
+  if (role === "customer") {
+    const scopedItems = rawItems.filter((shipment) => shipmentVisibleToCustomer(shipment, userCompany));
+    total = scopedItems.length;
+    items = scopedItems.slice(offset, offset + limit);
+  }
+
   res.json({ items, total, page, limit });
 });
 
@@ -113,7 +145,7 @@ router.get("/shipments/:id", optionalAuth, async (req, res) => {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  if (authReq.user?.role === "customer" && authReq.user.companyName.toLowerCase() !== shipment.companyName.toLowerCase()) {
+  if (authReq.user?.role === "customer" && !shipmentVisibleToCustomer(shipment, authReq.user.companyName)) {
     res.status(404).json({ error: "Not found" });
     return;
   }
