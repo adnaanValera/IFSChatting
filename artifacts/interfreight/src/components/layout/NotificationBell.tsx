@@ -175,7 +175,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-[22rem] max-w-[calc(100vw-1.5rem)] bg-[#111315] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
+        <div className="absolute right-0 top-12 w-[20rem] max-w-[calc(100vw-0.75rem)] sm:w-[22rem] bg-[#111315] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
             <div className="flex items-center gap-2">
@@ -221,7 +221,7 @@ export function NotificationBell() {
           )}
 
           {/* List */}
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[70vh] overflow-y-auto">
             {unreadNotifications.length === 0 ? (
               <div className="py-10 text-center">
                 <Bell size={28} className="text-white/20 mx-auto mb-2" />
@@ -243,9 +243,9 @@ export function NotificationBell() {
                     <button
                       key={n.id}
                       onClick={() => handleNotifClick(n)}
-                      className={`w-full text-left px-4 py-3 hover:bg-white/5 transition-colors flex gap-3 items-start ${!n.read ? "bg-primary/5" : ""}`}
+                      className={`w-full text-left px-3 py-3 sm:px-4 hover:bg-white/5 transition-colors flex gap-2.5 sm:gap-3 items-start ${!n.read ? "bg-primary/5" : ""}`}
                     >
-                      <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${!n.read ? "bg-primary/20 border border-primary/30" : "bg-white/5 border border-white/10"}`}>
+                      <div className={`mt-0.5 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${!n.read ? "bg-primary/20 border border-primary/30" : "bg-white/5 border border-white/10"}`}>
                         <NotificationIcon type={n.iconType} unread={!n.read} />
                       </div>
                       <div className="flex-1 min-w-0">

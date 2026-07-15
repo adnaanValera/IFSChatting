@@ -627,7 +627,12 @@ function sameText(a: unknown, b: unknown): boolean {
 }
 
 function matchText(value: unknown): string {
-  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function matchContainer(value: unknown): string {
@@ -705,6 +710,13 @@ function shipmentStatusTone(status: string): string {
   return "transit";
 }
 
+function namesMatch(a: unknown, b: unknown): boolean {
+  const aKey = matchText(a);
+  const bKey = matchText(b);
+  if (!aKey || !bKey) return false;
+  return aKey === bKey || aKey.includes(bKey) || bKey.includes(aKey);
+}
+
 async function notifyCustomersOfStatusChange(args: {
   companyName: string;
   consignee?: string;
@@ -721,7 +733,12 @@ async function notifyCustomersOfStatusChange(args: {
     .filter((user) => user.role === "customer")
     .filter((user) => {
       const userKey = matchText(user.companyName);
-      return Boolean(userKey && (userKey === companyKey || (consigneeKey && userKey === consigneeKey)));
+      return Boolean(
+        userKey && (
+          namesMatch(userKey, companyKey) ||
+          (consigneeKey && namesMatch(userKey, consigneeKey))
+        )
+      );
     });
 
   for (const { id: userId } of customers) {
@@ -774,7 +791,12 @@ async function notifyCustomersOfNewShipment(args: {
     .filter((user) => user.role === "customer")
     .filter((user) => {
       const userKey = matchText(user.companyName);
-      return Boolean(userKey && (userKey === companyKey || (consigneeKey && userKey === consigneeKey)));
+      return Boolean(
+        userKey && (
+          namesMatch(userKey, companyKey) ||
+          (consigneeKey && namesMatch(userKey, consigneeKey))
+        )
+      );
     });
 
   for (const { id: userId } of customers) {
