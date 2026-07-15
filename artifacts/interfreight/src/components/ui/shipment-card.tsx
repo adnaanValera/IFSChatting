@@ -178,13 +178,20 @@ function ShipmentJourney({ status, theme, variant, sourceSection = "" }: { statu
     <div className="px-4 sm:px-5 py-4">
       <div className={`relative grid gap-2 ${steps.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
         <div className="absolute left-0 right-0 top-3 h-px bg-white/10" />
-        <motion.div
+        <div
           className="absolute left-0 top-3 h-px"
           style={{ background: theme.dividerColor }}
-          initial={{ width: 0 }}
-          animate={{ width: `${progress}%` }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-        />
+          aria-hidden="true"
+        >
+          <div
+            style={{
+              width: `${progress}%`,
+              height: "1px",
+              background: theme.dividerColor,
+              transition: "width 0.4s ease-out",
+            }}
+          />
+        </div>
         {steps.map((step, i) => {
           const reached = i <= activeIndex;
           return (
