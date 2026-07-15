@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ChevronDown, FileText, Anchor, MapPin, Flag,
   User, Box, Ship, Truck, Boxes, Bell,
@@ -250,11 +250,7 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
   const collapsedIdentifier = variant === "container" ? (s.containerNo || "N/A") : (blManifestNo || "N/A");
 
   const handleToggle = () => {
-    setIsOpen((current) => {
-      const next = !current;
-      if (next && statusChange) onViewed?.(changeToken);
-      return next;
-    });
+    setIsOpen((current) => !current);
   };
 
   const handleHeaderClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -269,6 +265,11 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
     event.stopPropagation();
     handleToggle();
   };
+
+  useEffect(() => {
+    if (!isOpen || !statusChange || !changeToken) return;
+    void onViewed?.(changeToken);
+  }, [changeToken, isOpen, onViewed, statusChange]);
 
   return (
     <div
