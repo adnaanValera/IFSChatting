@@ -99,6 +99,7 @@ export function usePushNotifications(scope?: Scope) {
       }
 
       const registration = await navigator.serviceWorker.ready;
+      await registration.update().catch(() => undefined);
       let subscription = await registration.pushManager.getSubscription();
       if (subscription) {
         try {
@@ -111,17 +112,35 @@ export function usePushNotifications(scope?: Scope) {
         }
       }
 
+      let subscribeError: unknown = null;
       try {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "";
+        subscribeError = error;
+        const staleSubscription = await registration.pushManager.getSubscription().catch(() => null);
+        if (staleSubscription) {
+          await staleSubscription.unsubscribe().catch(() => undefined);
+          try {
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey,
+            });
+          } catch (retryError) {
+            subscribeError = retryError;
+          }
+        }
+      }
+
+      if (!subscription) {
+        const message = subscribeError instanceof Error ? subscribeError.message : "";
+        const name = subscribeError instanceof Error ? subscribeError.name : "";
         if (isIOS && !standalone) {
           throw new Error("Install and open the InterFreight app first, then enable notifications there.");
         }
-        throw new Error(message || "Push registration failed on this device. Open the installed app and try again.");
+        throw new Error([name, message].filter(Boolean).join(": ") || "Push registration failed on this device. Open the installed app and try again.");
       }
 
       await upsertSubscription(scope, subscription);

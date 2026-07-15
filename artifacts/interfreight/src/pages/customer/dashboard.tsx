@@ -323,6 +323,7 @@ export default function CustomerDashboard() {
   const statusChangeTokenByIfsRef = new Map<string, string>();
   const notificationIdsByChangeToken = new Map<string, number[]>();
   for (const notification of notifications) {
+    if (notification.read) continue;
     if (!notification.ifsRef) continue;
     const change = parseStatusChange(notification.message);
     if (change) {
