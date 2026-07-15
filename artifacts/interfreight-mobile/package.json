@@ -18,6 +18,7 @@
     "expo": "~53.0.20",
     "expo-linear-gradient": "~14.1.5",
     "expo-status-bar": "~2.2.3",
+    "expo-updates": "~0.28.17",
     "react": "19.1.0",
     "react-native": "0.79.5",
     "react-native-safe-area-context": "^5.4.0",

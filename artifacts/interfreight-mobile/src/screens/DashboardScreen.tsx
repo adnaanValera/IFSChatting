@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Alert, Animated, Easing, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
+import * as Updates from "expo-updates";
 import { useAuth } from "../context/AuthContext";
 import { API_BASE_URL } from "../config";
 import type { Shipment } from "../types";
@@ -50,6 +51,9 @@ export function DashboardScreen({ navigation }: any) {
   const palette = appPalette();
   const { width, height } = useWindowDimensions();
   const [search, setSearch] = useState("");
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [applyingUpdate, setApplyingUpdate] = useState(false);
   const logoSlotRef = useRef<View | null>(null);
   const [logoTarget, setLogoTarget] = useState<{ x: number; y: number } | null>(null);
   const introOpacity = useRef(new Animated.Value(0)).current;
@@ -87,6 +91,28 @@ export function DashboardScreen({ navigation }: any) {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    const checkForAppUpdate = async () => {
+      if (__DEV__) return;
+      try {
+        setCheckingUpdate(true);
+        const result = await Updates.checkForUpdateAsync();
+        if (active) setUpdateAvailable(Boolean(result.isAvailable));
+      } catch {
+        if (active) setUpdateAvailable(false);
+      } finally {
+        if (active) setCheckingUpdate(false);
+      }
+    };
+
+    void checkForAppUpdate();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["mobile-shipments", token],
     queryFn: () => fetchShipments(token!),
@@ -111,6 +137,29 @@ export function DashboardScreen({ navigation }: any) {
       ].some((value) => String(value || "").toLowerCase().includes(query)),
     );
   }, [search, shipments]);
+
+  const handleUpdateApp = async () => {
+    if (__DEV__) {
+      Alert.alert("Update unavailable", "App updates work on the installed production app, not in development mode.");
+      return;
+    }
+
+    try {
+      setApplyingUpdate(true);
+      const result = await Updates.checkForUpdateAsync();
+      if (!result.isAvailable) {
+        setUpdateAvailable(false);
+        Alert.alert("Up to date", "You already have the latest version of the app.");
+        return;
+      }
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
+    } catch {
+      Alert.alert("Update failed", "Could not update the app right now. Please try again shortly.");
+    } finally {
+      setApplyingUpdate(false);
+    }
+  };
 
   const introTranslateX = introProgress.interpolate({
     inputRange: [0, 1],
@@ -165,6 +214,13 @@ export function DashboardScreen({ navigation }: any) {
                 </View>
               </View>
               <View style={styles.headerActions}>
+                {updateAvailable && (
+                  <Pressable onPress={handleUpdateApp} style={[styles.updateButton, { backgroundColor: palette.accent }]}>
+                    <Text style={styles.updateButtonText}>
+                      {applyingUpdate ? "Updating..." : checkingUpdate ? "Checking..." : "Update app"}
+                    </Text>
+                  </Pressable>
+                )}
                 <Pressable onPress={signOut} style={[styles.logout, { backgroundColor: palette.surfaceMuted }]}>
                   <Text style={[styles.logoutText, { color: palette.textMuted }]}>Log out</Text>
                 </Pressable>
@@ -251,6 +307,16 @@ const styles = StyleSheet.create({
   eyebrow: { color: "#c2410c", fontSize: 10, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" },
   heading: { color: "#111827", fontSize: 20, fontWeight: "800", lineHeight: 26 },
   logout: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, backgroundColor: "#18222c" },
+  updateButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: "#c2410c",
+  },
+  updateButtonText: {
+    color: "#ffffff",
+    fontWeight: "800",
+  },
   logoutText: { color: "#e2e8f0", fontWeight: "700" },
   statsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
   statCard: { flexGrow: 1, minWidth: "47%", backgroundColor: "#ffffff", borderRadius: 16, borderWidth: 1, borderColor: "#d5dbe1", padding: 12 },

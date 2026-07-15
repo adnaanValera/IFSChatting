@@ -4,6 +4,9 @@
     "slug": "interfreightsolutions",
     "scheme": "interfreightsolutions",
     "version": "1.0.1",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/ifs-app-premium.png",
     "userInterfaceStyle": "light",
@@ -15,6 +18,11 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "android": {
       "package": "com.interfreightsolutions.customer",
       "adaptiveIcon": {
