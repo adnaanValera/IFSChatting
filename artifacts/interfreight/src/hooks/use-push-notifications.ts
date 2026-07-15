@@ -3,6 +3,10 @@ import { isStandaloneDisplay, urlBase64ToUint8Array } from "@/lib/pwa";
 
 type Scope = { type: "auth" } | { type: "pending"; approvalToken: string };
 
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 async function fetchPublicKey() {
   const response = await fetch("/api/push/public-key");
   if (!response.ok) {
@@ -35,6 +39,7 @@ async function upsertSubscription(scope: Scope, subscription: PushSubscription) 
 export function usePushNotifications(scope?: Scope) {
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
   const isIOS = /iPad|iPhone|iPod/i.test(userAgent);
+  const isAndroid = /Android/i.test(userAgent);
   const standalone = typeof window !== "undefined" ? isStandaloneDisplay() : false;
   const [permission, setPermission] = useState<NotificationPermission>(() =>
     typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default",
@@ -113,23 +118,36 @@ export function usePushNotifications(scope?: Scope) {
       }
 
       let subscribeError: unknown = null;
-      try {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey,
-        });
-      } catch (error) {
-        subscribeError = error;
-        const staleSubscription = await registration.pushManager.getSubscription().catch(() => null);
-        if (staleSubscription) {
-          await staleSubscription.unsubscribe().catch(() => undefined);
+      const subscribeWithKey = () => registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      });
+
+      if (isAndroid) {
+        for (const waitMs of [0, 350, 1200]) {
+          if (subscription) break;
+          if (waitMs > 0) await delay(waitMs);
+          const staleSubscription = await registration.pushManager.getSubscription().catch(() => null);
+          if (staleSubscription) await staleSubscription.unsubscribe().catch(() => undefined);
           try {
-            subscription = await registration.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey,
-            });
-          } catch (retryError) {
-            subscribeError = retryError;
+            subscription = await subscribeWithKey();
+          } catch (error) {
+            subscribeError = error;
+          }
+        }
+      } else {
+        try {
+          subscription = await subscribeWithKey();
+        } catch (error) {
+          subscribeError = error;
+          const staleSubscription = await registration.pushManager.getSubscription().catch(() => null);
+          if (staleSubscription) {
+            await staleSubscription.unsubscribe().catch(() => undefined);
+            try {
+              subscription = await subscribeWithKey();
+            } catch (retryError) {
+              subscribeError = retryError;
+            }
           }
         }
       }
@@ -139,6 +157,9 @@ export function usePushNotifications(scope?: Scope) {
         const name = subscribeError instanceof Error ? subscribeError.name : "";
         if (isIOS && !standalone) {
           throw new Error("Install and open the InterFreight app first, then enable notifications there.");
+        }
+        if (isAndroid) {
+          throw new Error([name, message].filter(Boolean).join(": ") || "Android push registration failed. Please use Chrome, make sure Chrome notifications are allowed in Android settings, then try again.");
         }
         throw new Error([name, message].filter(Boolean).join(": ") || "Push registration failed on this device. Open the installed app and try again.");
       }
