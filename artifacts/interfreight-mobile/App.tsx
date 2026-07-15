@@ -7,7 +7,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
-import { ShipmentDetailScreen } from "./src/screens/ShipmentDetailScreen";
 
 const Stack = createNativeStackNavigator();
 const queryClient = new QueryClient();
@@ -20,7 +19,6 @@ function AppNavigator() {
       {!loading && token ? (
         <>
           <Stack.Screen name="Dashboard" component={DashboardScreen} />
-          <Stack.Screen name="ShipmentDetail" component={ShipmentDetailScreen} />
         </>
       ) : (
         <Stack.Screen name="Login" component={LoginScreen} />

@@ -23,9 +23,13 @@ export function ShipmentCard({
   onPress?: () => void;
 }) {
   const palette = appPalette();
+  const Wrapper = onPress ? Pressable : View;
+  const wrapperProps = onPress
+    ? { onPress, style: [styles.card, { backgroundColor: palette.surface, borderColor: palette.border }] as const }
+    : { style: [styles.card, { backgroundColor: palette.surface, borderColor: palette.border }] as const };
 
   return (
-    <Pressable onPress={onPress} style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+    <Wrapper {...wrapperProps}>
       <View style={styles.row}>
         <Text style={[styles.eyebrow, { color: palette.accentSoft }]}>{String(shipment.type || "Shipment").toUpperCase()}</Text>
         <View style={[styles.statusPill, { backgroundColor: palette.accentTint }]}>
@@ -42,7 +46,7 @@ export function ShipmentCard({
         <Info label="Description" value={shipment.cargoDescription} palette={palette} />
         <Info label="Invoice" value={shipment.invoiceNo} palette={palette} />
       </View>
-    </Pressable>
+    </Wrapper>
   );
 }
 

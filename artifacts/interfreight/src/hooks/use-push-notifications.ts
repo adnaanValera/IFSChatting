@@ -79,6 +79,7 @@ export function usePushNotifications(scope?: Scope) {
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPushReady, setIsPushReady] = useState(false);
 
   useEffect(() => {
     setIsSupported(
@@ -93,9 +94,14 @@ export function usePushNotifications(scope?: Scope) {
   useEffect(() => {
     async function checkSubscription() {
       if (!isSupported || !scope || !("serviceWorker" in navigator)) return;
-      const registration = await getReadyRegistration();
-      const subscription = await registration.pushManager.getSubscription();
-      setIsSubscribed(!!subscription);
+      try {
+        const registration = await getReadyRegistration();
+        const subscription = await registration.pushManager.getSubscription();
+        setIsSubscribed(!!subscription);
+        setIsPushReady(true);
+      } catch {
+        setIsPushReady(false);
+      }
     }
     void checkSubscription();
   }, [isSupported, scope]);
@@ -108,15 +114,18 @@ export function usePushNotifications(scope?: Scope) {
     if (isIOS && !standalone) {
       return "On iPhone or iPad, install and open the app first, then enable notifications inside the app.";
     }
+    if (!isPushReady) {
+      return "Preparing notifications on this device. Please wait a moment and try again.";
+    }
     if (!isSupported) {
       return "This device does not support push notifications here yet.";
     }
     return "";
-  }, [isIOS, isSupported, scope, standalone]);
+  }, [isIOS, isPushReady, isSupported, scope, standalone]);
 
   const canEnable = useMemo(
-    () => isSupported && !!scope && permission !== "denied" && !unsupportedReason,
-    [isSupported, scope, permission, unsupportedReason],
+    () => isSupported && isPushReady && !!scope && permission !== "denied" && !unsupportedReason,
+    [isSupported, isPushReady, scope, permission, unsupportedReason],
   );
 
   async function enable() {
