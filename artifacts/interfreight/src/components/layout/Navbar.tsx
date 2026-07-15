@@ -53,7 +53,7 @@ export function Navbar() {
 
           {/* Right: notification bell + auth CTA */}
           <div className="hidden md:flex items-center gap-3">
-            {isLoggedIn && <NotificationBell />}
+            {isLoggedIn && !isCustomer && <NotificationBell />}
             {user ? (
               <Link
                 href={dashboardHref}
@@ -74,7 +74,7 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-1 md:hidden">
-            {isLoggedIn && <NotificationBell />}
+            {isLoggedIn && !isCustomer && <NotificationBell />}
             <button
               className="text-white p-2 rounded"
               onClick={() => setMobileOpen((v) => !v)}
