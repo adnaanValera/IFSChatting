@@ -388,7 +388,7 @@ export default function Dashboard() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackLoaded, setFeedbackLoaded] = useState(false);
   const [activityRows, setActivityRows] = useState<ActivityItem[]>([]);
-  const [activityLoading, setActivityLoading] = useState(false);
+  const [accountActivityLoading, setAccountActivityLoading] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
     nearbyConsignments: OperationalAlert[];
     needsChecking: OperationalAlert[];
@@ -740,7 +740,7 @@ export default function Dashboard() {
   };
 
   const loadActivity = async (silent = false) => {
-    setActivityLoading(true);
+    setAccountActivityLoading(true);
     try {
       const token = localStorage.getItem("intf_token");
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -754,7 +754,7 @@ export default function Dashboard() {
         toast({ variant: "destructive", title: "Error", description: err.message });
       }
     } finally {
-      setActivityLoading(false);
+      setAccountActivityLoading(false);
     }
   };
 
@@ -2735,7 +2735,7 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              {activityLoading ? (
+              {accountActivityLoading ? (
                 <div className="flex items-center justify-center py-20">
                   <Spinner className="w-8 h-8" />
                 </div>
