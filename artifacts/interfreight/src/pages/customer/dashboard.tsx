@@ -14,7 +14,6 @@ import { ShipmentCard } from "@/components/ui/shipment-card";
 import { Spinner } from "@/components/ui/spinner";
 import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
 import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
-import { NotificationBell } from "@/components/layout/NotificationBell";
 import { saveAccount, savedAccounts, type SavedAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
@@ -59,6 +58,7 @@ type StatusNotification = {
   companyName?: string | null;
   message?: string | null;
   status?: string | null;
+  notificationType?: string | null;
   read?: boolean;
   createdAt?: string | null;
 };
@@ -373,6 +373,14 @@ export default function CustomerDashboard() {
       .map(([ifsRef]) => ifsRef),
   ]);
   const hasShipmentChanges = changedShipmentRefs.size > 0;
+  const unreadNewConsignments = notifications.filter((notification) =>
+    !notification.read && notification.notificationType === "new_shipment"
+  );
+  const newConsignmentRefs = new Set(
+    unreadNewConsignments
+      .map((notification) => notification.ifsRef)
+      .filter((ifsRef): ifsRef is string => Boolean(ifsRef)),
+  );
   const activeChangedFilter = changedOnlyRefs ? new Set(changedOnlyRefs) : changedShipmentRefs;
   const filteredShipments = useMemo(() => (
     showChangedOnly
@@ -389,6 +397,16 @@ export default function CustomerDashboard() {
   const scrollToTrackingSection = () => {
     document.getElementById("customer-shipments")?.scrollIntoView({ behavior: "smooth", block: "start" });
     setShowQuickMenu(false);
+  };
+  const focusNewConsignments = () => {
+    setSearch("");
+    setShowChangedOnly(false);
+    setChangedOnlyRefs(null);
+    const firstRef = [...newConsignmentRefs][0];
+    window.requestAnimationFrame(() => {
+      const target = firstRef ? document.getElementById(`shipment-${firstRef}`) : document.getElementById("customer-shipments");
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
   };
   const sectionRows = STATUS_SECTIONS.map((section) => ({
     ...section,
@@ -469,9 +487,19 @@ export default function CustomerDashboard() {
             <Link href="/" className="hidden sm:flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors">
               <Home size={15} /> Home
             </Link>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-1.5 py-1">
-              <NotificationBell />
-            </div>
+            {unreadNewConsignments.length > 0 && (
+              <button
+                type="button"
+                onClick={focusNewConsignments}
+                className="inline-flex items-center gap-2 rounded-xl border border-primary/25 bg-primary/12 px-3 py-2 text-[11px] sm:text-xs font-bold text-white shadow-[0_0_18px_rgba(191,33,49,0.18)] transition-colors hover:bg-primary/18"
+              >
+                <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] text-white">
+                  {unreadNewConsignments.length > 9 ? "9+" : unreadNewConsignments.length}
+                </span>
+                <span className="hidden sm:inline">New consignments</span>
+                <span className="sm:hidden">New</span>
+              </button>
+            )}
             {accounts.length > 0 && <AccountSwitcher currentToken={localStorage.getItem("intf_token")} />}
             <button
               onClick={handleLogout}
