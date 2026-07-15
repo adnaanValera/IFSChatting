@@ -257,17 +257,34 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
     });
   };
 
+  const handleHeaderClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    handleToggle();
+  };
+
+  const handleHeaderKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    handleToggle();
+  };
+
   return (
     <div
       id={`shipment-${s.ifsRef}`}
       className={`rounded-xl sm:rounded-2xl overflow-hidden border glow-card glow-card--reactive shipment-card ${highlight ? "shipment-card--changed" : ""} ${theme.cardBorder} shadow-2xl scroll-mt-28`}
       style={{ background: theme.cardBg }}
     >
-      <button type="button" className="w-full text-left" onClick={handleToggle}>
-        <div
-          className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3.5 px-3.5 sm:px-4 py-3 sm:py-3 hover:brightness-110 transition-all ${highlight && !isOpen ? "shipment-card__summary--changed" : ""}`}
-          style={{ background: isOpen ? "transparent" : theme.headerBg }}
-        >
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3.5 px-3.5 sm:px-4 py-3 sm:py-3 hover:brightness-110 transition-all cursor-pointer ${highlight && !isOpen ? "shipment-card__summary--changed" : ""}`}
+        style={{ background: isOpen ? "transparent" : theme.headerBg }}
+        onClick={handleHeaderClick}
+        onKeyDown={handleHeaderKeyDown}
+      >
           <div className="flex items-center gap-3 min-w-0">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${theme.collapsedIconWrap}`}>
               <span className={theme.collapsedIconColor}>
@@ -306,8 +323,7 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
               <ChevronDown size={15} className="text-zinc-500" />
             </div>
           </div>
-        </div>
-      </button>
+      </div>
 
       {isOpen && (
         <div className="overflow-hidden">
