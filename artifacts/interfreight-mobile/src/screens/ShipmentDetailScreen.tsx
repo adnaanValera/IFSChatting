@@ -8,6 +8,24 @@ export function ShipmentDetailScreen({ navigation, route }: any) {
   const shipment = route.params?.shipment;
   const palette = appPalette();
 
+  if (!shipment || typeof shipment !== "object") {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: palette.background }]}>
+        <View style={styles.content}>
+          <Pressable onPress={() => navigation.goBack()} style={[styles.backButton, { backgroundColor: palette.surfaceMuted }]}>
+            <Text style={[styles.backText, { color: palette.textMuted }]}>Back</Text>
+          </Pressable>
+          <View style={[styles.note, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+            <Text style={[styles.heading, { color: palette.text }]}>Shipment unavailable</Text>
+            <Text style={[styles.noteText, { color: palette.textMuted }]}>
+              This shipment could not be opened. Please go back and try again.
+            </Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: palette.background }]}>
       <ScrollView contentContainerStyle={styles.content}>

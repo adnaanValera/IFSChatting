@@ -26,6 +26,25 @@ function activeSectionCount(shipments: Shipment[], label: string) {
   }).length;
 }
 
+function normalizeShipmentForRoute(shipment: Shipment): Shipment {
+  return {
+    id: shipment.id,
+    ifsRef: shipment.ifsRef ?? null,
+    mraRef: shipment.mraRef ?? null,
+    blNumber: shipment.blNumber ?? null,
+    manifestNumber: shipment.manifestNumber ?? null,
+    containerNumber: shipment.containerNumber ?? null,
+    consignee: shipment.consignee ?? null,
+    shipper: shipment.shipper ?? null,
+    cargoDescription: shipment.cargoDescription ?? null,
+    invoiceNo: shipment.invoiceNo ?? null,
+    status: shipment.status ?? null,
+    type: shipment.type ?? null,
+    eta: shipment.eta ?? null,
+    extraFields: shipment.extraFields ? { ...shipment.extraFields } : null,
+  };
+}
+
 export function DashboardScreen({ navigation }: any) {
   const { token, user, signOut } = useAuth();
   const palette = appPalette();
@@ -178,7 +197,10 @@ export function DashboardScreen({ navigation }: any) {
           </>
         }
         renderItem={({ item }) => (
-          <ShipmentCard shipment={item} onPress={() => navigation.navigate("ShipmentDetail", { shipment: item })} />
+          <ShipmentCard
+            shipment={item}
+            onPress={() => navigation.navigate("ShipmentDetail", { shipment: normalizeShipmentForRoute(item) })}
+          />
         )}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       />
