@@ -170,7 +170,16 @@ export default function CustomerDashboard() {
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { data: user, isLoading: userLoading } = useGetMe();
-  const { data: shipmentsPage, isLoading: shipmentsLoading } = useListShipments({ limit: 200 });
+  const { data: shipmentsPage, isLoading: shipmentsLoading } = useListShipments(
+    { limit: 200 },
+    {
+      query: {
+        refetchInterval: 15000,
+        refetchIntervalInBackground: true,
+        refetchOnWindowFocus: true,
+      },
+    },
+  );
   const { data: notifications = [] } = useQuery<StatusNotification[]>({
     queryKey: ["notifications"],
     queryFn: async () => {
@@ -179,6 +188,9 @@ export default function CustomerDashboard() {
       return r.json();
     },
     retry: false,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   });
   const { data: announcement = null } = useQuery<Announcement | null>({
     queryKey: ["announcement-current"],
@@ -188,6 +200,9 @@ export default function CustomerDashboard() {
       return r.json();
     },
     retry: false,
+    refetchInterval: 30000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   });
   const logoutMutation = useStaffLogout();
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
