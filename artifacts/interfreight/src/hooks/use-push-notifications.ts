@@ -171,10 +171,14 @@ export function usePushNotifications(scope?: Scope) {
           });
         } catch (retryError) {
           const message = retryError instanceof Error ? retryError.message : error instanceof Error ? error.message : "";
+          const details = [
+            retryError instanceof Error ? retryError.name : "",
+            message,
+          ].filter(Boolean).join(": ");
           if (isIOS && !standalone) {
             throw new Error("Install and open the InterFreight app first, then enable notifications there.");
           }
-          throw new Error(message || "Push registration failed on this device. Please reopen the web app and try again.");
+          throw new Error(details || "Push registration failed on this device. Please reopen the web app and try again.");
         }
         if (isIOS && !standalone) {
           throw new Error("Install and open the InterFreight app first, then enable notifications there.");
