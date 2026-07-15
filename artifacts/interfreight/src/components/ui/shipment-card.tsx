@@ -263,7 +263,7 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
       className={`rounded-xl sm:rounded-2xl overflow-hidden border glow-card glow-card--reactive shipment-card ${highlight ? "shipment-card--changed" : ""} ${theme.cardBorder} shadow-2xl scroll-mt-28`}
       style={{ background: theme.cardBg }}
     >
-      <button className="w-full text-left" onClick={handleToggle}>
+      <button type="button" className="w-full text-left" onClick={handleToggle}>
         <div
           className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3.5 px-3.5 sm:px-4 py-3 sm:py-3 hover:brightness-110 transition-all ${highlight && !isOpen ? "shipment-card__summary--changed" : ""}`}
           style={{ background: isOpen ? "transparent" : theme.headerBg }}
