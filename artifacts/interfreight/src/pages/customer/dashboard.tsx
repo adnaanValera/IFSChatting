@@ -18,7 +18,7 @@ import { saveAccount, savedAccounts, type SavedAccount } from "@/lib/saved-accou
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
 const CUSTOMER_BADGE_URL = "/ifs-app-premium.png";
-const READ_CHANGES_STORAGE_KEY = "intf_read_status_changes_v1";
+const READ_CHANGES_STORAGE_KEY = "intf_read_status_changes_v2";
 
 const STATUS_SECTIONS = [
   { label: "Shipments In Malawi", reportLabel: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
@@ -322,20 +322,35 @@ export default function CustomerDashboard() {
   const hasSearch = search.trim().length > 0;
   const companyName = String(typedUser?.companyName || typedUser?.fullName || typedUser?.name || "InterFreight Client");
   const statusChangesByIfsRef = new Map<string, { oldValue: string; newValue: string }>();
-  const statusChangeTokenByIfsRef = new Map<string, string>();
+  const notificationTokenByIfsRef = new Map<string, string>();
   const notificationIdsByChangeToken = new Map<string, number[]>();
+  const newShipmentRefs = new Set<string>();
   for (const notification of notifications) {
     if (notification.read) continue;
     if (!notification.ifsRef) continue;
-    const change = parseStatusChange(notification.message);
-    if (change) {
-      const token = `${notification.ifsRef}::${change.oldValue}::${change.newValue}`;
-      if (!statusChangesByIfsRef.has(notification.ifsRef)) {
-        statusChangesByIfsRef.set(notification.ifsRef, change);
-        statusChangeTokenByIfsRef.set(notification.ifsRef, token);
+    const notificationToken = notification.id
+      ? `notif:${notification.id}`
+      : `notif:${notification.ifsRef}:${notification.createdAt ?? ""}:${notification.title ?? ""}:${notification.message ?? ""}`;
+
+    if (notification.notificationType === "new_shipment") {
+      newShipmentRefs.add(notification.ifsRef);
+      if (!notificationTokenByIfsRef.has(notification.ifsRef)) {
+        notificationTokenByIfsRef.set(notification.ifsRef, notificationToken);
       }
       if (notification.id) {
-        notificationIdsByChangeToken.set(token, [...(notificationIdsByChangeToken.get(token) ?? []), notification.id]);
+        notificationIdsByChangeToken.set(notificationToken, [...(notificationIdsByChangeToken.get(notificationToken) ?? []), notification.id]);
+      }
+      continue;
+    }
+
+    const change = parseStatusChange(notification.message);
+    if (change) {
+      if (!statusChangesByIfsRef.has(notification.ifsRef)) {
+        statusChangesByIfsRef.set(notification.ifsRef, change);
+        notificationTokenByIfsRef.set(notification.ifsRef, notificationToken);
+      }
+      if (notification.id) {
+        notificationIdsByChangeToken.set(notificationToken, [...(notificationIdsByChangeToken.get(notificationToken) ?? []), notification.id]);
       }
     }
   }
@@ -356,10 +371,15 @@ export default function CustomerDashboard() {
 
   const unreadTodayUpdates = notifications.filter((notification) => {
     if (!notification.status || !isToday(notification.createdAt) || !notification.ifsRef) return false;
+    const notificationToken = notification.id
+      ? `notif:${notification.id}`
+      : `notif:${notification.ifsRef}:${notification.createdAt ?? ""}:${notification.title ?? ""}:${notification.message ?? ""}`;
+    if (notification.notificationType === "new_shipment") {
+      return !seenChangeTokens.has(notificationToken);
+    }
     const change = parseStatusChange(notification.message);
     if (!change) return false;
-    const token = `${notification.ifsRef}::${change.oldValue}::${change.newValue}`;
-    return !seenChangeTokens.has(token);
+    return !seenChangeTokens.has(notificationToken);
   });
   const todayUpdatedRefs = new Set(
     unreadTodayUpdates
@@ -368,7 +388,8 @@ export default function CustomerDashboard() {
   );
   const changedShipmentRefs = new Set([
     ...todayUpdatedRefs,
-    ...[...statusChangeTokenByIfsRef.entries()]
+    ...newShipmentRefs,
+    ...[...notificationTokenByIfsRef.entries()]
       .filter(([, token]) => !seenChangeTokens.has(token))
       .map(([ifsRef]) => ifsRef),
   ]);
@@ -668,7 +689,7 @@ export default function CustomerDashboard() {
                   shipment={shipment}
                   statusChange={changedShipmentRefs.has(shipment.ifsRef) ? statusChangesByIfsRef.get(shipment.ifsRef) : undefined}
                   highlight={changedShipmentRefs.has(shipment.ifsRef)}
-                  changeToken={statusChangeTokenByIfsRef.get(shipment.ifsRef)}
+                  changeToken={notificationTokenByIfsRef.get(shipment.ifsRef)}
                   onViewed={markChangeAsSeen}
                   index={index}
                 />
@@ -703,7 +724,7 @@ export default function CustomerDashboard() {
                         shipment={s}
                         statusChange={changedShipmentRefs.has(s.ifsRef) ? statusChangesByIfsRef.get(s.ifsRef) : undefined}
                         highlight={changedShipmentRefs.has(s.ifsRef)}
-                        changeToken={statusChangeTokenByIfsRef.get(s.ifsRef)}
+                        changeToken={notificationTokenByIfsRef.get(s.ifsRef)}
                         onViewed={markChangeAsSeen}
                         index={index}
                       />
