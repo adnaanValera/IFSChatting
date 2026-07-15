@@ -668,6 +668,25 @@ function shipmentIdentifier(record: {
   );
 }
 
+function shipmentNotificationLabel(record: {
+  ifsRef?: string;
+  containerNo?: string | null;
+  extraFields?: Record<string, unknown> | unknown;
+}): string {
+  const extra = (record.extraFields as Record<string, unknown>) ?? {};
+  const blManifest = displayText(
+    extra["BL / Manifest No."] ??
+    extra["BL/Manifest No."] ??
+    extra["BL"] ??
+    extra["bl"],
+  );
+  const containerNo = displayText(record.containerNo);
+
+  if (containerNo !== "N/A") return `Container ${containerNo}`;
+  if (blManifest !== "N/A") return `BL/Manifest ${blManifest}`;
+  return `Reference ${displayText(record.ifsRef)}`;
+}
+
 async function notifyCustomersOfStatusChange(args: {
   companyName: string;
   consignee?: string;
@@ -688,18 +707,21 @@ async function notifyCustomersOfStatusChange(args: {
     });
 
   for (const { id: userId } of customers) {
+    const label = shipmentNotificationLabel(args);
+    const message = `${label}: ${args.change.oldValue} -> ${args.change.newValue}. Tap to view more.`;
+    const focusValue = encodeURIComponent(args.containerNo || args.ifsRef);
     await db.insert(notificationsTable).values({
       userId,
       title: "InterFreight Alert: Status Changed",
-      message: `${shipmentIdentifier(args)} status changed: ${args.change.oldValue} -> ${args.change.newValue}. Tap to view your dashboard.`,
+      message,
       ifsRef: args.ifsRef,
       companyName: args.companyName,
       status: args.change.newValue,
     });
     await sendPushToUser(userId, {
       title: "InterFreight Alert: Status Changed",
-      body: `${shipmentIdentifier(args)} is now ${args.change.newValue}. Tap to view.`,
-      url: "/dashboard",
+      body: message,
+      url: `/dashboard?search=${focusValue}`,
       tag: `shipment-${args.ifsRef}-${Date.now()}`,
     });
   }
