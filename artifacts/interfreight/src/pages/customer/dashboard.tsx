@@ -147,6 +147,10 @@ function readSeenChangeTokens(): string[] {
   }
 }
 
+function sectionElementId(reportLabel: string): string {
+  return `section-${reportLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
+}
+
 export default function CustomerDashboard() {
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -330,16 +334,19 @@ export default function CustomerDashboard() {
       ? searchedShipments.filter((shipment: any) => activeChangedFilter.has(shipment.ifsRef))
       : searchedShipments
   ), [activeChangedFilter, searchedShipments, showChangedOnly]);
+  const scrollToSection = (targetId: string) => {
+    document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   const sectionRows = STATUS_SECTIONS.map((section) => ({
     ...section,
     rows: filteredShipments.filter((shipment: any) => shipmentSectionLabel(shipment) === section.reportLabel),
   }));
   const statCards = [
-    { icon: Package, label: "Total", value: shipments.length, tone: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200" },
-    { icon: CheckCircle, label: "Shipments In Malawi", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS IN MALAWI").length, tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200" },
-    { icon: Ship, label: "Shipments Enroute", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS ENROUTE").length, tone: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200" },
-    { icon: MapPin, label: "Shipments At POD", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS AT POD").length, tone: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200" },
-    { icon: AlertTriangle, label: "Shipments On Sea", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS ON SEA").length, tone: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200" },
+    { icon: Package, label: "Total", value: shipments.length, tone: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200", targetId: "customer-shipments" },
+    { icon: CheckCircle, label: "Shipments In Malawi", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS IN MALAWI").length, tone: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200", targetId: sectionElementId("SHIPMENTS IN MALAWI") },
+    { icon: Ship, label: "Shipments Enroute", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS ENROUTE").length, tone: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200", targetId: sectionElementId("SHIPMENTS ENROUTE") },
+    { icon: MapPin, label: "Shipments At POD", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS AT POD").length, tone: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200", targetId: sectionElementId("SHIPMENTS AT POD") },
+    { icon: AlertTriangle, label: "Shipments On Sea", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS ON SEA").length, tone: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200", targetId: sectionElementId("SHIPMENTS ON SEA") },
   ];
 
   if (userLoading) {
@@ -503,13 +510,15 @@ export default function CustomerDashboard() {
 
         {/* Summary stats */}
         <div className="grid grid-cols-5 gap-2 sm:gap-3 mb-5 sm:mb-8">
-          {statCards.map(({ icon: Icon, label, value, tone }, index) => (
-            <motion.div
+          {statCards.map(({ icon: Icon, label, value, tone, targetId }, index) => (
+            <motion.button
               key={label}
+              type="button"
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 + index * 0.04, duration: 0.32, ease: "easeOut" }}
-              className="bg-card rounded-xl border border-border p-2 sm:p-4 shadow-sm glow-card glow-card--reactive glow-card--light flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3 min-w-0"
+              onClick={() => scrollToSection(targetId)}
+              className="bg-card rounded-xl border border-border p-2 sm:p-4 shadow-sm glow-card glow-card--reactive glow-card--light flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3 min-w-0 text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
             >
               <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${tone}`}>
                 <Icon size={14} className="sm:w-[18px] sm:h-[18px]" />
@@ -518,7 +527,7 @@ export default function CustomerDashboard() {
                 <p className="text-[9px] sm:text-xs text-muted-foreground uppercase tracking-[0.06em] leading-tight">{label}</p>
                 <p className="text-base sm:text-2xl font-bold text-secondary dark:text-white leading-none mt-1">{value}</p>
               </div>
-            </motion.div>
+            </motion.button>
           ))}
         </div>
 
@@ -603,6 +612,7 @@ export default function CustomerDashboard() {
             {sectionRows.map((section, sectionIndex) => (
               <motion.section
                 key={section.reportLabel}
+                id={sectionElementId(section.reportLabel)}
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.08 + sectionIndex * 0.05, duration: 0.34, ease: "easeOut" }}
