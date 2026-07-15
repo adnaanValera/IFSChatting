@@ -253,10 +253,7 @@ export function DashboardScreen({ navigation }: any) {
           </>
         }
         renderItem={({ item }) => (
-          <ShipmentCard
-            shipment={item}
-            onPress={() => navigation.navigate("ShipmentDetail", { shipment: normalizeShipmentForRoute(item) })}
-          />
+          <ShipmentCard shipment={item} />
         )}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       />

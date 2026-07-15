@@ -35,9 +35,25 @@ async function upsertSubscription(scope: Scope, subscription: PushSubscription) 
 async function getReadyRegistration() {
   if (!("serviceWorker" in navigator)) throw new Error("Service workers are not available on this device.");
   const existing = await navigator.serviceWorker.getRegistration();
-  if (existing) return existing;
+  if (existing?.active) return existing;
   const registered = await registerServiceWorker();
-  if (registered) return registered;
+  const registration = registered ?? await navigator.serviceWorker.ready;
+  if (registration.active && navigator.serviceWorker.controller) return registration;
+
+  await new Promise<void>((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+    const timer = window.setTimeout(finish, 1200);
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.clearTimeout(timer);
+      finish();
+    }, { once: true });
+  });
+
   return navigator.serviceWorker.ready;
 }
 
