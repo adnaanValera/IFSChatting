@@ -373,14 +373,6 @@ export default function CustomerDashboard() {
       .map(([ifsRef]) => ifsRef),
   ]);
   const hasShipmentChanges = changedShipmentRefs.size > 0;
-  const unreadNewConsignments = notifications.filter((notification) =>
-    !notification.read && notification.notificationType === "new_shipment"
-  );
-  const newConsignmentRefs = new Set(
-    unreadNewConsignments
-      .map((notification) => notification.ifsRef)
-      .filter((ifsRef): ifsRef is string => Boolean(ifsRef)),
-  );
   const activeChangedFilter = changedOnlyRefs ? new Set(changedOnlyRefs) : changedShipmentRefs;
   const filteredShipments = useMemo(() => (
     showChangedOnly
@@ -398,11 +390,12 @@ export default function CustomerDashboard() {
     document.getElementById("customer-shipments")?.scrollIntoView({ behavior: "smooth", block: "start" });
     setShowQuickMenu(false);
   };
-  const focusNewConsignments = () => {
+  const focusChangedConsignments = () => {
+    const refs = [...changedShipmentRefs];
     setSearch("");
-    setShowChangedOnly(false);
-    setChangedOnlyRefs(null);
-    const firstRef = [...newConsignmentRefs][0];
+    setShowChangedOnly(true);
+    setChangedOnlyRefs(refs);
+    const firstRef = refs[0];
     window.requestAnimationFrame(() => {
       const target = firstRef ? document.getElementById(`shipment-${firstRef}`) : document.getElementById("customer-shipments");
       target?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -487,19 +480,6 @@ export default function CustomerDashboard() {
             <Link href="/" className="hidden sm:flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors">
               <Home size={15} /> Home
             </Link>
-            {unreadNewConsignments.length > 0 && (
-              <button
-                type="button"
-                onClick={focusNewConsignments}
-                className="inline-flex items-center gap-2 rounded-xl border border-primary/25 bg-primary/12 px-3 py-2 text-[11px] sm:text-xs font-bold text-white shadow-[0_0_18px_rgba(191,33,49,0.18)] transition-colors hover:bg-primary/18"
-              >
-                <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] text-white">
-                  {unreadNewConsignments.length > 9 ? "9+" : unreadNewConsignments.length}
-                </span>
-                <span className="hidden sm:inline">New consignments</span>
-                <span className="sm:hidden">New</span>
-              </button>
-            )}
             {accounts.length > 0 && <AccountSwitcher currentToken={localStorage.getItem("intf_token")} />}
             <button
               onClick={handleLogout}
@@ -569,17 +549,13 @@ export default function CustomerDashboard() {
           </motion.div>
         )}
 
-        {unreadTodayUpdates.length > 0 && (
+        {hasShipmentChanges && (
           <motion.button
             type="button"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: "easeOut" }}
-            onClick={() => {
-              const firstRef = [...todayUpdatedRefs][0];
-              const el = firstRef ? document.getElementById(`shipment-${firstRef}`) : null;
-              el?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }}
+            onClick={focusChangedConsignments}
             className="mb-4 sm:mb-6 w-full rounded-xl bg-secondary text-white px-4 py-3 sm:px-5 sm:py-4 flex items-center justify-between gap-3 text-left shadow-sm glow-card glow-card--reactive"
           >
             <span className="flex items-center gap-3 min-w-0">
@@ -588,11 +564,11 @@ export default function CustomerDashboard() {
               </span>
               <span className="min-w-0">
                 <span className="flex items-center gap-2 text-sm font-extrabold">
-                  Today's Updates
+                  See changes
                   <span className="live-updates-dot" />
                 </span>
                 <span className="block text-xs text-white/60 truncate">
-                  {unreadTodayUpdates.length} consignment{unreadTodayUpdates.length !== 1 ? "s" : ""} updated today
+                  {changedShipmentRefs.size} consignment{changedShipmentRefs.size !== 1 ? "s" : ""} with changes
                 </span>
               </span>
             </span>

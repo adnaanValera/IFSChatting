@@ -7,6 +7,35 @@ function delay(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+async function waitForActiveServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    throw new Error("Service worker is not available on this device.");
+  }
+
+  const registration = await navigator.serviceWorker.ready;
+  if (registration.active) return registration;
+
+  const worker = registration.installing || registration.waiting;
+  if (!worker) return registration;
+
+  await new Promise<void>((resolve) => {
+    const handleStateChange = () => {
+      if (worker.state === "activated") {
+        worker.removeEventListener("statechange", handleStateChange);
+        resolve();
+      }
+    };
+    worker.addEventListener("statechange", handleStateChange);
+    handleStateChange();
+    window.setTimeout(() => {
+      worker.removeEventListener("statechange", handleStateChange);
+      resolve();
+    }, 4000);
+  });
+
+  return navigator.serviceWorker.ready;
+}
+
 async function fetchPublicKey() {
   const response = await fetch("/api/push/public-key");
   if (!response.ok) {
@@ -103,7 +132,7 @@ export function usePushNotifications(scope?: Scope) {
         throw new Error("The push public key is invalid. Please recheck the VAPID key in Vercel.");
       }
 
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await waitForActiveServiceWorker();
       await registration.update().catch(() => undefined);
       let subscription = await registration.pushManager.getSubscription();
       if (subscription) {
@@ -127,6 +156,7 @@ export function usePushNotifications(scope?: Scope) {
         for (const waitMs of [0, 350, 1200]) {
           if (subscription) break;
           if (waitMs > 0) await delay(waitMs);
+          await registration.update().catch(() => undefined);
           const staleSubscription = await registration.pushManager.getSubscription().catch(() => null);
           if (staleSubscription) await staleSubscription.unsubscribe().catch(() => undefined);
           try {
@@ -159,7 +189,7 @@ export function usePushNotifications(scope?: Scope) {
           throw new Error("Install and open the InterFreight app first, then enable notifications there.");
         }
         if (isAndroid) {
-          throw new Error([name, message].filter(Boolean).join(": ") || "Android push registration failed. Please use Chrome, make sure Chrome notifications are allowed in Android settings, then try again.");
+          throw new Error([name, message].filter(Boolean).join(": ") || "Android push registration failed. Open the installed app in Chrome, allow notifications in Android settings for Chrome, then try again.");
         }
         throw new Error([name, message].filter(Boolean).join(": ") || "Push registration failed on this device. Open the installed app and try again.");
       }
