@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Bell, Package, X, ArrowRight, Building2 } from "lucide-react";
+import { Bell, Package, X, ArrowRight, Building2, Truck, Ship, Megaphone } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGetMe } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +12,11 @@ interface Notification {
   ifsRef?: string;
   companyName?: string;
   status?: string;
+  notificationType?: string;
+  iconType?: string;
+  referenceText?: string;
+  detailText?: string;
+  actionUrl?: string;
   read: boolean;
   createdAt: string;
 }
@@ -42,6 +47,7 @@ function notificationCompany(n: Notification) {
 }
 
 function notificationTarget(n: Notification, role?: string): string {
+  if (n.actionUrl) return n.actionUrl;
   const isStaff = role === "staff" || role === "admin";
 
   if (isStaff) {
@@ -58,6 +64,24 @@ function notificationTarget(n: Notification, role?: string): string {
     return "/dashboard?focus=announcement";
   }
   return "/dashboard";
+}
+
+function NotificationIcon({ type, unread }: { type?: string; unread: boolean }) {
+  const className = unread ? "text-primary" : "text-white/40";
+  if (type === "truck") return <Truck size={14} className={className} />;
+  if (type === "ship") return <Ship size={14} className={className} />;
+  if (type === "announcement") return <Megaphone size={14} className={className} />;
+  return <Package size={14} className={className} />;
+}
+
+function toneClass(n: Notification): string {
+  const text = String(n.status ?? "").toLowerCase();
+  if (n.notificationType === "announcement") return "text-primary";
+  if (text.includes("delivered") || text.includes("clearance")) return "text-emerald-400";
+  if (text.includes("port") || text.includes("pod") || text.includes("offloading")) return "text-indigo-300";
+  if (text.includes("sea")) return "text-red-300";
+  if (text.includes("delay") || text.includes("hold") || text.includes("problem")) return "text-red-400";
+  return "text-amber-300";
 }
 
 export function NotificationBell() {
@@ -222,7 +246,7 @@ export function NotificationBell() {
                       className={`w-full text-left px-4 py-3 hover:bg-white/5 transition-colors flex gap-3 items-start ${!n.read ? "bg-primary/5" : ""}`}
                     >
                       <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${!n.read ? "bg-primary/20 border border-primary/30" : "bg-white/5 border border-white/10"}`}>
-                        <Package size={14} className={!n.read ? "text-primary" : "text-white/40"} />
+                        <NotificationIcon type={n.iconType} unread={!n.read} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
@@ -231,7 +255,16 @@ export function NotificationBell() {
                           </p>
                           {!n.read && <span className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1" />}
                         </div>
-                        <p className="text-white/50 text-xs mt-1 leading-relaxed line-clamp-2">{n.message}</p>
+                        {(n.referenceText || n.message) && (
+                          <p className="text-white/80 text-xs mt-1 leading-relaxed line-clamp-2">
+                            {n.referenceText || n.message}
+                          </p>
+                        )}
+                        {(n.detailText || (n.referenceText && n.message)) && (
+                          <p className={`text-xs mt-1 leading-relaxed line-clamp-2 ${toneClass(n)}`}>
+                            {n.detailText || n.message}
+                          </p>
+                        )}
                         <div className="flex items-center justify-between gap-2 mt-1.5">
                           {n.status ? (
                             <span className="inline-block bg-primary/20 text-primary text-[10px] font-semibold px-2 py-0.5 rounded-full">

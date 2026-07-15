@@ -8,9 +8,17 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("push", (event) => {
   const data = event.data ? event.data.json() : {};
-  const title = data.title || "InterFreight Solutions";
+  const iconMap = {
+    ship: "🚢",
+    truck: "🚚",
+    pallet: "📦",
+    announcement: "📢",
+  };
+  const prefix = data.iconType && iconMap[data.iconType] ? `${iconMap[data.iconType]} ` : "";
+  const title = `${prefix}${data.title || "InterFreight Solutions"}`;
+  const bodyParts = [data.referenceText, data.detailText, data.body].filter(Boolean);
   const options = {
-    body: data.body || "You have a new update.",
+    body: bodyParts.join("\n") || "You have a new update.",
     icon: "/ifs-app-icon-2026.png",
     badge: "/ifs-app-icon-2026.png",
     vibrate: [220, 120, 220],
@@ -20,6 +28,7 @@ self.addEventListener("push", (event) => {
     timestamp: Date.now(),
     data: {
       url: data.url || "/dashboard",
+      notificationType: data.notificationType || "generic",
     },
     tag: data.tag || undefined,
   };

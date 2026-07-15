@@ -7,6 +7,10 @@ type PushPayload = {
   body: string;
   url?: string;
   tag?: string;
+  iconType?: string;
+  referenceText?: string;
+  detailText?: string;
+  notificationType?: string;
 };
 
 type StoredSubscription = {

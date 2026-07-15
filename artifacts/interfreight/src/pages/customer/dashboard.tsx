@@ -4,17 +4,17 @@ import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStaffLogout } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
-import { useToast } from "@/hooks/use-toast";
 import {
   LogOut, Package, Ship, MapPin,
   CheckCircle, Home, Download, Megaphone, ArrowRight, Bell,
-  AlertTriangle, Search, Smartphone, Send,
+  AlertTriangle, Search, Smartphone,
 } from "lucide-react";
 import { Link } from "wouter";
 import { ShipmentCard } from "@/components/ui/shipment-card";
 import { Spinner } from "@/components/ui/spinner";
 import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
 import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { saveAccount, savedAccounts, type SavedAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 
@@ -68,8 +68,6 @@ type Announcement = {
   message: string;
   updatedAt?: string;
 };
-
-type ProblemCategory = "notification" | "glitch" | "other";
 
 function authFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem("intf_token");
@@ -171,7 +169,6 @@ function sectionElementId(reportLabel: string): string {
 
 export default function CustomerDashboard() {
   const [location, setLocation] = useLocation();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: user, isLoading: userLoading } = useGetMe();
   const { data: shipmentsPage, isLoading: shipmentsLoading } = useListShipments(
@@ -217,10 +214,6 @@ export default function CustomerDashboard() {
   const [seenChangeTokens, setSeenChangeTokens] = useState<Set<string>>(() => new Set(readSeenChangeTokens()));
   const [showIntro, setShowIntro] = useState(true);
   const [introMorphing, setIntroMorphing] = useState(false);
-  const [problemCategory, setProblemCategory] = useState<ProblemCategory>("notification");
-  const [problemMessage, setProblemMessage] = useState("");
-  const [problemSending, setProblemSending] = useState(false);
-  const [problemSent, setProblemSent] = useState(false);
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const logoTargetRef = useRef<HTMLImageElement | null>(null);
   const [logoTarget, setLogoTarget] = useState<{ x: number; y: number } | null>(null);
@@ -361,48 +354,6 @@ export default function CustomerDashboard() {
     }
   };
 
-  const handleSubmitProblem = async () => {
-    if (!problemMessage.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Please describe the problem",
-        description: "Tell us what is going wrong so we can fix it quickly.",
-      });
-      return;
-    }
-
-    setProblemSending(true);
-    try {
-      const response = await authFetch("/api/customer/problems", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          category: problemCategory,
-          message: problemMessage.trim(),
-        }),
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || "Problem could not be sent");
-      }
-
-      setProblemSent(true);
-      setProblemMessage("");
-      setProblemCategory("notification");
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Could not send problem",
-        description: error?.message || "Please try again.",
-      });
-    } finally {
-      setProblemSending(false);
-    }
-  };
-
   const unreadTodayUpdates = notifications.filter((notification) => {
     if (!notification.status || !isToday(notification.createdAt) || !notification.ifsRef) return false;
     const change = parseStatusChange(notification.message);
@@ -431,8 +382,8 @@ export default function CustomerDashboard() {
   const scrollToSection = (targetId: string) => {
     document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
-  const scrollToProblemSection = () => {
-    document.getElementById("customer-problem-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const goToProblemPage = () => {
+    setLocation("/dashboard/problems");
     setShowQuickMenu(false);
   };
   const scrollToTrackingSection = () => {
@@ -499,7 +450,7 @@ export default function CustomerDashboard() {
                 </button>
                 <button
                   type="button"
-                  onClick={scrollToProblemSection}
+                  onClick={goToProblemPage}
                   className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   Bug/Problem
@@ -518,6 +469,9 @@ export default function CustomerDashboard() {
             <Link href="/" className="hidden sm:flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors">
               <Home size={15} /> Home
             </Link>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-1.5 py-1">
+              <NotificationBell />
+            </div>
             {accounts.length > 0 && <AccountSwitcher currentToken={localStorage.getItem("intf_token")} />}
             <button
               onClick={handleLogout}
@@ -669,80 +623,6 @@ export default function CustomerDashboard() {
           <p className="mt-3 text-xs text-muted-foreground">
             Showing {filteredShipments.length} of {shipments.length} shipment{shipments.length !== 1 ? "s" : ""}.
           </p>
-        </div>
-
-        <div id="customer-problem-section" className="mb-6 rounded-2xl border border-border bg-card shadow-sm glow-card p-4 sm:p-5">
-          <div className="flex flex-col gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Support</p>
-              <h3 className="text-xl font-extrabold text-secondary dark:text-white mt-1">Bug/Problem</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Let us know if something is wrong and we will check it right away.
-              </p>
-            </div>
-
-            {problemSent ? (
-              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5 text-center">
-                <video
-                  src="/ifs-loader.mp4"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  className="mx-auto h-28 w-28 bg-transparent object-contain mix-blend-multiply sm:h-36 sm:w-36"
-                />
-                <p className="mt-3 text-sm font-semibold text-secondary dark:text-white">
-                  As soon as we see your message we will work on it right away.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setProblemSent(false)}
-                  className="mt-4 inline-flex items-center justify-center rounded-xl border border-primary/20 bg-white px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/5"
-                >
-                  Send another
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {(["notification", "glitch", "other"] as ProblemCategory[]).map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setProblemCategory(option)}
-                      className={`rounded-xl border px-4 py-3 text-sm font-semibold text-left transition-all ${
-                        problemCategory === option
-                          ? "border-primary bg-primary/10 text-primary shadow-sm"
-                          : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-secondary"
-                      }`}
-                    >
-                      {option === "notification" ? "Notification" : option === "glitch" ? "Glitch" : "Other"}
-                    </button>
-                  ))}
-                </div>
-
-                <textarea
-                  value={problemMessage}
-                  onChange={(event) => setProblemMessage(event.target.value)}
-                  rows={4}
-                  placeholder="Tell us what happened..."
-                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
-                />
-
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => void handleSubmitProblem()}
-                    disabled={problemSending || !problemMessage.trim()}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
-                  >
-                    {problemSending ? <Spinner className="w-4 h-4" /> : <Send size={16} />}
-                    Send problem
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
         </div>
 
         {/* Shipment cards */}

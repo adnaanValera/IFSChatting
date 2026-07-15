@@ -117,6 +117,11 @@ async function createTables() {
       ifs_ref text,
       company_name text,
       status text,
+      notification_type text,
+      icon_type text,
+      reference_text text,
+      detail_text text,
+      action_url text,
       read boolean NOT NULL DEFAULT false,
       created_at timestamptz NOT NULL DEFAULT now()
     );
@@ -167,6 +172,11 @@ async function createTables() {
     ALTER TABLE feedback ADD COLUMN IF NOT EXISTS phone_number text;
     ALTER TABLE feedback ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'public';
     ALTER TABLE feedback ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'general';
+    ALTER TABLE notifications ADD COLUMN IF NOT EXISTS notification_type text;
+    ALTER TABLE notifications ADD COLUMN IF NOT EXISTS icon_type text;
+    ALTER TABLE notifications ADD COLUMN IF NOT EXISTS reference_text text;
+    ALTER TABLE notifications ADD COLUMN IF NOT EXISTS detail_text text;
+    ALTER TABLE notifications ADD COLUMN IF NOT EXISTS action_url text;
     ALTER TABLE announcements ADD COLUMN IF NOT EXISTS audience text NOT NULL DEFAULT 'all';
     ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target_user_ids text;
     ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_id integer;

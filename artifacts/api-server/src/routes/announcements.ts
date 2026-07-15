@@ -94,23 +94,37 @@ router.put("/staff/announcements/current", requireAuth, requireStaff, async (req
 
   if (recipientIds.length > 0) {
     await db.insert(notificationsTable).values(
-      recipientIds.map((userId) => ({
-        userId,
-        title: cleanTitle,
-        message: cleanMessage,
-        companyName: "InterFreight Solutions",
-        status: "Announcement",
-      })),
+      recipientIds.map((userId) => {
+        const actionUrl = userId === authReq.user.userId ? "/staff/dashboard?tab=overview&focus=announcement" : (staffAndAdmins.some((row) => row.id === userId)
+          ? "/staff/dashboard?tab=overview&focus=announcement"
+          : "/dashboard?focus=announcement");
+        return {
+          userId,
+          title: "Announcement",
+          message: cleanMessage,
+          companyName: "InterFreight Solutions",
+          status: "Announcement",
+          notificationType: "announcement",
+          iconType: "announcement",
+          referenceText: cleanTitle,
+          detailText: cleanMessage,
+          actionUrl,
+        };
+      }),
     );
 
     await Promise.all(recipientIds.map((userId) =>
       sendPushToUser(userId, {
-        title: `InterFreight Alert: ${cleanTitle}`,
-        body: `${cleanMessage} Tap to open.`,
+        title: "Announcement",
+        body: "Tap to open.",
         url: userId === authReq.user.userId ? "/staff/dashboard?tab=overview&focus=announcement" : (staffAndAdmins.some((row) => row.id === userId)
           ? "/staff/dashboard?tab=overview&focus=announcement"
           : "/dashboard?focus=announcement"),
         tag: `announcement-${announcement.id}-${userId}`,
+        iconType: "announcement",
+        referenceText: cleanTitle,
+        detailText: cleanMessage,
+        notificationType: "announcement",
       }),
     ));
   }

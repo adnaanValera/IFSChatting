@@ -687,6 +687,24 @@ function shipmentNotificationLabel(record: {
   return `Reference ${displayText(record.ifsRef)}`;
 }
 
+function shipmentIconType(record: { containerNo?: string | null; extraFields?: Record<string, unknown> | unknown }): "ship" | "truck" | "pallet" {
+  const extra = (record.extraFields as Record<string, unknown>) ?? {};
+  const type = displayText(extra["Type"] ?? extra["type"]).toUpperCase();
+  if (type.includes("FTL")) return "truck";
+  if (type.includes("LCL")) return "pallet";
+  if (type.includes("FCL")) return "ship";
+  return displayText(record.containerNo) !== "N/A" ? "ship" : "pallet";
+}
+
+function shipmentStatusTone(status: string): string {
+  const text = status.toLowerCase();
+  if (text.includes("delivered") || text.includes("malawi")) return "success";
+  if (text.includes("port") || text.includes("pod") || text.includes("offloading")) return "port";
+  if (text.includes("sea")) return "sea";
+  if (text.includes("delay") || text.includes("hold") || text.includes("problem")) return "danger";
+  return "transit";
+}
+
 async function notifyCustomersOfStatusChange(args: {
   companyName: string;
   consignee?: string;
@@ -708,21 +726,33 @@ async function notifyCustomersOfStatusChange(args: {
 
   for (const { id: userId } of customers) {
     const label = shipmentNotificationLabel(args);
-    const message = `${label}: ${args.change.oldValue} -> ${args.change.newValue}. Tap to view more.`;
-    const focusValue = encodeURIComponent(args.containerNo || args.ifsRef);
+    const identifier = shipmentIdentifier(args);
+    const iconType = shipmentIconType(args);
+    const detailText = `${args.change.oldValue} -> ${args.change.newValue}`;
+    const focusValue = encodeURIComponent(identifier);
+    const actionUrl = `/dashboard?search=${focusValue}&changed=1`;
     await db.insert(notificationsTable).values({
       userId,
-      title: "InterFreight Alert: Status Changed",
-      message,
+      title: "Changes",
+      message: `${label}: ${detailText}`,
       ifsRef: args.ifsRef,
       companyName: args.companyName,
       status: args.change.newValue,
+      notificationType: "shipment_change",
+      iconType,
+      referenceText: identifier,
+      detailText,
+      actionUrl,
     });
     await sendPushToUser(userId, {
-      title: "InterFreight Alert: Status Changed",
-      body: message,
-      url: `/dashboard?search=${focusValue}`,
+      title: "Changes",
+      body: `Tap to view more.`,
+      url: actionUrl,
       tag: `shipment-${args.ifsRef}-${Date.now()}`,
+      iconType,
+      referenceText: identifier,
+      detailText,
+      notificationType: "shipment_change",
     });
   }
 }
@@ -748,19 +778,31 @@ async function notifyCustomersOfNewShipment(args: {
     });
 
   for (const { id: userId } of customers) {
+    const identifier = shipmentIdentifier(args);
+    const iconType = shipmentIconType(args);
+    const statusText = displayText(args.status);
     await db.insert(notificationsTable).values({
       userId,
-      title: "InterFreight Alert: New Shipment",
-      message: `${shipmentIdentifier(args)} was added to your dashboard with status ${displayText(args.status)}.`,
+      title: "New Shipment",
+      message: `${identifier} was added to your dashboard with status ${statusText}.`,
       ifsRef: args.ifsRef,
       companyName: args.companyName,
       status: args.status,
+      notificationType: "new_shipment",
+      iconType,
+      referenceText: identifier,
+      detailText: statusText,
+      actionUrl: `/dashboard?search=${encodeURIComponent(identifier)}`,
     });
     await sendPushToUser(userId, {
-      title: "InterFreight Alert: New Shipment",
-      body: `${shipmentIdentifier(args)} was added to your dashboard. Tap to view.`,
-      url: "/dashboard",
+      title: "New Shipment",
+      body: "Tap to view.",
+      url: `/dashboard?search=${encodeURIComponent(identifier)}`,
       tag: `shipment-new-${args.ifsRef}-${Date.now()}`,
+      iconType,
+      referenceText: identifier,
+      detailText: statusText,
+      notificationType: "new_shipment",
     });
   }
 }

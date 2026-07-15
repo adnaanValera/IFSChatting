@@ -16,6 +16,7 @@ import SignupWaitingPage from "@/pages/signup-waiting";
 import Containers from "@/pages/containers";
 import ContainerDetail from "@/pages/container-detail";
 import CustomerDashboard from "@/pages/customer/dashboard";
+import CustomerProblemsPage from "@/pages/customer/problems";
 import StaffDashboard from "@/pages/staff/dashboard";
 import StaffUsers from "@/pages/staff/users";
 import NotFound from "@/pages/not-found";
@@ -127,6 +128,13 @@ function Router() {
         {() => (
           <CustomerRoute>
             <CustomerDashboard />
+          </CustomerRoute>
+        )}
+      </Route>
+      <Route path="/dashboard/problems">
+        {() => (
+          <CustomerRoute>
+            <CustomerProblemsPage />
           </CustomerRoute>
         )}
       </Route>

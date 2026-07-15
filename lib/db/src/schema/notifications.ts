@@ -8,6 +8,11 @@ export const notificationsTable = pgTable("notifications", {
   ifsRef: text("ifs_ref"),
   companyName: text("company_name"),
   status: text("status"),
+  notificationType: text("notification_type"),
+  iconType: text("icon_type"),
+  referenceText: text("reference_text"),
+  detailText: text("detail_text"),
+  actionUrl: text("action_url"),
   read: boolean("read").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
