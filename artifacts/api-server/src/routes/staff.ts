@@ -50,7 +50,12 @@ function applyReportTitleImage(
 ): void {
   if (!fs.existsSync(REPORT_TITLE_IMAGE_PATH)) return;
 
-  if (options?.clearCell) ws.getCell(options.clearCell).value = null;
+  if (options?.clearCell) {
+    const titleCell = ws.getCell(options.clearCell);
+    const existingText = String(titleCell.value ?? "").replace(/\s+/g, "").toLowerCase();
+    if (!existingText.includes("interfreightsolutions")) return;
+    titleCell.value = null;
+  }
 
   const imageId = wb.addImage({
     filename: REPORT_TITLE_IMAGE_PATH,
@@ -2052,12 +2057,6 @@ async function generateCompanyReportWorkbook(
     ws.getCell("M5").font = { size: 10 };
     ws.getCell("M5").alignment = { horizontal: "right" };
     r5.height = 20;
-    applyReportTitleImage(wb, ws, {
-      clearCell: "C4",
-      topLeft: { col: 2.05, row: 3.0 },
-      ext: { width: 330, height: 28 },
-    });
-
     ws.addRow([]);
   }
 
