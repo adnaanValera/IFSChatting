@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { isStandaloneDisplay, urlBase64ToUint8Array } from "@/lib/pwa";
+import { isStandaloneDisplay, registerServiceWorker, urlBase64ToUint8Array } from "@/lib/pwa";
 
 type Scope = { type: "auth" } | { type: "pending"; approvalToken: string };
 
@@ -32,6 +32,27 @@ async function upsertSubscription(scope: Scope, subscription: PushSubscription) 
   }
 }
 
+async function getReadyRegistration() {
+  if (!("serviceWorker" in navigator)) throw new Error("Service workers are not available on this device.");
+  const existing = await navigator.serviceWorker.getRegistration();
+  if (existing) return existing;
+  const registered = await registerServiceWorker();
+  if (registered) return registered;
+  return navigator.serviceWorker.ready;
+}
+
+async function resetPushState() {
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  await Promise.allSettled(
+    registrations.map(async (registration) => {
+      const subscription = await registration.pushManager.getSubscription().catch(() => null);
+      if (subscription) await subscription.unsubscribe().catch(() => undefined);
+      await registration.unregister().catch(() => undefined);
+    }),
+  );
+  return getReadyRegistration();
+}
+
 export function usePushNotifications(scope?: Scope) {
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
   const isIOS = /iPad|iPhone|iPod/i.test(userAgent);
@@ -56,7 +77,7 @@ export function usePushNotifications(scope?: Scope) {
   useEffect(() => {
     async function checkSubscription() {
       if (!isSupported || !scope || !("serviceWorker" in navigator)) return;
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await getReadyRegistration();
       const subscription = await registration.pushManager.getSubscription();
       setIsSubscribed(!!subscription);
     }
@@ -98,7 +119,7 @@ export function usePushNotifications(scope?: Scope) {
         throw new Error("The push public key is invalid. Please recheck the VAPID key in Vercel.");
       }
 
-      const registration = await navigator.serviceWorker.ready;
+      let registration = await getReadyRegistration();
       let subscription = await registration.pushManager.getSubscription();
       if (subscription) {
         try {
@@ -117,11 +138,22 @@ export function usePushNotifications(scope?: Scope) {
           applicationServerKey,
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "";
+        registration = await resetPushState();
+        try {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey,
+          });
+        } catch (retryError) {
+          const message = retryError instanceof Error ? retryError.message : error instanceof Error ? error.message : "";
+          if (isIOS && !standalone) {
+            throw new Error("Install and open the InterFreight app first, then enable notifications there.");
+          }
+          throw new Error(message || "Push registration failed on this device. Please reopen the web app and try again.");
+        }
         if (isIOS && !standalone) {
           throw new Error("Install and open the InterFreight app first, then enable notifications there.");
         }
-        throw new Error(message || "Push registration failed on this device. Open the installed app and try again.");
       }
 
       await upsertSubscription(scope, subscription);
