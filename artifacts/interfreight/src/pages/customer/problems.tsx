@@ -2,9 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Home, LogOut, TriangleAlert } from "lucide-react";
 import { useGetMe, useStaffLogout } from "@workspace/api-client-react";
-import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
 import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
-import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ProblemReporter } from "@/components/customer/ProblemReporter";
 import { Spinner } from "@/components/ui/spinner";
 import { saveAccount, savedAccounts, type SavedAccount } from "@/lib/saved-accounts";
@@ -35,8 +33,6 @@ export default function CustomerProblemsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <NotificationOptIn storageKey="intf_push_prompt_customer" scope={{ type: "auth" }} />
-
       <div className="bg-secondary text-secondary-foreground shadow-lg sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -53,9 +49,6 @@ export default function CustomerProblemsPage() {
             <Link href="/" className="hidden sm:flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition-colors">
               <Home size={15} /> Home
             </Link>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-1.5 py-1">
-              <NotificationBell />
-            </div>
             {accounts.length > 0 && <AccountSwitcher currentToken={localStorage.getItem("intf_token")} />}
             <button
               onClick={() => logoutMutation.mutate(undefined, {
