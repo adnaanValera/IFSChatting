@@ -958,8 +958,6 @@ async function upsertShipment(record: {
       lastUpdated: new Date(),
     }).where(eq(shipmentsTable.id, existing[0].id));
     if (changes.length > 0) {
-      const statusChange = changes[0];
-      if (!statusChange) return "updated";
       await recordShipmentChangeLog({
         shipmentId: existing[0].id,
         uploadBatchId: record.uploadBatchId,
@@ -969,17 +967,20 @@ async function upsertShipment(record: {
         status: record.status,
         changes,
       });
-      try {
-        await notifyCustomersOfStatusChange({
-          companyName: record.companyName,
-          consignee: record.consignee,
-          ifsRef: record.ifsRef,
-          containerNo: record.containerNo,
-          extraFields: record.extraFields,
-          change: statusChange,
-        });
-      } catch (notifErr) {
-        logger.warn({ notifErr, ifsRef: record.ifsRef }, "Failed to create status-change notification");
+      const statusChange = changes.find((change) => change.field.trim().toLowerCase() === "status");
+      if (statusChange) {
+        try {
+          await notifyCustomersOfStatusChange({
+            companyName: record.companyName,
+            consignee: record.consignee,
+            ifsRef: record.ifsRef,
+            containerNo: record.containerNo,
+            extraFields: record.extraFields,
+            change: statusChange,
+          });
+        } catch (notifErr) {
+          logger.warn({ notifErr, ifsRef: record.ifsRef }, "Failed to create status-change notification");
+        }
       }
     }
     return "updated";

@@ -339,6 +339,7 @@ export default function CustomerDashboard() {
     const notificationToken = notification.id
       ? `notif:${notification.id}`
       : `notif:${notification.ifsRef}:${notification.createdAt ?? ""}:${notification.title ?? ""}:${notification.message ?? ""}`;
+    if (seenChangeTokens.has(notificationToken)) continue;
 
     if (notification.notificationType === "new_shipment") {
       newShipmentRefs.add(notification.ifsRef);
@@ -370,6 +371,7 @@ export default function CustomerDashboard() {
       localStorage.setItem(READ_CHANGES_STORAGE_KEY, JSON.stringify([...next]));
       return next;
     });
+    setChangedOnlyRefs(null);
     const notificationIds = notificationIdsByChangeToken.get(token) ?? [];
     if (notificationIds.length > 0) {
       await Promise.allSettled(notificationIds.map((id) => authFetch(`/api/notifications/${id}/read`, { method: "PATCH" })));
@@ -396,7 +398,11 @@ export default function CustomerDashboard() {
   );
   const changedShipmentRefs = new Set([
     ...todayUpdatedRefs,
-    ...newShipmentRefs,
+    ...[...newShipmentRefs]
+      .filter((ifsRef) => {
+        const token = notificationTokenByIfsRef.get(ifsRef);
+        return token ? !seenChangeTokens.has(token) : true;
+      }),
     ...[...notificationTokenByIfsRef.entries()]
       .filter(([, token]) => !seenChangeTokens.has(token))
       .map(([ifsRef]) => ifsRef),
