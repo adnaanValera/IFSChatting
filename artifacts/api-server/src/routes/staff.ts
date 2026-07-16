@@ -1715,7 +1715,7 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
       const best = maxLen[colIdx] ?? 0;
       const padding = REPORT_WIDTHS[key]?.wrap ? 1 : (key === "ifsRef" ? 2 : 1);
       const computedWidth = Math.min(Math.max(best + padding, limits.min), limits.max);
-      const baseWidth = SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0;
+      const baseWidth = key === "finalPortDestination" ? 0 : (SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0);
       col.width = Math.min(Math.max(computedWidth, baseWidth), limits.max);
       continue;
     }

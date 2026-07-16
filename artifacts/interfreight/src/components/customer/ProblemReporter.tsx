@@ -76,14 +76,7 @@ export function ProblemReporter() {
 
         {problemSent ? (
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5 text-center">
-            <video
-              src="/ifs-loader.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="mx-auto h-28 w-28 bg-transparent object-contain mix-blend-darken sm:h-36 sm:w-36"
-            />
+            <Spinner className="mx-auto h-28 w-28 bg-transparent sm:h-36 sm:w-36" />
             <p className="mt-3 text-sm font-semibold text-secondary dark:text-white">
               As soon as we see your message we will work on it right away.
             </p>
