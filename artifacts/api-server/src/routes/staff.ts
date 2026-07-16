@@ -2784,13 +2784,21 @@ router.get("/staff/activity", requireAuth, requireAdmin, async (_req, res) => {
       u.full_name AS "fullName",
       u.company_name AS "companyName",
       u.email,
-      u.role,
+      COUNT(DISTINCT CASE WHEN ps.id IS NOT NULL THEN ps.id END)::int AS "notificationDevices",
+      COUNT(DISTINCT CASE WHEN n.read = false THEN n.id END)::int AS "unreadNotifications",
+      MAX(n.created_at) AS "lastNotificationAt",
+      MAX(CASE WHEN n.read_at IS NOT NULL THEN n.read_at END) AS "lastViewedChangeAt",
       MAX(s.last_seen_at) AS "lastSeenAt",
       MAX(s.created_at) AS "lastLoginAt",
       COUNT(CASE WHEN s.revoked_at IS NULL AND s.expires_at > NOW() THEN 1 END)::int AS "activeSessions"
     FROM users u
     LEFT JOIN sessions s ON s.user_id = u.id
-    GROUP BY u.id, u.full_name, u.company_name, u.email, u.role
+    LEFT JOIN notifications n
+      ON n.user_id = u.id
+      AND n.notification_type IN ('shipment_change', 'new_shipment', 'announcement', 'tracking_master')
+    LEFT JOIN push_subscriptions ps ON ps.user_id = u.id
+    WHERE u.role = 'customer'
+    GROUP BY u.id, u.full_name, u.company_name, u.email
     ORDER BY MAX(s.last_seen_at) DESC NULLS LAST, u.full_name ASC
   `);
 

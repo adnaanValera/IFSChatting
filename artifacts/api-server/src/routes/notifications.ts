@@ -32,7 +32,7 @@ router.patch("/notifications/:id/read", requireAuth, async (req, res) => {
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db
     .update(notificationsTable)
-    .set({ read: true })
+    .set({ read: true, readAt: new Date() })
     .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, userId)));
   res.status(204).send();
 });
@@ -41,7 +41,7 @@ router.post("/notifications/read-all", requireAuth, async (req, res) => {
   const { userId } = (req as AuthReq).user;
   await db
     .update(notificationsTable)
-    .set({ read: true })
+    .set({ read: true, readAt: new Date() })
     .where(eq(notificationsTable.userId, userId));
   res.status(204).send();
 });

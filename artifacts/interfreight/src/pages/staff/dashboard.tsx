@@ -34,6 +34,7 @@ type Announcement = {
   message: string;
   active: boolean;
   updatedAt: string;
+  expiresAt?: string | null;
   audience?: string;
   targetUserIds?: string | null;
 };
@@ -77,10 +78,13 @@ type ActivityItem = {
   fullName: string;
   companyName: string;
   email: string;
-  role: string;
   lastSeenAt?: string | null;
   lastLoginAt?: string | null;
   activeSessions?: number;
+  notificationDevices?: number;
+  unreadNotifications?: number;
+  lastNotificationAt?: string | null;
+  lastViewedChangeAt?: string | null;
 };
 type Shipment = {
   id: number; ifsRef: string; mraRef?: string; containerNo?: string;
@@ -369,6 +373,8 @@ export default function Dashboard() {
   const [announcementTargetAll, setAnnouncementTargetAll] = useState(true);
   const [announcementCustomers, setAnnouncementCustomers] = useState<AnnouncementCustomer[]>([]);
   const [announcementTargetIds, setAnnouncementTargetIds] = useState<number[]>([]);
+  const [announcementList, setAnnouncementList] = useState<Announcement[]>([]);
+  const [clearingAnnouncementId, setClearingAnnouncementId] = useState<number | null>(null);
   const [pendingSignups, setPendingSignups] = useState<PendingSignup[]>([]);
   const [signupHistory, setSignupHistory] = useState<PendingSignup[]>([]);
   const [pendingSignupsLoading, setPendingSignupsLoading] = useState(false);
@@ -569,6 +575,7 @@ export default function Dashboard() {
     if (isStaffOrAdmin) {
       loadAnnouncement();
       loadAnnouncementCustomers();
+      loadAnnouncementList();
     }
   }, [isStaffOrAdmin]);
 
@@ -583,6 +590,20 @@ export default function Dashboard() {
       setAnnouncementCustomers(await res.json());
     } catch {
       setAnnouncementCustomers([]);
+    }
+  };
+
+  const loadAnnouncementList = async () => {
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/announcements`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to load announcements");
+      setAnnouncementList(await res.json());
+    } catch {
+      setAnnouncementList([]);
     }
   };
 
@@ -605,6 +626,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Failed to save announcement");
       const data = await res.json();
       setAnnouncement(data);
+      await loadAnnouncementList();
       if (!data) {
         setAnnouncementTitle("");
         setAnnouncementMessage("");
@@ -616,6 +638,26 @@ export default function Dashboard() {
       toast({ variant: "destructive", title: "Announcement failed", description: err.message });
     } finally {
       setAnnouncementSaving(false);
+    }
+  };
+
+  const clearAnnouncement = async (id: number) => {
+    setClearingAnnouncementId(id);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/announcements/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok && res.status !== 204) throw new Error("Failed to clear announcement");
+      await loadAnnouncement();
+      await loadAnnouncementList();
+      toast({ title: "Announcement cleared" });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Announcement failed", description: err.message });
+    } finally {
+      setClearingAnnouncementId(null);
     }
   };
 
@@ -1680,7 +1722,40 @@ export default function Dashboard() {
                   {announcement && (
                     <p className="text-xs text-white/45 mt-3">
                       Live now: <span className="text-white/75 font-semibold">{announcement.title}</span>
+                      {announcement.expiresAt ? (
+                        <span className="ml-2">· Expires {formatDateOnly(announcement.expiresAt)}</span>
+                      ) : null}
                     </p>
+                  )}
+                  {announcementList.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <p className="text-[10px] uppercase tracking-widest text-white/55 font-bold">Recent Announcements</p>
+                      <div className="space-y-2">
+                        {announcementList.map((item) => {
+                          const isExpired = item.expiresAt ? new Date(item.expiresAt).getTime() < Date.now() : false;
+                          return (
+                            <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-white truncate">{item.title}</p>
+                                <p className="text-xs text-white/65 line-clamp-2">{item.message}</p>
+                                <p className="mt-1 text-[11px] text-white/45">
+                                  {item.active && !isExpired ? "Live" : isExpired ? "Expired" : "Cleared"}
+                                  {item.expiresAt ? ` · Expires ${formatDateOnly(item.expiresAt)}` : ""}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => clearAnnouncement(item.id)}
+                                disabled={clearingAnnouncementId === item.id || (!item.active && !isExpired)}
+                                className="shrink-0 rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15 disabled:opacity-50"
+                              >
+                                {clearingAnnouncementId === item.id ? "Clearing..." : "Clear"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -2761,7 +2836,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-extrabold text-secondary">Activity</h2>
-                  <p className="text-sm text-muted-foreground">See when each account last entered the app or website.</p>
+                  <p className="text-sm text-muted-foreground">See which customers received updates, opened the dashboard, and viewed shipment changes.</p>
                 </div>
                 <button
                   onClick={() => { void loadActivity(); }}
@@ -2779,7 +2854,7 @@ export default function Dashboard() {
                 <div className="bg-white rounded-2xl border border-border shadow-sm py-20 text-center">
                   <Clock className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
                   <p className="text-lg font-semibold text-secondary mb-2">No activity yet</p>
-                  <p className="text-sm text-muted-foreground">Account entry activity will appear here once users start logging in.</p>
+                  <p className="text-sm text-muted-foreground">Customer read activity will appear here once notifications start being opened.</p>
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -2789,15 +2864,18 @@ export default function Dashboard() {
                         <tr>
                           <th className="px-4 py-3">Account</th>
                           <th className="px-4 py-3">Company</th>
-                          <th className="px-4 py-3">Role</th>
+                          <th className="px-4 py-3">Notifications</th>
+                          <th className="px-4 py-3">Unread</th>
+                          <th className="px-4 py-3">Latest Sent</th>
                           <th className="px-4 py-3">Last Entered</th>
-                          <th className="px-4 py-3">Last Login</th>
-                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">Viewed Change</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
                         {activityRows.map((row) => {
                           const activeSessions = Number(row.activeSessions ?? 0);
+                          const notificationDevices = Number(row.notificationDevices ?? 0);
+                          const unreadNotifications = Number(row.unreadNotifications ?? 0);
                           return (
                             <tr key={`activity-${row.id}`} className="hover:bg-muted/20">
                               <td className="px-4 py-3">
@@ -2806,22 +2884,34 @@ export default function Dashboard() {
                               </td>
                               <td className="px-4 py-3 text-muted-foreground">{row.companyName || "N/A"}</td>
                               <td className="px-4 py-3">
-                                <span className="text-xs font-bold px-2 py-1 rounded-full bg-muted text-muted-foreground uppercase">
-                                  {row.role}
+                                <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                                  notificationDevices > 0 ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+                                }`}>
+                                  {notificationDevices > 0 ? `Enabled (${notificationDevices})` : "Not enabled"}
                                 </span>
-                              </td>
-                              <td className="px-4 py-3 font-semibold text-secondary whitespace-nowrap">
-                                {row.lastSeenAt ? formatDate(row.lastSeenAt) : "Never"}
-                              </td>
-                              <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                                {row.lastLoginAt ? formatDate(row.lastLoginAt) : "Never"}
                               </td>
                               <td className="px-4 py-3">
                                 <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                                  activeSessions > 0 ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+                                  unreadNotifications > 0 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
                                 }`}>
-                                  {activeSessions > 0 ? `Active (${activeSessions})` : "Offline"}
+                                  {unreadNotifications > 0 ? `${unreadNotifications} unread` : "All read"}
                                 </span>
+                              </td>
+                              <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                                {row.lastNotificationAt ? formatDate(row.lastNotificationAt) : "Never"}
+                              </td>
+                              <td className="px-4 py-3 font-semibold text-secondary whitespace-nowrap">
+                                {row.lastSeenAt ? formatDate(row.lastSeenAt) : "Never"}
+                                <div className="mt-1">
+                                  <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${
+                                    activeSessions > 0 ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+                                  }`}>
+                                    {activeSessions > 0 ? `Active (${activeSessions})` : "Offline"}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                                {row.lastViewedChangeAt ? formatDate(row.lastViewedChangeAt) : "Not yet"}
                               </td>
                             </tr>
                           );

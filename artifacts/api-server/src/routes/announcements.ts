@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { db, announcementsTable, notificationsTable, usersTable } from "@workspace/db";
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gt, inArray } from "drizzle-orm";
 import { requireAuth, requireStaff } from "../middlewares/auth";
 import { sendPushToUser } from "../lib/push";
 
 const router = Router();
+const ANNOUNCEMENT_LIFETIME_MS = 3 * 24 * 60 * 60 * 1000;
 
 function parseTargetIds(value?: string | null): number[] {
   return String(value ?? "")
@@ -13,12 +14,19 @@ function parseTargetIds(value?: string | null): number[] {
     .filter((part) => Number.isFinite(part));
 }
 
+function announcementScope() {
+  return and(
+    eq(announcementsTable.active, true),
+    gt(announcementsTable.expiresAt, new Date()),
+  );
+}
+
 router.get("/announcements/current", requireAuth, async (req, res) => {
   const authReq = req as typeof req & { user: { userId: number } };
   const announcements = await db
     .select()
     .from(announcementsTable)
-    .where(eq(announcementsTable.active, true))
+    .where(announcementScope())
     .orderBy(desc(announcementsTable.updatedAt))
     .limit(20);
   const announcement = announcements.find((item) => item.audience === "all" || parseTargetIds(item.targetUserIds).includes(authReq.user.userId));
@@ -29,10 +37,19 @@ router.get("/staff/announcements/current", requireAuth, requireStaff, async (_re
   const [announcement] = await db
     .select()
     .from(announcementsTable)
-    .where(eq(announcementsTable.active, true))
+    .where(announcementScope())
     .orderBy(desc(announcementsTable.updatedAt))
     .limit(1);
   res.json(announcement ?? null);
+});
+
+router.get("/staff/announcements", requireAuth, requireStaff, async (_req, res) => {
+  const announcements = await db
+    .select()
+    .from(announcementsTable)
+    .orderBy(desc(announcementsTable.updatedAt))
+    .limit(20);
+  res.json(announcements);
 });
 
 router.get("/staff/announcement-customers", requireAuth, requireStaff, async (_req, res) => {
@@ -59,7 +76,7 @@ router.put("/staff/announcements/current", requireAuth, requireStaff, async (req
     ? targetUserIds.map((value) => Number(value)).filter((value) => Number.isFinite(value))
     : [];
 
-  await db.update(announcementsTable).set({ active: false, updatedAt: new Date() });
+  await db.update(announcementsTable).set({ active: false, updatedAt: new Date() }).where(announcementScope());
 
   if (!active || !cleanTitle || !cleanMessage || (!targetAll && parsedTargetIds.length === 0)) {
     res.json(null);
@@ -74,6 +91,7 @@ router.put("/staff/announcements/current", requireAuth, requireStaff, async (req
       active: true,
       audience: targetAll ? "all" : "selected",
       targetUserIds: targetAll ? null : parsedTargetIds.join(","),
+      expiresAt: new Date(Date.now() + ANNOUNCEMENT_LIFETIME_MS),
     })
     .returning();
 
@@ -130,6 +148,27 @@ router.put("/staff/announcements/current", requireAuth, requireStaff, async (req
   }
 
   res.json(announcement);
+});
+
+router.delete("/staff/announcements/:id", requireAuth, requireStaff, async (req, res) => {
+  const id = Number(req.params["id"]);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "Invalid announcement id" });
+    return;
+  }
+
+  const deleted = await db
+    .update(announcementsTable)
+    .set({ active: false, updatedAt: new Date() })
+    .where(eq(announcementsTable.id, id))
+    .returning({ id: announcementsTable.id });
+
+  if (deleted.length === 0) {
+    res.status(404).json({ error: "Announcement not found" });
+    return;
+  }
+
+  res.status(204).send();
 });
 
 export default router;

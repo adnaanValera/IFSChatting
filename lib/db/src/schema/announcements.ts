@@ -7,6 +7,7 @@ export const announcementsTable = pgTable("announcements", {
   active: boolean("active").notNull().default(true),
   audience: text("audience").notNull().default("all"),
   targetUserIds: text("target_user_ids"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

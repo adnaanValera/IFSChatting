@@ -123,6 +123,7 @@ async function createTables() {
       detail_text text,
       action_url text,
       read boolean NOT NULL DEFAULT false,
+      read_at timestamptz,
       created_at timestamptz NOT NULL DEFAULT now()
     );
 
@@ -133,6 +134,7 @@ async function createTables() {
       active boolean NOT NULL DEFAULT true,
       audience text NOT NULL DEFAULT 'all',
       target_user_ids text,
+      expires_at timestamptz,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     );
@@ -177,8 +179,10 @@ async function createTables() {
     ALTER TABLE notifications ADD COLUMN IF NOT EXISTS reference_text text;
     ALTER TABLE notifications ADD COLUMN IF NOT EXISTS detail_text text;
     ALTER TABLE notifications ADD COLUMN IF NOT EXISTS action_url text;
+    ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at timestamptz;
     ALTER TABLE announcements ADD COLUMN IF NOT EXISTS audience text NOT NULL DEFAULT 'all';
     ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target_user_ids text;
+    ALTER TABLE announcements ADD COLUMN IF NOT EXISTS expires_at timestamptz;
     ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_id integer;
     ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS approval_token text;
     ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS endpoint text;
