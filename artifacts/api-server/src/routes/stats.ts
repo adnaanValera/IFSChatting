@@ -113,15 +113,27 @@ function parseEtaDate(status: string, now = new Date()): Date | null {
     september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11,
   };
 
-  const wordDate = raw.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)(?:\s+(\d{2,4}))?\b/);
+  const buildDate = (dayValue: string, monthIndex: number, yearValue?: string): Date => {
+    const hasYear = Boolean(yearValue);
+    const year = hasYear ? normalizeYear(yearValue!) : now.getFullYear();
+    const parsed = new Date(year, monthIndex, Number(dayValue));
+    if (!hasYear && parsed < startOfDay(now)) parsed.setFullYear(parsed.getFullYear() + 1);
+    return parsed;
+  };
+
+  const wordDate = raw.match(/\b(\d{1,2})(?:st|nd|rd|th)?(?:\s|[-/])+\s*([A-Za-z]+)(?:\s|[-/])*(\d{2,4})?\b/i);
   if (wordDate?.[1] && wordDate[2]) {
     const month = monthNames[wordDate[2].toLowerCase()];
     if (month !== undefined) {
-      const hasYear = Boolean(wordDate[3]);
-      const year = hasYear ? normalizeYear(wordDate[3]!) : now.getFullYear();
-      const parsed = new Date(year, month, Number(wordDate[1]));
-      if (!hasYear && parsed < startOfDay(now)) parsed.setFullYear(parsed.getFullYear() + 1);
-      return parsed;
+      return buildDate(wordDate[1], month, wordDate[3]);
+    }
+  }
+
+  const monthFirstDate = raw.match(/\b([A-Za-z]+)(?:\s|[-/])+\s*(\d{1,2})(?:st|nd|rd|th)?(?:\s|[-/])*(\d{2,4})?\b/i);
+  if (monthFirstDate?.[1] && monthFirstDate[2]) {
+    const month = monthNames[monthFirstDate[1].toLowerCase()];
+    if (month !== undefined) {
+      return buildDate(monthFirstDate[2], month, monthFirstDate[3]);
     }
   }
 
