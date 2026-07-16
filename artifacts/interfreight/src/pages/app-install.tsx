@@ -6,9 +6,14 @@ import { isStandaloneDisplay } from "@/lib/pwa";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { savedAccounts } from "@/lib/saved-accounts";
 import { ThemeLogo } from "@/components/layout/ThemeLogo";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
+import { Bell } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AppInstallPage() {
+  const { toast } = useToast();
   const { canInstall, installed, promptInstall } = useInstallPrompt();
+  const { canEnable, enable, isLoading: isEnablingNotifications, isSubscribed, permission, unsupportedReason } = usePushNotifications({ type: "auth" });
   const [isPrompting, setIsPrompting] = useState(false);
   const [showIosInstallHelp, setShowIosInstallHelp] = useState(false);
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
@@ -29,6 +34,7 @@ export default function AppInstallPage() {
       window.location.replace("/auth");
       return;
     }
+    if (!isSubscribed) return;
     if (!canInstall || isIOS) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
@@ -42,7 +48,7 @@ export default function AppInstallPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [authedHref, canInstall, hasToken, installed, isIOS, openedInApp, promptInstall]);
+  }, [authedHref, canInstall, hasToken, installed, isIOS, isSubscribed, openedInApp, promptInstall]);
 
   const installHelpText = useMemo(() => {
     if (isIOS) {
@@ -70,6 +76,53 @@ export default function AppInstallPage() {
           </p>
 
           <div className="mt-6 space-y-3">
+            {!isSubscribed && (
+              <div className="rounded-xl border border-primary/15 bg-primary/5 px-4 py-4 text-left">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Bell size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-extrabold text-secondary">First enable notifications</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      Please allow notifications first so shipment updates can reach this device properly. Once that is done, app install will unlock.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void enable()
+                          .then((success) => {
+                            if (success) {
+                              toast({
+                                title: "Notifications enabled",
+                                description: "You can now install the InterFreight app.",
+                              });
+                            }
+                          })
+                          .catch((error: any) => {
+                            toast({
+                              variant: "destructive",
+                              title: "Notifications could not be enabled",
+                              description: error?.message || unsupportedReason || "Please try again.",
+                            });
+                          });
+                      }}
+                      disabled={isEnablingNotifications || !canEnable}
+                      className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-secondary/92 disabled:opacity-60"
+                    >
+                      {isEnablingNotifications ? <Spinner className="h-4 w-4" /> : <Bell size={15} />}
+                      Allow notifications
+                    </button>
+                    {permission === "denied" && (
+                      <p className="mt-2 text-xs text-destructive">
+                        Notifications were blocked on this device. Please allow them in your browser settings first.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {!installed && (
               <button
                 type="button"
@@ -82,11 +135,11 @@ export default function AppInstallPage() {
                   setIsPrompting(true);
                   void promptInstall().finally(() => setIsPrompting(false));
                 }}
-                disabled={isPrompting || (!isIOS && !canInstall)}
+                disabled={isPrompting || !isSubscribed || (!isIOS && !canInstall)}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-bold text-white transition-all hover:bg-primary/90 disabled:opacity-70"
               >
                 {isPrompting ? <Spinner className="h-4 w-4" /> : <Download size={16} />}
-                {isWaitingForPrompt ? "Please wait..." : "Install App"}
+                {!isSubscribed ? "Enable notifications first" : isWaitingForPrompt ? "Please wait..." : "Install App"}
               </button>
             )}
 

@@ -3,8 +3,6 @@ import { Send } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
 
-type ProblemCategory = "notification" | "glitch" | "other";
-
 function authFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem("intf_token");
   return fetch(path, {
@@ -18,7 +16,6 @@ function authFetch(path: string, options: RequestInit = {}) {
 
 export function ProblemReporter() {
   const { toast } = useToast();
-  const [problemCategory, setProblemCategory] = useState<ProblemCategory>("notification");
   const [problemMessage, setProblemMessage] = useState("");
   const [problemSending, setProblemSending] = useState(false);
   const [problemSent, setProblemSent] = useState(false);
@@ -39,7 +36,7 @@ export function ProblemReporter() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          category: problemCategory,
+          category: "problem",
           message: problemMessage.trim(),
         }),
       });
@@ -51,7 +48,6 @@ export function ProblemReporter() {
 
       setProblemSent(true);
       setProblemMessage("");
-      setProblemCategory("notification");
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -90,23 +86,6 @@ export function ProblemReporter() {
           </div>
         ) : (
           <>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {(["notification", "glitch", "other"] as ProblemCategory[]).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setProblemCategory(option)}
-                  className={`rounded-xl border px-4 py-3 text-sm font-semibold text-left transition-all ${
-                    problemCategory === option
-                      ? "border-primary bg-primary/10 text-primary shadow-sm"
-                      : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-secondary"
-                  }`}
-                >
-                  {option === "notification" ? "Notification" : option === "glitch" ? "Glitch" : "Other"}
-                </button>
-              ))}
-            </div>
-
             <textarea
               value={problemMessage}
               onChange={(event) => setProblemMessage(event.target.value)}
