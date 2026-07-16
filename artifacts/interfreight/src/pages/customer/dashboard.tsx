@@ -220,6 +220,7 @@ export default function CustomerDashboard() {
   const [changedOnlyRefs, setChangedOnlyRefs] = useState<string[] | null>(null);
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
   const [seenChangeTokens, setSeenChangeTokens] = useState<Set<string>>(() => new Set(readSeenChangeTokens()));
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState<Set<number>>(() => new Set());
   const [showIntro, setShowIntro] = useState(true);
   const [introMorphing, setIntroMorphing] = useState(false);
   const [showQuickMenu, setShowQuickMenu] = useState(false);
@@ -336,6 +337,7 @@ export default function CustomerDashboard() {
   const notificationIdsByIfsRef = new Map<string, number[]>();
   const newShipmentRefs = new Set<string>();
   for (const notification of notifications) {
+    if (notification.id && dismissedNotificationIds.has(notification.id)) continue;
     if (notification.read) continue;
     if (!notification.ifsRef) continue;
     const notificationToken = notification.id
@@ -389,6 +391,13 @@ export default function CustomerDashboard() {
     const notificationIds = args?.ifsRef
       ? (notificationIdsByIfsRef.get(args.ifsRef) ?? [])
       : (args?.changeToken ? (notificationIdsByChangeToken.get(args.changeToken) ?? []) : []);
+    if (notificationIds.length > 0) {
+      setDismissedNotificationIds((current) => {
+        const next = new Set(current);
+        notificationIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
     if (notificationIds.length > 0) {
       await Promise.allSettled(notificationIds.map((id) => authFetch(`/api/notifications/${id}/read`, { method: "PATCH" })));
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
