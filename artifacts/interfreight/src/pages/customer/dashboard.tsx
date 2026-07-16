@@ -6,7 +6,7 @@ import { useStaffLogout } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import {
   LogOut, Package, Ship, MapPin,
-  CheckCircle, Home, Download, Megaphone, ArrowRight,
+  CheckCircle, Home, Download, Megaphone, ArrowRight, Bell,
   AlertTriangle, Search, Smartphone,
 } from "lucide-react";
 import { Link } from "wouter";
@@ -580,6 +580,9 @@ export default function CustomerDashboard() {
             className="mb-4 sm:mb-6 w-full rounded-xl bg-secondary text-white px-4 py-3 sm:px-5 sm:py-4 flex items-center justify-between gap-3 text-left shadow-sm glow-card glow-card--reactive"
           >
             <span className="flex items-center gap-3 min-w-0">
+              <span className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0 live-updates-badge">
+                <Bell size={18} className="text-primary" />
+              </span>
               <span className="min-w-0">
                 <span className="flex items-center gap-2 text-sm font-extrabold">
                   See changes
