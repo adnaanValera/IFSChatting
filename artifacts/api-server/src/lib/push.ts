@@ -1,6 +1,7 @@
 import webpush from "web-push";
 import { db, pushSubscriptionsTable } from "@workspace/db";
 import { and, eq, isNull, or } from "drizzle-orm";
+import { logger } from "./logger";
 
 type PushPayload = {
   title: string;
@@ -49,15 +50,27 @@ async function deliver(subscriptions: StoredSubscription[], payload: PushPayload
           auth: subscription.auth,
         },
       }, body, {
-        TTL: 60,
+        TTL: 300,
         urgency: "high",
-        topic: payload.tag?.slice(0, 32),
       });
     } catch (error: any) {
       const statusCode = Number(error?.statusCode ?? 0);
       if (statusCode === 404 || statusCode === 410) {
         await db.delete(pushSubscriptionsTable).where(eq(pushSubscriptionsTable.endpoint, subscription.endpoint));
+        continue;
       }
+
+      logger.warn(
+        {
+          err: error,
+          statusCode,
+          endpoint: subscription.endpoint,
+          notificationType: payload.notificationType,
+          title: payload.title,
+          tag: payload.tag,
+        },
+        "Push delivery failed",
+      );
     }
   }
 }

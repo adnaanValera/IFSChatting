@@ -274,9 +274,9 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
   };
 
   useEffect(() => {
-    if (!isOpen || !statusChange || !changeToken) return;
+    if (!isOpen || !highlight || !changeToken) return;
     void onViewed?.(changeToken);
-  }, [changeToken, isOpen, onViewed, statusChange]);
+  }, [changeToken, highlight, isOpen, onViewed]);
 
   return (
     <div
@@ -321,7 +321,7 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
           <div className="flex items-center justify-end gap-2 shrink-0 min-w-[96px] sm:min-w-[116px]">
             <div className="flex flex-col items-end gap-0.5 max-w-[112px] sm:max-w-[130px]">
               <StatusPill status={s.status} theme={theme} />
-              {statusChange && (
+              {highlight && (
                 <span className="shipment-card__change-bell" aria-label="Shipment changed">
                   <Bell size={13} />
                 </span>
@@ -372,9 +372,11 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
 
               <div className="col-span-2 flex flex-col items-start sm:col-auto sm:items-end gap-1 pt-1 sm:pt-0">
                 <StatusPill status={s.status} theme={theme} />
-                {statusChange && (
+                {highlight && (
                   <span className="text-[11px] font-semibold text-white/70">
-                    {customerFriendlyStatus(statusChange.oldValue)} -&gt; {customerFriendlyStatus(statusChange.newValue)}
+                    {statusChange
+                      ? `${customerFriendlyStatus(statusChange.oldValue)} -&gt; ${customerFriendlyStatus(statusChange.newValue)}`
+                      : "New consignment"}
                   </span>
                 )}
               </div>
@@ -449,9 +451,11 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
                 Status
               </p>
               <StatusPill status={s.status} theme={theme} large />
-              {statusChange && (
+              {highlight && (
                 <p className="text-center text-xs font-semibold text-zinc-300 mt-3">
-                  {customerFriendlyStatus(statusChange.oldValue)} -&gt; {customerFriendlyStatus(statusChange.newValue)}
+                  {statusChange
+                    ? `${customerFriendlyStatus(statusChange.oldValue)} -&gt; ${customerFriendlyStatus(statusChange.newValue)}`
+                    : "New consignment added"}
                 </p>
               )}
               {s.lastUpdated && (

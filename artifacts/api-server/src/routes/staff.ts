@@ -763,7 +763,7 @@ async function notifyCustomersOfStatusChange(args: {
     });
     await sendPushToUser(userId, {
       title: "Changes",
-      body: `Tap to view more.`,
+      body: `${identifier}\n${detailText}`,
       url: actionUrl,
       tag: `shipment-${args.ifsRef}-${Date.now()}`,
       iconType,
@@ -818,7 +818,7 @@ async function notifyCustomersOfNewShipment(args: {
     });
     await sendPushToUser(userId, {
       title: "New Shipment",
-      body: "Tap to view.",
+      body: `${identifier}\n${statusText}`,
       url: `/dashboard?search=${encodeURIComponent(identifier)}`,
       tag: `shipment-new-${args.ifsRef}-${Date.now()}`,
       iconType,
