@@ -16,6 +16,8 @@ import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
 import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
 import { saveAccount, savedAccounts, type SavedAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
+import { useToast } from "@/hooks/use-toast";
+import { formatDateOnly } from "@/lib/utils";
 
 const CUSTOMER_BADGE_URL = "/ifs-app-premium.png";
 const READ_CHANGES_STORAGE_KEY = "intf_read_status_changes_v2";
@@ -68,6 +70,8 @@ type Announcement = {
   message: string;
   updatedAt?: string;
 };
+
+type QuickFilter = "all" | "changed" | "new" | "sea" | "malawi";
 
 function authFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem("intf_token");
@@ -178,6 +182,7 @@ function sectionElementId(reportLabel: string): string {
 export default function CustomerDashboard() {
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: user, isLoading: userLoading } = useGetMe();
   const { data: shipmentsPage, isLoading: shipmentsLoading } = useListShipments(
     { limit: 200 },
@@ -218,12 +223,14 @@ export default function CustomerDashboard() {
   const [search, setSearch] = useState("");
   const [showChangedOnly, setShowChangedOnly] = useState(false);
   const [changedOnlyRefs, setChangedOnlyRefs] = useState<string[] | null>(null);
+  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilter>("all");
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
   const [seenChangeTokens, setSeenChangeTokens] = useState<Set<string>>(() => new Set(readSeenChangeTokens()));
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState<Set<number>>(() => new Set());
   const [showIntro, setShowIntro] = useState(true);
   const [introMorphing, setIntroMorphing] = useState(false);
   const [showQuickMenu, setShowQuickMenu] = useState(false);
+  const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
   const logoTargetRef = useRef<HTMLImageElement | null>(null);
   const [logoTarget, setLogoTarget] = useState<{ x: number; y: number } | null>(null);
   const { canInstall, promptInstall } = useInstallPrompt();
@@ -314,8 +321,9 @@ export default function CustomerDashboard() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      toast({ title: "PDF downloaded", description: "Your latest status report has been saved." });
     } catch (err: any) {
-      window.alert(err?.message || "Download failed");
+      toast({ variant: "destructive", title: "Download failed", description: err?.message || "Download failed" });
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -436,13 +444,27 @@ export default function CustomerDashboard() {
   ]);
   const hasShipmentChanges = changedShipmentRefs.size > 0;
   const activeChangedFilter = changedOnlyRefs ? new Set(changedOnlyRefs) : changedShipmentRefs;
-  const filteredShipments = useMemo(() => (
-    showChangedOnly
+  const filteredShipments = useMemo(() => {
+    let rows = showChangedOnly
       ? searchedShipments.filter((shipment: any) => activeChangedFilter.has(shipment.ifsRef))
-      : searchedShipments
-  ), [activeChangedFilter, searchedShipments, showChangedOnly]);
+      : searchedShipments;
+
+    if (activeQuickFilter === "changed") {
+      rows = rows.filter((shipment: any) => changedShipmentRefs.has(shipment.ifsRef));
+    } else if (activeQuickFilter === "new") {
+      rows = rows.filter((shipment: any) => newShipmentRefs.has(shipment.ifsRef));
+    } else if (activeQuickFilter === "sea") {
+      rows = rows.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS ON SEA");
+    } else if (activeQuickFilter === "malawi") {
+      rows = rows.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS IN MALAWI");
+    }
+
+    return rows;
+  }, [activeChangedFilter, searchedShipments, showChangedOnly, activeQuickFilter, changedShipmentRefs, newShipmentRefs]);
   const scrollToSection = (targetId: string) => {
+    setHighlightedSectionId(targetId);
     document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => setHighlightedSectionId((current) => (current === targetId ? null : current)), 2200);
   };
   const goToProblemPage = () => {
     setLocation("/dashboard/problems");
@@ -460,6 +482,7 @@ export default function CustomerDashboard() {
     const refs = [...changedShipmentRefs];
     setSearch("");
     setShowChangedOnly(true);
+    setActiveQuickFilter("changed");
     setChangedOnlyRefs(refs);
     const firstRef = refs[0];
     window.requestAnimationFrame(() => {
@@ -477,6 +500,13 @@ export default function CustomerDashboard() {
     { icon: Ship, label: "Shipments Enroute", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS ENROUTE").length, tone: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200", targetId: sectionElementId("SHIPMENTS ENROUTE") },
     { icon: MapPin, label: "Shipments At POD", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS AT POD").length, tone: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200", targetId: sectionElementId("SHIPMENTS AT POD") },
     { icon: AlertTriangle, label: "Shipments On Sea", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS ON SEA").length, tone: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200", targetId: sectionElementId("SHIPMENTS ON SEA") },
+  ];
+  const quickFilters: { key: QuickFilter; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "changed", label: "Changed" },
+    { key: "new", label: "New" },
+    { key: "sea", label: "On Sea" },
+    { key: "malawi", label: "In Malawi" },
   ];
 
   if (userLoading) {
@@ -637,8 +667,12 @@ export default function CustomerDashboard() {
           >
             <Megaphone className="text-primary shrink-0 mt-0.5" size={20} />
             <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary/80">InterFreight Notice</p>
               <p className="text-sm font-extrabold text-secondary">{announcement.title}</p>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mt-0.5">{announcement.message}</p>
+              {announcement.updatedAt ? (
+                <p className="mt-2 text-[11px] font-semibold text-muted-foreground">Updated {formatDateOnly(announcement.updatedAt)}</p>
+              ) : null}
             </div>
           </motion.div>
         )}
@@ -696,11 +730,42 @@ export default function CustomerDashboard() {
               </button>
             )}
           </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {quickFilters.map((filter) => (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={() => {
+                  setActiveQuickFilter(filter.key);
+                  if (filter.key !== "changed") {
+                    setShowChangedOnly(false);
+                    if (filter.key === "all") setChangedOnlyRefs(null);
+                  }
+                }}
+                className={`rounded-full px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] transition-colors ${
+                  activeQuickFilter === filter.key
+                    ? "bg-primary text-white shadow-[0_0_14px_rgba(191,33,49,0.22)]"
+                    : "border border-border bg-background text-muted-foreground hover:text-secondary"
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
           <p className="mt-3 text-xs text-muted-foreground">
             Showing {filteredShipments.length} of {shipments.length} shipment{shipments.length !== 1 ? "s" : ""}.
           </p>
         </div>
         </div>
+
+        <button
+          type="button"
+          onClick={goToProblemPage}
+          className="mb-5 sm:mb-6 w-full rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 text-left shadow-sm transition-colors hover:bg-primary/10"
+        >
+          <span className="block text-sm font-extrabold text-secondary">Need help?</span>
+          <span className="block text-xs text-muted-foreground mt-1">Having an issue? Report a problem here.</span>
+        </button>
 
         {/* Shipment cards */}
         <div id="customer-shipments">
@@ -761,7 +826,11 @@ export default function CustomerDashboard() {
                 transition={{ delay: 0.08 + sectionIndex * 0.05, duration: 0.34, ease: "easeOut" }}
                 className="space-y-3"
               >
-                <div className="flex items-center justify-between gap-3 bg-secondary text-white rounded-xl px-3 sm:px-4 py-3 shadow-sm glow-card">
+                <div className={`flex items-center justify-between gap-3 bg-secondary text-white rounded-xl px-3 sm:px-4 py-3 shadow-sm glow-card transition-all ${
+                  highlightedSectionId === sectionElementId(section.reportLabel)
+                    ? "ring-2 ring-white/80 shadow-[0_0_24px_rgba(255,255,255,0.35)]"
+                    : ""
+                }`}>
                   <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wide">{section.reportLabel}</h3>
                   <span className="text-xs bg-white/15 px-2.5 py-1 rounded-full font-semibold">
                     {section.rows.length}

@@ -556,6 +556,9 @@ export default function Home() {
                 Established in Blantyre, Malawi, with freight forwarding, customs clearance,
                 and cargo handling across key regional corridors.
               </p>
+              <p className="mx-auto mb-6 max-w-xl text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55 sm:text-xs">
+                Everyday shipment visibility for InterFreight customers
+              </p>
 
               <div className="flex flex-col items-center justify-center gap-3">
                 <div className="flex w-full flex-col justify-center gap-3 sm:flex-row sm:gap-4">
