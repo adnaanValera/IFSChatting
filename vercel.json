@@ -8,6 +8,16 @@
       "includeFiles": "artifacts/api-server/dist/**"
     }
   },
+  "crons": [
+    {
+      "path": "/api/notifications/remind-unread",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/notifications/remind-unread",
+      "schedule": "0 13 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
