@@ -567,16 +567,16 @@ export default function CustomerDashboard() {
 
       <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-10 max-w-6xl">
 
-        <div className="mb-5 sm:mb-8 rounded-2xl border border-border bg-card text-card-foreground shadow-sm glow-card p-4 sm:p-6">
-          <div className="flex flex-col gap-5">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+        <div className="mb-4 sm:mb-6 rounded-2xl border border-border bg-card text-card-foreground shadow-sm glow-card p-4 sm:p-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground uppercase tracking-[0.2em]">Secure Consignee Portal</p>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-secondary dark:text-white leading-tight">
-                  Welcome back, {companyName}
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-secondary dark:text-white leading-tight mt-1">
+                  My Tracking
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Review your active consignments and latest shipment changes.
+                  {companyName} · Review your active consignments, updates, and announcements in one place.
                 </p>
               </div>
               <div className="flex flex-col items-start md:items-end gap-2">
@@ -589,9 +589,30 @@ export default function CustomerDashboard() {
                   {isDownloadingPdf ? <Spinner className="w-4 h-4" /> : <Download size={16} />}
                   Download PDF Report
                 </button>
+                <p className="text-xs text-muted-foreground">Live customer-facing view</p>
               </div>
             </div>
-
+            <div className="grid grid-cols-5 gap-2 sm:gap-3">
+              {statCards.map(({ icon: Icon, label, value, tone, targetId }, index) => (
+                <motion.button
+                  key={label}
+                  type="button"
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 + index * 0.04, duration: 0.32, ease: "easeOut" }}
+                  onClick={() => scrollToSection(targetId)}
+                  className="bg-background rounded-xl border border-border p-2 sm:p-3 shadow-sm glow-card glow-card--reactive glow-card--light flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-2 min-w-0 text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
+                >
+                  <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${tone}`}>
+                    <Icon size={14} className="sm:w-[16px] sm:h-[16px]" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[9px] sm:text-[11px] text-muted-foreground uppercase tracking-[0.06em] leading-tight">{label}</p>
+                    <p className="text-base sm:text-xl font-bold text-secondary dark:text-white leading-none mt-1">{value}</p>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
             <div className="flex flex-wrap gap-3">
               {canInstall && (
                 <button
@@ -629,7 +650,7 @@ export default function CustomerDashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: "easeOut" }}
             onClick={focusChangedConsignments}
-            className="mb-4 sm:mb-6 w-full rounded-xl bg-secondary text-white px-4 py-3 sm:px-5 sm:py-4 flex items-center justify-between gap-3 text-left shadow-sm glow-card glow-card--reactive"
+            className="mb-4 sm:mb-6 w-full rounded-xl bg-secondary text-white px-4 py-3 sm:px-5 sm:py-4 flex items-center justify-between gap-3 text-left shadow-sm glow-card glow-card--reactive border border-primary/20"
           >
             <span className="flex items-center gap-3 min-w-0">
               <span className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0 live-updates-badge">
@@ -649,30 +670,8 @@ export default function CustomerDashboard() {
           </motion.button>
         )}
 
-        {/* Summary stats */}
-        <div className="grid grid-cols-5 gap-2 sm:gap-3 mb-5 sm:mb-8">
-          {statCards.map(({ icon: Icon, label, value, tone, targetId }, index) => (
-            <motion.button
-              key={label}
-              type="button"
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 + index * 0.04, duration: 0.32, ease: "easeOut" }}
-              onClick={() => scrollToSection(targetId)}
-              className="bg-card rounded-xl border border-border p-2 sm:p-4 shadow-sm glow-card glow-card--reactive glow-card--light flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3 min-w-0 text-left transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
-            >
-              <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${tone}`}>
-                <Icon size={14} className="sm:w-[18px] sm:h-[18px]" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[9px] sm:text-xs text-muted-foreground uppercase tracking-[0.06em] leading-tight">{label}</p>
-                <p className="text-base sm:text-2xl font-bold text-secondary dark:text-white leading-none mt-1">{value}</p>
-              </div>
-            </motion.button>
-          ))}
-        </div>
-
-        <div className="bg-card rounded-2xl border border-border shadow-sm glow-card p-3 sm:p-4 mb-6">
+        <div className="sticky top-[4.6rem] z-30 mb-5 sm:mb-6">
+        <div className="bg-card/95 rounded-2xl border border-border shadow-sm glow-card p-3 sm:p-4 backdrop-blur-md">
           <div className="flex flex-col lg:flex-row lg:items-center gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={17} />
@@ -701,6 +700,7 @@ export default function CustomerDashboard() {
             Showing {filteredShipments.length} of {shipments.length} shipment{shipments.length !== 1 ? "s" : ""}.
           </p>
         </div>
+        </div>
 
         {/* Shipment cards */}
         <div id="customer-shipments">
@@ -711,7 +711,7 @@ export default function CustomerDashboard() {
             ))}
           </div>
         ) : shipments.length === 0 ? (
-          <div className="bg-card rounded-2xl border border-border shadow-sm glow-card py-20 text-center">
+          <div className="bg-card rounded-2xl border border-border shadow-sm glow-card py-20 text-center px-6">
             <Package className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
             <p className="text-lg font-semibold text-secondary dark:text-white mb-2">No consignments yet</p>
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
@@ -719,7 +719,7 @@ export default function CustomerDashboard() {
             </p>
           </div>
         ) : filteredShipments.length === 0 ? (
-          <div className="bg-card rounded-2xl border border-border shadow-sm glow-card py-20 text-center">
+          <div className="bg-card rounded-2xl border border-border shadow-sm glow-card py-20 text-center px-6">
             <Search className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
             <p className="text-lg font-semibold text-secondary dark:text-white mb-2">No matching shipments</p>
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">

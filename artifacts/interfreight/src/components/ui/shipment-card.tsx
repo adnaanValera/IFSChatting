@@ -306,9 +306,18 @@ export function ShipmentCard({
   return (
     <div
       id={`shipment-${s.ifsRef}`}
-      className={`rounded-xl sm:rounded-2xl overflow-hidden border glow-card glow-card--reactive shipment-card ${highlight ? "shipment-card--changed" : ""} ${theme.cardBorder} shadow-2xl scroll-mt-28`}
+      className={`relative rounded-xl sm:rounded-2xl overflow-hidden border glow-card glow-card--reactive shipment-card ${highlight ? "shipment-card--changed" : ""} ${theme.cardBorder} shadow-2xl scroll-mt-28`}
       style={{ background: theme.cardBg }}
     >
+      {highlight && (
+        <div
+          className="absolute left-0 top-0 bottom-0 z-20 w-[3px] sm:w-1"
+          style={{
+            background: `linear-gradient(180deg, ${theme.dotColor} 0%, rgba(255,255,255,0.95) 46%, ${theme.dotColor} 100%)`,
+            boxShadow: `0 0 14px ${theme.dotColor}, 0 0 24px rgba(255,255,255,0.45)`,
+          }}
+        />
+      )}
       <div
         role="button"
         tabIndex={0}
@@ -347,8 +356,11 @@ export function ShipmentCard({
             <div className="flex flex-col items-end gap-0.5 max-w-[112px] sm:max-w-[130px]">
               <StatusPill status={s.status} theme={theme} />
               {hasStatusChange ? (
-                <span className="shipment-card__change-bell" aria-label="Shipment changed">
-                  <Bell size={13} />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-white shadow-[0_0_14px_rgba(255,255,255,0.18)]">
+                  <span className="shipment-card__change-bell" aria-label="Shipment changed">
+                    <Bell size={12} />
+                  </span>
+                  Changed
                 </span>
               ) : isNewShipment ? (
                 <span className="text-[11px] font-extrabold tracking-[0.18em] text-red-400" aria-label="New shipment">

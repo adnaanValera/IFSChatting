@@ -527,32 +527,32 @@ export default function Home() {
       <div className="relative z-10">
         <Navbar />
 
-        <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-3 py-20 sm:px-6">
-          <div className="relative z-10 mx-auto max-w-4xl px-1 pt-12 text-center sm:px-6 sm:pt-16">
+        <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-3 py-14 sm:px-6 sm:py-16">
+          <div className="relative z-10 mx-auto max-w-4xl px-1 pt-8 text-center sm:px-6 sm:pt-10">
             <motion.div
               initial={{ opacity: 0, y: 28 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               onMouseMove={setReactiveGlowTarget}
-              className="hero-reactive-panel rounded-[28px] border border-white/15 bg-secondary/72 px-4 py-8 shadow-2xl backdrop-blur-md glow-card glow-card--reactive sm:px-10 md:px-14"
+              className="hero-reactive-panel rounded-[28px] border border-white/15 bg-secondary/72 px-4 py-7 shadow-2xl backdrop-blur-md glow-card glow-card--reactive sm:px-10 sm:py-9 md:px-14"
             >
                 <img
                   src={fullLogoUrl}
                   alt="InterFreight Solutions"
                   id="hero-intro-logo"
-                  className="logo-soft-glow mx-auto mb-5 h-16 w-auto object-contain sm:h-20 md:h-24"
+                  className="logo-soft-glow mx-auto mb-4 h-16 w-auto object-contain sm:h-20 md:h-24"
                 />
               <p className="text-primary font-semibold tracking-[0.2em] uppercase text-sm mb-5">
                 Malawi
               </p>
-              <p className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-white/60 sm:text-base sm:tracking-[0.3em]">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-white/60 sm:text-sm sm:tracking-[0.3em]">
                 Shipping made simple
               </p>
-              <h1 className="mb-5 text-[2.6rem] font-extrabold leading-[1.02] text-white sm:text-5xl md:text-7xl">
-                Moving Africa{" "}
-                <span className="text-primary">Forward</span>
+              <h1 className="mb-4 text-[2.4rem] font-extrabold leading-[1.02] text-white sm:text-5xl md:text-6xl">
+                Reliable freight,{" "}
+                <span className="text-primary">clear visibility</span>
               </h1>
-              <p className="mx-auto mb-8 max-w-2xl text-base leading-relaxed text-white/72 sm:text-xl md:text-2xl">
+              <p className="mx-auto mb-6 max-w-2xl text-sm leading-relaxed text-white/72 sm:text-lg md:text-xl">
                 Established in Blantyre, Malawi, with freight forwarding, customs clearance,
                 and cargo handling across key regional corridors.
               </p>
@@ -598,60 +598,12 @@ export default function Home() {
 
                 <Link
                   href="/app-install"
-                  className="reactive-button reactive-button--white inline-flex items-center justify-center gap-2 rounded-lg border border-white/45 bg-primary/12 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-primary/18"
+                  className="reactive-button reactive-button--white inline-flex items-center justify-center gap-2 rounded-lg border border-white/45 bg-primary/12 px-6 py-3 text-sm font-semibold text-white shadow-[0_0_18px_rgba(255,255,255,0.18)] transition-all hover:bg-primary/18"
                 >
                   <Download size={16} />
                   Download Our App
                 </Link>
               </div>
-
-              {(!role || role === "customer") && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5, duration: 0.5 }}
-                  className="mx-auto mt-8 max-w-lg"
-                >
-                  <div
-                    onMouseMove={setReactiveGlowTarget}
-                    className="relative rounded-2xl overflow-hidden border border-white/20 shadow-2xl glow-card glow-card--reactive"
-                    style={{ background: "linear-gradient(135deg, rgba(17,19,21,0.92) 0%, rgba(30,8,8,0.88) 100%)", backdropFilter: "blur(12px)" }}
-                  >
-                    <div className="h-0.5 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
-
-                    <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:px-6">
-                      <div className="w-11 h-11 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center shrink-0">
-                        <Search size={20} className="text-primary" />
-                      </div>
-
-                      <div className="min-w-0 flex-1 text-left">
-                        <p className="text-white font-bold text-base leading-tight">Track Your Shipment</p>
-                        <p className="text-white/50 text-sm mt-0.5">
-                          {role === "customer"
-                            ? "Go to your dashboard to view all containers"
-                            : "Log in to your account to view your containers"}
-                        </p>
-                      </div>
-
-                      {role === "customer" ? (
-                        <Link
-                          href="/dashboard"
-                          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-primary/90 sm:w-auto sm:shrink-0"
-                        >
-                          <LogIn size={14} /> My Dashboard
-                        </Link>
-                      ) : (
-                        <Link
-                          href="/auth"
-                          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-primary/90 sm:w-auto sm:shrink-0"
-                        >
-                          <LogIn size={14} /> Log In {"->"}
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
             </motion.div>
           </div>
 
@@ -661,7 +613,29 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="services" className="py-24 scroll-mt-16">
+        <section className="py-8 sm:py-10">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {[
+                "Import",
+                "Export",
+                "Sea Freight",
+                "Road Freight",
+                "Customs Support",
+              ].map((item) => (
+                <div
+                  key={item}
+                  onMouseMove={setReactiveGlowTarget}
+                  className="rounded-2xl border border-white/15 bg-white/90 px-4 py-4 text-center shadow-lg backdrop-blur-md glow-card glow-card--reactive glow-card--light"
+                >
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-secondary/75">{item}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="services" className="py-16 sm:py-20 scroll-mt-16">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div onMouseMove={setReactiveGlowTarget} className="text-center mb-16 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md glow-card glow-card--reactive glow-card--light">
               <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-3">
@@ -698,7 +672,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="py-20">
+        <section className="py-14 sm:py-16">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div onMouseMove={setReactiveGlowTarget} className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center rounded-3xl border border-white/15 bg-secondary/80 px-6 py-10 shadow-xl backdrop-blur-md glow-card glow-card--reactive">
               {stats.map(({ value, label }, i) => (
@@ -710,7 +684,7 @@ export default function Home() {
 
         <WorldMapNetwork />
 
-        <section className="py-24">
+        <section className="py-16 sm:py-20">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               <div onMouseMove={setReactiveGlowTarget} className="rounded-3xl border border-white/15 bg-white/90 p-8 shadow-xl backdrop-blur-md glow-card glow-card--reactive glow-card--light">
