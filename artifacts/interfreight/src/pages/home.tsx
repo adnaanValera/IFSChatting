@@ -18,7 +18,6 @@ import { useGetMe, useStaffLogout, useListShipments } from "@workspace/api-clien
 import { useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { isStandaloneDisplay } from "@/lib/pwa";
 
 const services = [
   {
@@ -494,15 +493,6 @@ export default function Home() {
 
   const role = (user as any)?.role;
   const dashboardHref = role === "staff" || role === "admin" ? "/staff/dashboard" : "/dashboard";
-
-  useEffect(() => {
-    if (!isStandaloneDisplay() || userLoading) return;
-    if (user) {
-      window.location.replace(dashboardHref);
-      return;
-    }
-    window.location.replace("/auth");
-  }, [dashboardHref, user, userLoading]);
 
   return (
     <div className="relative min-h-screen bg-secondary">
