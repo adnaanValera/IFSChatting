@@ -51,9 +51,24 @@ function notificationTarget(n: Notification, role?: string): string {
   const isStaff = role === "staff" || role === "admin";
 
   if (isStaff) {
-    if (n.status === "Contact Message") return "/staff/dashboard?tab=messages";
-    if (n.status === "Admin review" || n.status === "Staff review") return "/staff/dashboard?tab=authorize";
-    if (n.status === "Announcement") return "/staff/dashboard?tab=overview&focus=announcement";
+    if (n.notificationType === "tracking_master" || n.status === "Tracking Master") {
+      return "/staff/dashboard?tab=history";
+    }
+    if (n.notificationType === "announcement" || n.status === "Announcement") {
+      return "/staff/dashboard?tab=overview&focus=announcement";
+    }
+    if (n.status === "Contact Message") {
+      return "/staff/dashboard?tab=messages";
+    }
+    if (String(n.status ?? "").toLowerCase().startsWith("problem:")) {
+      return "/staff/dashboard?tab=problems";
+    }
+    if (n.status === "Admin review" || n.status === "Staff review") {
+      return "/staff/dashboard?tab=authorize";
+    }
+    if (n.notificationType === "shipment_change" || n.notificationType === "new_shipment") {
+      return "/staff/dashboard?tab=overview";
+    }
     return "/staff/dashboard";
   }
 
