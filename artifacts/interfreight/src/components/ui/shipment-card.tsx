@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ChevronDown, FileText, Anchor, MapPin, Flag,
   User, Box, Ship, Truck, Boxes, Bell,
@@ -275,7 +275,7 @@ export function ShipmentCard({
   const handleToggle = () => {
     setIsOpen((current) => {
       const next = !current;
-      if (next && highlight && changeToken) {
+      if (!next && highlight && changeToken) {
         void onViewed?.({ changeToken, ifsRef: s.ifsRef });
       }
       return next;
@@ -294,11 +294,6 @@ export function ShipmentCard({
     event.stopPropagation();
     handleToggle();
   };
-
-  useEffect(() => {
-    if (!isOpen || !highlight || !changeToken) return;
-    void onViewed?.({ changeToken, ifsRef: s.ifsRef });
-  }, [changeToken, highlight, isOpen, onViewed, s.ifsRef]);
 
   return (
     <div
