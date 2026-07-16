@@ -389,7 +389,6 @@ export default function CustomerDashboard() {
       localStorage.setItem(READ_CHANGES_STORAGE_KEY, JSON.stringify([...next]));
       return next;
     });
-    setChangedOnlyRefs(null);
     const notificationIds = args?.ifsRef
       ? (notificationIdsByIfsRef.get(args.ifsRef) ?? [])
       : (args?.changeToken ? (notificationIdsByChangeToken.get(args.changeToken) ?? []) : []);
