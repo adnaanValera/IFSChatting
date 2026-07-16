@@ -331,7 +331,9 @@ export default function CustomerDashboard() {
   const companyName = String(typedUser?.companyName || typedUser?.fullName || typedUser?.name || "InterFreight Client");
   const statusChangesByIfsRef = new Map<string, { oldValue: string; newValue: string }>();
   const notificationTokenByIfsRef = new Map<string, string>();
+  const notificationTokensByIfsRef = new Map<string, string[]>();
   const notificationIdsByChangeToken = new Map<string, number[]>();
+  const notificationIdsByIfsRef = new Map<string, number[]>();
   const newShipmentRefs = new Set<string>();
   for (const notification of notifications) {
     if (notification.read) continue;
@@ -340,6 +342,10 @@ export default function CustomerDashboard() {
       ? `notif:${notification.id}`
       : `notif:${notification.ifsRef}:${notification.createdAt ?? ""}:${notification.title ?? ""}:${notification.message ?? ""}`;
     if (seenChangeTokens.has(notificationToken)) continue;
+    notificationTokensByIfsRef.set(notification.ifsRef, [
+      ...(notificationTokensByIfsRef.get(notification.ifsRef) ?? []),
+      notificationToken,
+    ]);
 
     if (notification.notificationType === "new_shipment") {
       newShipmentRefs.add(notification.ifsRef);
@@ -348,6 +354,7 @@ export default function CustomerDashboard() {
       }
       if (notification.id) {
         notificationIdsByChangeToken.set(notificationToken, [...(notificationIdsByChangeToken.get(notificationToken) ?? []), notification.id]);
+        notificationIdsByIfsRef.set(notification.ifsRef, [...(notificationIdsByIfsRef.get(notification.ifsRef) ?? []), notification.id]);
       }
       continue;
     }
@@ -360,19 +367,28 @@ export default function CustomerDashboard() {
       }
       if (notification.id) {
         notificationIdsByChangeToken.set(notificationToken, [...(notificationIdsByChangeToken.get(notificationToken) ?? []), notification.id]);
+        notificationIdsByIfsRef.set(notification.ifsRef, [...(notificationIdsByIfsRef.get(notification.ifsRef) ?? []), notification.id]);
       }
     }
   }
-  const markChangeAsSeen = async (token?: string) => {
-    if (!token || seenChangeTokens.has(token)) return;
+  const markChangeAsSeen = async (args?: { changeToken?: string; ifsRef?: string }) => {
+    const tokens = new Set<string>([
+      ...(args?.changeToken ? [args.changeToken] : []),
+      ...((args?.ifsRef ? notificationTokensByIfsRef.get(args.ifsRef) : undefined) ?? []),
+    ]);
+    if (tokens.size === 0) return;
+    const unseenTokens = [...tokens].filter((token) => !seenChangeTokens.has(token));
+    if (unseenTokens.length === 0) return;
     setSeenChangeTokens((current) => {
       const next = new Set(current);
-      next.add(token);
+      unseenTokens.forEach((token) => next.add(token));
       localStorage.setItem(READ_CHANGES_STORAGE_KEY, JSON.stringify([...next]));
       return next;
     });
     setChangedOnlyRefs(null);
-    const notificationIds = notificationIdsByChangeToken.get(token) ?? [];
+    const notificationIds = args?.ifsRef
+      ? (notificationIdsByIfsRef.get(args.ifsRef) ?? [])
+      : (args?.changeToken ? (notificationIdsByChangeToken.get(args.changeToken) ?? []) : []);
     if (notificationIds.length > 0) {
       await Promise.allSettled(notificationIds.map((id) => authFetch(`/api/notifications/${id}/read`, { method: "PATCH" })));
       queryClient.invalidateQueries({ queryKey: ["notifications"] });

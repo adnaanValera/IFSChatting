@@ -243,7 +243,7 @@ export interface ShipmentCardProps {
   statusChange?: { oldValue: string; newValue: string };
   highlight?: boolean;
   changeToken?: string;
-  onViewed?: (changeToken?: string) => void;
+  onViewed?: (args?: { changeToken?: string; ifsRef?: string }) => void;
   index?: number;
   defaultOpen?: boolean;
 }
@@ -262,7 +262,7 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
     setIsOpen((current) => {
       const next = !current;
       if (next && highlight && changeToken) {
-        void onViewed?.(changeToken);
+        void onViewed?.({ changeToken, ifsRef: s.ifsRef });
       }
       return next;
     });
@@ -283,8 +283,8 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
 
   useEffect(() => {
     if (!isOpen || !highlight || !changeToken) return;
-    void onViewed?.(changeToken);
-  }, [changeToken, highlight, isOpen, onViewed]);
+    void onViewed?.({ changeToken, ifsRef: s.ifsRef });
+  }, [changeToken, highlight, isOpen, onViewed, s.ifsRef]);
 
   return (
     <div

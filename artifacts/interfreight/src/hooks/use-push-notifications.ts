@@ -92,7 +92,16 @@ export function usePushNotifications(scope?: Scope) {
       if (!isSupported || !scope || !("serviceWorker" in navigator)) return;
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
-      setIsSubscribed(!!subscription);
+      if (!subscription) {
+        setIsSubscribed(false);
+        return;
+      }
+      try {
+        await upsertSubscription(scope, subscription);
+        setIsSubscribed(true);
+      } catch {
+        setIsSubscribed(false);
+      }
     }
     void checkSubscription();
   }, [isSupported, scope]);
