@@ -517,7 +517,6 @@ export default function Dashboard() {
   const [companyShipments, setCompanyShipments] = useState<Record<string, Shipment[]>>({});
   const [loadingCompany, setLoadingCompany] = useState<string | null>(null);
   const [downloadingCompany, setDownloadingCompany] = useState<string | null>(null);
-  const [expandedConsignee, setExpandedConsignee] = useState<string | null>(null);
   const [downloadingConsignee, setDownloadingConsignee] = useState<string | null>(null);
 
   const typedUser = user as any;
@@ -707,14 +706,8 @@ export default function Dashboard() {
       setExpandedCompany(null);
     } else {
       setExpandedCompany(name);
-      setExpandedConsignee(null);
       loadCompanyShipments(name);
     }
-  };
-
-  const toggleConsigneeCard = (companyName: string, consigneeKey: string) => {
-    const key = `${companyName}::${consigneeKey}`;
-    setExpandedConsignee(prev => (prev === key ? null : key));
   };
 
   const downloadConsigneeReport = async (companyName: string, consigneeKey: string, consigneeName: string, format: "excel" | "pdf") => {
@@ -2556,7 +2549,6 @@ export default function Dashboard() {
                                 <div className="divide-y divide-border">
                                   {groupByConsignee(shipments).map(group => {
                                     const consKey = `${company.companyName}::${group.key}`;
-                                    const isConsExpanded = expandedConsignee === consKey;
                                     const isConsDownloadingExcel = downloadingConsignee === `${consKey}::excel`;
                                     const isConsDownloadingPdf = downloadingConsignee === `${consKey}::pdf`;
                                     const isConsDownloading = isConsDownloadingExcel;
@@ -2576,7 +2568,7 @@ export default function Dashboard() {
                                               </p>
                                             </div>
                                           </div>
-                                          <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:shrink-0">
+                                          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:shrink-0">
                                             <button
                                               onClick={() => downloadConsigneeReport(company.companyName, group.key, group.name, "excel")}
                                               disabled={isConsDownloadingExcel || isConsDownloadingPdf}
@@ -2595,22 +2587,12 @@ export default function Dashboard() {
                                               {isConsDownloadingPdf ? <Spinner className="h-[13px] w-[13px]" /> : <Download size={13} />}
                                               PDF
                                             </button>
-                                            <button
-                                              onClick={() => toggleConsigneeCard(company.companyName, group.key)}
-                                              className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-secondary border border-border px-2 py-1.5 rounded-lg transition-all sm:px-2.5"
-                                            >
-                                              <ChevronRight size={13} className={`transition-transform ${isConsExpanded ? "rotate-90" : ""}`} />
-                                              {isConsExpanded ? "Close" : "View"}
-                                            </button>
                                           </div>
                                         </div>
 
-                                        {/* Expanded consignee shipments table */}
-                                        {isConsExpanded && (
-                                          <div className="border-t border-border/60 bg-white">
-                                            {renderShipmentSections(group.rows)}
-                                          </div>
-                                        )}
+                                        <div className="border-t border-border/60 bg-white">
+                                          {renderShipmentSections(group.rows)}
+                                        </div>
                                       </div>
                                     );
                                   })}
