@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ChevronDown, FileText, Anchor, MapPin, Flag,
   User, Box, Ship, Truck, Boxes, Bell,
@@ -294,6 +294,14 @@ export function ShipmentCard({
     event.stopPropagation();
     handleToggle();
   };
+
+  useEffect(() => {
+    if (!isOpen || !highlight || !changeToken) return;
+    const timer = window.setTimeout(() => {
+      void onViewed?.({ changeToken, ifsRef: s.ifsRef });
+    }, 5 * 60 * 1000);
+    return () => window.clearTimeout(timer);
+  }, [changeToken, highlight, isOpen, onViewed, s.ifsRef]);
 
   return (
     <div
