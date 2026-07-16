@@ -18,7 +18,7 @@ import {
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateOnly } from "@/lib/utils";
 import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
 import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
 import { NotificationBell } from "@/components/layout/NotificationBell";
@@ -314,7 +314,7 @@ function renderOperationalAlertTable(
           {items.map((item) => (
             <tr key={`${primaryLabel}-${item.id}`} className="hover:bg-muted/20 transition-colors">
               <td className="px-4 py-3 font-bold text-secondary whitespace-nowrap">
-                {primaryLabel === "ETA" && item.eta ? formatDate(item.eta) : item.mraRef}
+                {primaryLabel === "ETA" && item.eta ? formatDateOnly(item.eta) : item.mraRef}
               </td>
               <td className="px-4 py-3 font-semibold text-secondary whitespace-nowrap">{item.identifier}</td>
               <td className="px-4 py-3 text-muted-foreground">{item.consignee}</td>

@@ -12,3 +12,10 @@ export function formatDate(dateString: string | undefined | null) {
     timeStyle: "short",
   }).format(new Date(dateString));
 }
+
+export function formatDateOnly(dateString: string | undefined | null) {
+  if (!dateString) return "-";
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+  }).format(new Date(dateString));
+}
