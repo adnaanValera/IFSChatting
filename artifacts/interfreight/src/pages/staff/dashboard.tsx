@@ -26,7 +26,7 @@ import { saveAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { Spinner } from "@/components/ui/spinner";
 
-type Tab = "overview" | "import" | "history" | "messages" | "problems" | "cards" | "authorize" | "asycuda" | "activity";
+type Tab = "overview" | "import" | "history" | "messages" | "problems" | "tracking" | "authorize" | "asycuda" | "activity";
 
 type Announcement = {
   id: number;
@@ -855,7 +855,7 @@ export default function Dashboard() {
     setActiveTab(tab);
     setIsMobileNavOpen(false);
     if (tab === "messages" || tab === "problems") loadFeedback();
-    if (tab === "cards") loadCompanies();
+    if (tab === "tracking") loadCompanies();
     if (tab === "import") checkTemplateStatus();
     if (tab === "activity") loadActivity();
   };
@@ -864,12 +864,12 @@ export default function Dashboard() {
     const params = new URLSearchParams(window.location.search);
     const requestedTab = params.get("tab");
     const focus = params.get("focus");
-    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "problems", "cards", "authorize", "asycuda", "activity"];
+    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "problems", "tracking", "authorize", "asycuda", "activity"];
     if (requestedTab && allowedTabs.includes(requestedTab as Tab)) {
       const nextTab = requestedTab as Tab;
       setActiveTab(nextTab);
       if (nextTab === "messages" || nextTab === "problems") void loadFeedback(true);
-      if (nextTab === "cards") void loadCompanies();
+      if (nextTab === "tracking") void loadCompanies();
       if (nextTab === "activity") void loadActivity(true);
     }
     if (focus === "announcement") {
@@ -1290,7 +1290,7 @@ export default function Dashboard() {
   const navItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: "overview", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
     { id: "import", label: "Tracking Uploads", icon: <UploadCloud size={18} /> },
-    { id: "cards", label: "Company Cards", icon: <Building2 size={18} />, badge: companiesLoaded ? companiesList.length : undefined },
+    { id: "tracking", label: "Tracking", icon: <Building2 size={18} />, badge: companiesLoaded ? companiesList.length : undefined },
     { id: "history", label: "File Download", icon: <History size={18} />, badge: uploads?.length },
     { id: "authorize", label: "Authorize Sign Up", icon: <UserCheck size={18} />, badge: pendingSignups.length || undefined },
     { id: "messages", label: "Messages", icon: <Bell size={18} />, badge: unreadCount || undefined },
@@ -2316,12 +2316,12 @@ export default function Dashboard() {
           )}
 
           {/* ── COMPANY CARDS ─────────────────────────────── */}
-          {activeTab === "cards" && (
+          {activeTab === "tracking" && (
             <div className="space-y-6 max-w-6xl">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                  <h2 className="text-2xl font-extrabold text-secondary mb-1">Company Cards</h2>
-                  <p className="text-sm text-muted-foreground">View and download status report cards per company</p>
+                  <h2 className="text-2xl font-extrabold text-secondary mb-1">Tracking</h2>
+                  <p className="text-sm text-muted-foreground">View and download shipment tracking reports per company</p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
@@ -2361,7 +2361,7 @@ export default function Dashboard() {
                 <div className="bg-white rounded-xl border border-border shadow-sm py-20 text-center">
                   <Building2 className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
                   <p className="text-lg font-semibold text-secondary mb-2">No companies yet</p>
-                  <p className="text-sm text-muted-foreground">Upload shipment data to populate company cards.</p>
+                  <p className="text-sm text-muted-foreground">Upload shipment data to populate tracking results.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
