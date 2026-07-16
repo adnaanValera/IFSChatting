@@ -405,6 +405,7 @@ export default function CustomerDashboard() {
   };
 
   const unreadTodayUpdates = notifications.filter((notification) => {
+    if (notification.id && dismissedNotificationIds.has(notification.id)) return false;
     if (!notification.status || !isToday(notification.createdAt) || !notification.ifsRef) return false;
     const notificationToken = notification.id
       ? `notif:${notification.id}`
