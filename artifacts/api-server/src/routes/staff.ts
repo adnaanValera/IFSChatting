@@ -1684,7 +1684,10 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
   ws.eachRow((row) => {
     row.eachCell({ includeEmpty: false }, (cell, colIdx) => {
       const headerKey = reportKeyFromHeader(cellStr(cell.value) ?? "");
-      if (headerKey) columnKeys[colIdx] = headerKey;
+      if (headerKey) {
+        columnKeys[colIdx] = headerKey;
+        return;
+      }
       const activeKey = headerKey ?? columnKeys[colIdx];
       const len = activeKey && REPORT_WIDTHS[activeKey]?.wrap
         ? wrappedCellFitLength(cell.value)
