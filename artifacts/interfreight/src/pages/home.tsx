@@ -360,7 +360,7 @@ function StaffTracker() {
   };
 
   return (
-    <section className="py-20">
+    <section id="company-shipment-lookup" className="py-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
         <div className="text-center mb-10 rounded-3xl border border-white/15 bg-white/90 px-6 py-10 shadow-xl backdrop-blur-md">
           <p className="text-primary font-semibold tracking-widest uppercase text-sm mb-3">

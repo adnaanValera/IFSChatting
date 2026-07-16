@@ -407,6 +407,10 @@ export default function CustomerDashboard() {
     setLocation("/dashboard/problems");
     setShowQuickMenu(false);
   };
+  const goToHomepage = () => {
+    setLocation("/");
+    setShowQuickMenu(false);
+  };
   const scrollToTrackingSection = () => {
     document.getElementById("customer-shipments")?.scrollIntoView({ behavior: "smooth", block: "start" });
     setShowQuickMenu(false);
@@ -479,6 +483,13 @@ export default function CustomerDashboard() {
                   className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   My Tracking
+                </button>
+                <button
+                  type="button"
+                  onClick={goToHomepage}
+                  className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  Homepage
                 </button>
                 <button
                   type="button"

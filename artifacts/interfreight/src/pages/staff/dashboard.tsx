@@ -6,7 +6,6 @@ import {
   useListUploads,
   useStaffLogout,
   useGetMe,
-  useListShipments,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -27,7 +26,7 @@ import { saveAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { Spinner } from "@/components/ui/spinner";
 
-type Tab = "overview" | "import" | "history" | "messages" | "problems" | "cards" | "tracking" | "authorize" | "asycuda" | "activity";
+type Tab = "overview" | "import" | "history" | "messages" | "problems" | "cards" | "authorize" | "asycuda" | "activity";
 
 type Announcement = {
   id: number;
@@ -509,34 +508,11 @@ export default function Dashboard() {
   const [downloadingCompany, setDownloadingCompany] = useState<string | null>(null);
   const [expandedConsignee, setExpandedConsignee] = useState<string | null>(null);
   const [downloadingConsignee, setDownloadingConsignee] = useState<string | null>(null);
-  const [trackingInput, setTrackingInput] = useState("");
-  const [trackingSearch, setTrackingSearch] = useState("");
-  const [trackingStatus, setTrackingStatus] = useState("");
 
   const typedUser = user as any;
   const isAdmin = typedUser?.role === "admin";
   const isStaffOrAdmin = typedUser?.role === "admin" || typedUser?.role === "staff";
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setTrackingSearch(trackingInput.trim());
-    }, 350);
-    return () => window.clearTimeout(timer);
-  }, [trackingInput]);
-
-  const { data: trackingResults, isLoading: trackingLoading } = useListShipments(
-    {
-      search: trackingSearch || undefined,
-      status: trackingStatus || undefined,
-      limit: 80,
-    },
-    {
-      query: {
-        enabled: activeTab === "tracking" && Boolean(trackingSearch || trackingStatus),
-        refetchOnWindowFocus: false,
-      },
-    },
-  );
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -885,11 +861,16 @@ export default function Dashboard() {
     if (tab === "activity") loadActivity();
   };
 
+  const openHomepageTracking = () => {
+    setIsMobileNavOpen(false);
+    setLocation("/#company-shipment-lookup");
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requestedTab = params.get("tab");
     const focus = params.get("focus");
-    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "problems", "cards", "tracking", "authorize", "asycuda", "activity"];
+    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "problems", "cards", "authorize", "asycuda", "activity"];
     if (requestedTab && allowedTabs.includes(requestedTab as Tab)) {
       const nextTab = requestedTab as Tab;
       setActiveTab(nextTab);
@@ -1315,7 +1296,6 @@ export default function Dashboard() {
   const navItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: "overview", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
     { id: "import", label: "Tracking Uploads", icon: <UploadCloud size={18} /> },
-    { id: "tracking", label: "Tracking", icon: <Search size={18} /> },
     { id: "cards", label: "Status Reports", icon: <Building2 size={18} />, badge: companiesLoaded ? companiesList.length : undefined },
     { id: "history", label: "File Download", icon: <History size={18} />, badge: uploads?.length },
     { id: "authorize", label: "Authorize Sign Up", icon: <UserCheck size={18} />, badge: pendingSignups.length || undefined },
@@ -1538,6 +1518,14 @@ export default function Dashboard() {
                 )}
               </button>
             ))}
+
+            <button
+              onClick={openHomepageTracking}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-secondary transition-all"
+            >
+              <Search size={18} />
+              <span className="flex-1 text-left">Tracking</span>
+            </button>
 
             {isAdmin && (
               <>
@@ -2342,77 +2330,6 @@ export default function Dashboard() {
           )}
 
           {/* ── COMPANY CARDS ─────────────────────────────── */}
-          {activeTab === "tracking" && (
-            <div className="space-y-6 max-w-6xl">
-              <div>
-                <h2 className="text-2xl font-extrabold text-secondary mb-1">Tracking</h2>
-                <p className="text-sm text-muted-foreground">Search and open individual shipment tracking cards.</p>
-              </div>
-
-              <div className="rounded-2xl border border-border bg-white p-4 sm:p-5 shadow-sm">
-                <div className="flex flex-col gap-3 lg:flex-row">
-                  <div className="relative flex-1">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="text"
-                      value={trackingInput}
-                      onChange={(e) => setTrackingInput(e.target.value)}
-                      placeholder="Search by company, consignee, container, BL/Manifest, invoice, shipper..."
-                      className="w-full rounded-xl border border-input bg-background py-3 pl-9 pr-4 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                  <select
-                    value={trackingStatus}
-                    onChange={(e) => setTrackingStatus(e.target.value)}
-                    className="rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 lg:min-w-[220px]"
-                  >
-                    <option value="">All Statuses</option>
-                    <option value="In Transit">In Transit</option>
-                    <option value="Delivered">Delivered</option>
-                    <option value="Awaiting Clearance">Awaiting Clearance</option>
-                    <option value="At Port">At Port</option>
-                    <option value="Delayed">Delayed</option>
-                  </select>
-                </div>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Search any shipment detail to instantly open the matching tracking cards.
-                </p>
-              </div>
-
-              {!trackingSearch && !trackingStatus ? (
-                <div className="bg-white rounded-2xl border border-border shadow-sm py-20 text-center">
-                  <Search className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
-                  <p className="text-lg font-semibold text-secondary mb-2">Start a tracking search</p>
-                  <p className="text-sm text-muted-foreground">Matching shipment cards will appear here.</p>
-                </div>
-              ) : trackingLoading ? (
-                <div className="flex items-center justify-center py-20">
-                  <Spinner className="w-8 h-8" />
-                </div>
-              ) : !(trackingResults?.items?.length) ? (
-                <div className="bg-white rounded-2xl border border-border shadow-sm py-20 text-center">
-                  <Package className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
-                  <p className="text-lg font-semibold text-secondary mb-2">No matching shipments</p>
-                  <p className="text-sm text-muted-foreground">Try a different reference, company, container, BL/Manifest, or invoice number.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-semibold text-secondary">{trackingResults.items.length}</span> shipment{trackingResults.items.length !== 1 ? "s" : ""} found
-                  </p>
-                  {trackingResults.items.map((shipment, index) => (
-                    <ShipmentCard
-                      key={`staff-tracking-${shipment.id}`}
-                      shipment={shipment as any}
-                      index={index}
-                      defaultOpen={true}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           {activeTab === "cards" && (
             <div className="space-y-6 max-w-6xl">
               <div className="flex items-start justify-between gap-4 flex-wrap">
