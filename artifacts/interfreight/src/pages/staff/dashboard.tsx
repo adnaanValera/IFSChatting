@@ -863,7 +863,7 @@ export default function Dashboard() {
 
   const openHomepageTracking = () => {
     setIsMobileNavOpen(false);
-    setLocation("/#company-shipment-lookup");
+    window.location.assign("/#company-shipment-lookup");
   };
 
   useEffect(() => {
@@ -1293,20 +1293,20 @@ export default function Dashboard() {
     },
   ];
 
-  const navItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
+  const primaryNavItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: "overview", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
-    { id: "import", label: "Tracking Uploads", icon: <UploadCloud size={18} /> },
     { id: "cards", label: "Status Reports", icon: <Building2 size={18} />, badge: companiesLoaded ? companiesList.length : undefined },
-    { id: "history", label: "File Download", icon: <History size={18} />, badge: uploads?.length },
+  ];
+
+  const secondaryNavItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
+    ...(isAdmin ? [{ id: "activity" as Tab, label: "Activity", icon: <Clock size={18} /> }] : []),
     { id: "authorize", label: "Authorize Sign Up", icon: <UserCheck size={18} />, badge: pendingSignups.length || undefined },
     { id: "messages", label: "Messages", icon: <Bell size={18} />, badge: unreadCount || undefined },
     { id: "problems", label: "Problems", icon: <AlertTriangle size={18} />, badge: unreadProblemCount || undefined },
+    { id: "history", label: "File Download", icon: <History size={18} />, badge: uploads?.length },
+    { id: "import", label: "Tracking Uploads", icon: <UploadCloud size={18} /> },
+    ...(isAdmin ? [{ id: "asycuda" as Tab, label: "ASYCUDA", icon: <ReceiptText size={18} /> }] : []),
   ];
-
-  if (isAdmin) {
-    navItems.splice(2, 0, { id: "asycuda", label: "ASYCUDA", icon: <ReceiptText size={18} /> });
-    navItems.push({ id: "activity", label: "Activity", icon: <Clock size={18} /> });
-  }
 
   const renderFeedbackCards = (items: FeedbackItem[], emptyTitle: string, emptyDescription: string, kind: "message" | "problem") => (
     feedbackLoading ? (
@@ -1497,7 +1497,7 @@ export default function Dashboard() {
             </button>
           </div>
           <nav className="flex-1 py-4 px-3 space-y-1">
-            {navItems.map((item) => (
+            {primaryNavItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleTabChange(item.id)}
@@ -1526,6 +1526,28 @@ export default function Dashboard() {
               <Search size={18} />
               <span className="flex-1 text-left">Tracking</span>
             </button>
+
+            {secondaryNavItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => handleTabChange(item.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  activeTab === item.id
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-secondary"
+                }`}
+              >
+                {item.icon}
+                <span className="flex-1 text-left">{item.label}</span>
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full leading-none animate-pulse shadow-[0_0_14px_rgba(191,33,49,0.22)] ${
+                    activeTab === item.id ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            ))}
 
             {isAdmin && (
               <>
