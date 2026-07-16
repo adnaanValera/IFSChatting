@@ -207,8 +207,11 @@ function ShipmentJourney({ status, theme, variant, sourceSection = "" }: { statu
                 }}
               >
                 <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ background: reached ? theme.dividerColor : "rgba(255,255,255,0.28)" }}
+                  className={`h-2 w-2 rounded-full ${active ? "shipment-journey-core--active" : ""}`}
+                  style={{
+                    background: reached ? theme.dividerColor : "rgba(255,255,255,0.28)",
+                    ["--journey-dot-color" as string]: theme.dividerColor,
+                  }}
                 />
               </span>
               <span className={`text-[10px] font-bold uppercase tracking-wide text-center ${reached ? "text-white" : "text-zinc-600"}`}>

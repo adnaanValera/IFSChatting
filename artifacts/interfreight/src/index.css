@@ -1045,21 +1045,36 @@
 }
 
 .shipment-journey-dot--active {
-  animation: shipment-journey-dot-pulse 1.45s ease-in-out infinite;
+  animation: shipment-journey-ring-pulse 1.45s ease-in-out infinite;
 }
 
-@keyframes shipment-journey-dot-pulse {
+.shipment-journey-core--active {
+  animation: shipment-journey-core-pulse 1.45s ease-in-out infinite;
+}
+
+@keyframes shipment-journey-core-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 color-mix(in srgb, var(--journey-dot-color) 0%, transparent 100%),
+      0 0 6px color-mix(in srgb, var(--journey-dot-color) 52%, transparent 48%);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px color-mix(in srgb, var(--journey-dot-color) 28%, transparent 72%),
+      0 0 16px color-mix(in srgb, var(--journey-dot-color) 82%, transparent 18%);
+  }
+}
+
+@keyframes shipment-journey-ring-pulse {
   0%, 100% {
     box-shadow:
       0 0 0 1px color-mix(in srgb, var(--journey-dot-color) 82%, white 18%),
-      0 0 12px color-mix(in srgb, var(--journey-dot-color) 56%, transparent 44%),
-      0 0 24px color-mix(in srgb, var(--journey-dot-color) 34%, transparent 66%);
+      0 0 10px color-mix(in srgb, var(--journey-dot-color) 30%, transparent 70%);
   }
   50% {
     box-shadow:
       0 0 0 2px color-mix(in srgb, var(--journey-dot-color) 92%, white 8%),
-      0 0 20px color-mix(in srgb, var(--journey-dot-color) 72%, transparent 28%),
-      0 0 38px color-mix(in srgb, var(--journey-dot-color) 44%, transparent 56%);
+      0 0 18px color-mix(in srgb, var(--journey-dot-color) 48%, transparent 52%);
   }
 }
 
