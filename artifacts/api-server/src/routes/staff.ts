@@ -1400,7 +1400,7 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
         iconType: "announcement",
         referenceText: file.originalname,
         detailText: "Download todays tracking master",
-        actionUrl: "/staff/dashboard?tab=uploads",
+        actionUrl: "/staff/dashboard?tab=history",
       })),
     );
 
@@ -1408,7 +1408,7 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
       sendPushToUser(userId, {
         title: "Tracking Master Ready",
         body: "Download todays tracking master",
-        url: "/staff/dashboard?tab=uploads",
+        url: "/staff/dashboard?tab=history",
         tag: `tracking-master-${uploadRecord.id}-${userId}`,
         iconType: "announcement",
         referenceText: file.originalname,
