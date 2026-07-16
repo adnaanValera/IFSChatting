@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Home, LogOut, TriangleAlert } from "lucide-react";
 import { useGetMe, useStaffLogout } from "@workspace/api-client-react";
+import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
 import { AccountSwitcher } from "@/components/auth/AccountSwitcher";
 import { ProblemReporter } from "@/components/customer/ProblemReporter";
 import { Spinner } from "@/components/ui/spinner";
@@ -33,6 +34,8 @@ export default function CustomerProblemsPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <NotificationOptIn storageKey="intf_push_prompt_customer" scope={{ type: "auth" }} />
+
       <div className="bg-secondary text-secondary-foreground shadow-lg sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
