@@ -494,6 +494,24 @@ export default function Home() {
   const role = (user as any)?.role;
   const dashboardHref = role === "staff" || role === "admin" ? "/staff/dashboard" : "/dashboard";
 
+  useEffect(() => {
+    const targetHash = "#company-shipment-lookup";
+    if (window.location.hash !== targetHash) return;
+
+    const scrollToLookup = () => {
+      const element = document.getElementById("company-shipment-lookup");
+      if (!element) return;
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+
+    const frame = window.requestAnimationFrame(scrollToLookup);
+    const timer = window.setTimeout(scrollToLookup, 450);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, []);
+
   return (
     <div className="relative min-h-screen bg-secondary">
       <div className="fixed inset-0 z-0">
