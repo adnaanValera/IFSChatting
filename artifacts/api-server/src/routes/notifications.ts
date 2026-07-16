@@ -92,24 +92,34 @@ router.get("/notifications/remind-unread", async (req, res) => {
   for (const [userId, notifications] of unreadByUser.entries()) {
     if (!notifications.length) continue;
     remindedUsers += 1;
+    const newest = notifications[0]!;
+    const shipmentChanges = notifications.filter((notification) => notification.notificationType === "shipment_change").length;
+    const newShipments = notifications.filter((notification) => notification.notificationType === "new_shipment").length;
+    const announcements = notifications.filter((notification) => notification.notificationType === "announcement").length;
+    const others = notifications.length - shipmentChanges - newShipments - announcements;
 
-    for (const notification of notifications.slice(0, 20)) {
-      await sendPushToUser(userId, {
-        title: notification.title,
-        body: notification.notificationType === "shipment_change"
-          ? "Tap to view more."
-          : notification.notificationType === "new_shipment"
-            ? "Tap to view."
-            : notification.detailText || notification.message,
-        url: notification.actionUrl || "/dashboard",
-        tag: `reminder-${notification.id}`,
-        iconType: notification.iconType || undefined,
-        referenceText: notification.referenceText || undefined,
-        detailText: notification.detailText || undefined,
-        notificationType: notification.notificationType || undefined,
-      });
-      pushedNotifications += 1;
-    }
+    const parts = [
+      shipmentChanges > 0 ? `${shipmentChanges} change${shipmentChanges === 1 ? "" : "s"}` : null,
+      newShipments > 0 ? `${newShipments} new shipment${newShipments === 1 ? "" : "s"}` : null,
+      announcements > 0 ? `${announcements} announcement${announcements === 1 ? "" : "s"}` : null,
+      others > 0 ? `${others} update${others === 1 ? "" : "s"}` : null,
+    ].filter(Boolean);
+
+    const summaryText = parts.length > 0
+      ? `You have ${parts.join(", ")} waiting.`
+      : `You have ${notifications.length} unread notification${notifications.length === 1 ? "" : "s"}.`;
+
+    await sendPushToUser(userId, {
+      title: "Unread notifications",
+      body: summaryText,
+      url: newest.actionUrl || "/dashboard",
+      tag: `reminder-summary-${userId}`,
+      iconType: newest.iconType || undefined,
+      referenceText: newest.referenceText || undefined,
+      detailText: summaryText,
+      notificationType: "reminder_summary",
+    });
+    pushedNotifications += 1;
   }
 
   res.json({ ok: true, remindedUsers, pushedNotifications });
