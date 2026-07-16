@@ -194,14 +194,16 @@ function ShipmentJourney({ status, theme, variant, sourceSection = "" }: { statu
         </div>
         {steps.map((step, i) => {
           const reached = i <= activeIndex;
+          const active = i === activeIndex;
           return (
             <div key={step} className="relative flex flex-col items-center gap-2">
               <span
-                className="z-10 h-6 w-6 rounded-full border flex items-center justify-center"
+                className={`z-10 h-6 w-6 rounded-full border flex items-center justify-center ${active ? "shipment-journey-dot--active" : ""}`}
                 style={{
                   borderColor: reached ? theme.dividerColor : "rgba(255,255,255,0.18)",
                   background: reached ? `${theme.dividerColor}33` : "rgba(255,255,255,0.05)",
                   boxShadow: reached ? `0 0 18px ${theme.dividerColor}55` : "none",
+                  ["--journey-dot-color" as string]: theme.dividerColor,
                 }}
               >
                 <span
@@ -257,7 +259,13 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
   const collapsedIdentifier = variant === "container" ? (s.containerNo || "N/A") : (blManifestNo || "N/A");
 
   const handleToggle = () => {
-    setIsOpen((current) => !current);
+    setIsOpen((current) => {
+      const next = !current;
+      if (next && highlight && changeToken) {
+        void onViewed?.(changeToken);
+      }
+      return next;
+    });
   };
 
   const handleHeaderClick = (event: React.MouseEvent<HTMLDivElement>) => {

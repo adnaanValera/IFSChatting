@@ -98,6 +98,14 @@ function parseStatusChange(message?: string | null): { oldValue: string; newValu
     };
   }
 
+  const plainMatch = text.match(/:\s*(.*?)\s*->\s*(.*?)$/i);
+  if (plainMatch) {
+    return {
+      oldValue: plainMatch[1]?.trim() || "N/A",
+      newValue: plainMatch[2]?.trim() || "N/A",
+    };
+  }
+
   return undefined;
 }
 
