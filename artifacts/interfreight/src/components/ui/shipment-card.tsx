@@ -245,13 +245,24 @@ export interface ShipmentCardProps {
   };
   statusChange?: { oldValue: string; newValue: string };
   highlight?: boolean;
+  isNewShipment?: boolean;
+  hasStatusChange?: boolean;
   changeToken?: string;
   onViewed?: (args?: { changeToken?: string; ifsRef?: string }) => void;
   index?: number;
   defaultOpen?: boolean;
 }
 
-export function ShipmentCard({ shipment: s, statusChange, highlight = false, changeToken, onViewed, defaultOpen = false }: ShipmentCardProps) {
+export function ShipmentCard({
+  shipment: s,
+  statusChange,
+  highlight = false,
+  isNewShipment = false,
+  hasStatusChange = false,
+  changeToken,
+  onViewed,
+  defaultOpen = false,
+}: ShipmentCardProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const variant = resolveVariant(s.extraFields);
   const theme = T[variant];
@@ -332,11 +343,11 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
           <div className="flex items-center justify-end gap-2 shrink-0 min-w-[96px] sm:min-w-[116px]">
             <div className="flex flex-col items-end gap-0.5 max-w-[112px] sm:max-w-[130px]">
               <StatusPill status={s.status} theme={theme} />
-              {statusChange ? (
+              {hasStatusChange ? (
                 <span className="shipment-card__change-bell" aria-label="Shipment changed">
                   <Bell size={13} />
                 </span>
-              ) : highlight ? (
+              ) : isNewShipment ? (
                 <span className="text-[11px] font-extrabold tracking-[0.18em] text-red-400" aria-label="New shipment">
                   NEW
                 </span>
@@ -387,9 +398,9 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
 
               <div className="col-span-2 flex flex-col items-start sm:col-auto sm:items-end gap-1 pt-1 sm:pt-0">
                 <StatusPill status={s.status} theme={theme} />
-                {highlight && (
+                {(hasStatusChange || isNewShipment) && (
                   <span className="text-[11px] font-semibold text-white/70">
-                    {statusChange
+                    {hasStatusChange && statusChange
                       ? `${customerFriendlyStatus(statusChange.oldValue)} -&gt; ${customerFriendlyStatus(statusChange.newValue)}`
                       : "New consignment"}
                   </span>
@@ -466,9 +477,9 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
                 Status
               </p>
               <StatusPill status={s.status} theme={theme} large />
-              {highlight && (
+              {(hasStatusChange || isNewShipment) && (
                 <p className="text-center text-xs font-semibold text-zinc-300 mt-3">
-                  {statusChange
+                  {hasStatusChange && statusChange
                     ? `${customerFriendlyStatus(statusChange.oldValue)} -&gt; ${customerFriendlyStatus(statusChange.newValue)}`
                     : "New consignment added"}
                 </p>

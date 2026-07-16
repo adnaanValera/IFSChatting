@@ -336,6 +336,7 @@ export default function CustomerDashboard() {
   const notificationIdsByChangeToken = new Map<string, number[]>();
   const notificationIdsByIfsRef = new Map<string, number[]>();
   const newShipmentRefs = new Set<string>();
+  const statusChangedRefs = new Set<string>();
   for (const notification of notifications) {
     if (notification.id && dismissedNotificationIds.has(notification.id)) continue;
     if (notification.read) continue;
@@ -363,6 +364,7 @@ export default function CustomerDashboard() {
 
     const change = parseStatusChange(notification.message);
     if (change) {
+      statusChangedRefs.add(notification.ifsRef);
       if (!statusChangesByIfsRef.has(notification.ifsRef)) {
         statusChangesByIfsRef.set(notification.ifsRef, change);
         notificationTokenByIfsRef.set(notification.ifsRef, notificationToken);
@@ -423,15 +425,15 @@ export default function CustomerDashboard() {
       .filter((ifsRef): ifsRef is string => Boolean(ifsRef)),
   );
   const changedShipmentRefs = new Set([
-    ...todayUpdatedRefs,
-    ...[...newShipmentRefs]
-      .filter((ifsRef) => {
-        const token = notificationTokenByIfsRef.get(ifsRef);
-        return token ? !seenChangeTokens.has(token) : true;
-      }),
-    ...[...notificationTokenByIfsRef.entries()]
-      .filter(([, token]) => !seenChangeTokens.has(token))
-      .map(([ifsRef]) => ifsRef),
+    ...[...todayUpdatedRefs].filter((ifsRef) => newShipmentRefs.has(ifsRef) || statusChangedRefs.has(ifsRef)),
+    ...[...newShipmentRefs].filter((ifsRef) => {
+      const token = notificationTokenByIfsRef.get(ifsRef);
+      return token ? !seenChangeTokens.has(token) : true;
+    }),
+    ...[...statusChangedRefs].filter((ifsRef) => {
+      const token = notificationTokenByIfsRef.get(ifsRef);
+      return token ? !seenChangeTokens.has(token) : true;
+    }),
   ]);
   const hasShipmentChanges = changedShipmentRefs.size > 0;
   const activeChangedFilter = changedOnlyRefs ? new Set(changedOnlyRefs) : changedShipmentRefs;
@@ -738,8 +740,10 @@ export default function CustomerDashboard() {
                 <ShipmentCard
                   key={shipment.id}
                   shipment={shipment}
-                  statusChange={changedShipmentRefs.has(shipment.ifsRef) ? statusChangesByIfsRef.get(shipment.ifsRef) : undefined}
+                  statusChange={statusChangedRefs.has(shipment.ifsRef) ? statusChangesByIfsRef.get(shipment.ifsRef) : undefined}
                   highlight={changedShipmentRefs.has(shipment.ifsRef)}
+                  isNewShipment={newShipmentRefs.has(shipment.ifsRef) && !statusChangedRefs.has(shipment.ifsRef)}
+                  hasStatusChange={statusChangedRefs.has(shipment.ifsRef)}
                   changeToken={notificationTokenByIfsRef.get(shipment.ifsRef)}
                   onViewed={markChangeAsSeen}
                   index={index}
@@ -773,8 +777,10 @@ export default function CustomerDashboard() {
                     <div key={s.id} className="glow-card rounded-2xl">
                       <ShipmentCard
                         shipment={s}
-                        statusChange={changedShipmentRefs.has(s.ifsRef) ? statusChangesByIfsRef.get(s.ifsRef) : undefined}
+                        statusChange={statusChangedRefs.has(s.ifsRef) ? statusChangesByIfsRef.get(s.ifsRef) : undefined}
                         highlight={changedShipmentRefs.has(s.ifsRef)}
+                        isNewShipment={newShipmentRefs.has(s.ifsRef) && !statusChangedRefs.has(s.ifsRef)}
+                        hasStatusChange={statusChangedRefs.has(s.ifsRef)}
                         changeToken={notificationTokenByIfsRef.get(s.ifsRef)}
                         onViewed={markChangeAsSeen}
                         index={index}
