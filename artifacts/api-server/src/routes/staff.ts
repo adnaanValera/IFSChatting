@@ -1389,6 +1389,41 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
   }).where(eq(uploadsTable.id, uploadRecord.id));
   await pruneUploadHistoryForFilename(file.originalname);
 
+  const adminRecipients = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.role, "admin"));
+
+  if (adminRecipients.length > 0) {
+    await db.insert(notificationsTable).values(
+      adminRecipients.map(({ id: userId }) => ({
+        userId,
+        title: "Tracking Master Ready",
+        message: "Download todays tracking master",
+        companyName: "InterFreight Solutions",
+        status: "Tracking Master",
+        notificationType: "tracking_master",
+        iconType: "announcement",
+        referenceText: file.originalname,
+        detailText: "Download todays tracking master",
+        actionUrl: "/staff/dashboard?tab=uploads",
+      })),
+    );
+
+    await Promise.all(adminRecipients.map(({ id: userId }) =>
+      sendPushToUser(userId, {
+        title: "Tracking Master Ready",
+        body: "Download todays tracking master",
+        url: "/staff/dashboard?tab=uploads",
+        tag: `tracking-master-${uploadRecord.id}-${userId}`,
+        iconType: "announcement",
+        referenceText: file.originalname,
+        detailText: "Download todays tracking master",
+        notificationType: "tracking_master",
+      }),
+    ));
+  }
+
   res.json({
     totalRows: result.totalRows,
     newRecords: result.newRecords,
