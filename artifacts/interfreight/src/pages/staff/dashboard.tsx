@@ -140,6 +140,11 @@ function reportDateStamp(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function openPdfBlob(url: string) {
+  window.open(url, "_blank", "noopener,noreferrer");
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 const STATUS_SECTIONS = [
   { label: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
   { label: "SHIPMENTS ENROUTE",   statuses: ["In Transit", "Enroute LLW", "Enroute BLZ", "Enroute"] },
@@ -731,7 +736,12 @@ export default function Dashboard() {
       const a = document.createElement("a");
       a.href = url; a.download = `Status Report - ${safeReportName(companyName)} - ${safeReportName(consigneeName)} (${reportDateStamp()}).${format === "pdf" ? "pdf" : "xlsx"}`;
       document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      if (format === "pdf") {
+        openPdfBlob(url);
+      } else {
+        URL.revokeObjectURL(url);
+      }
     } catch (err: any) {
       toast({ variant: "destructive", title: "Download failed", description: err.message });
     } finally {
@@ -754,7 +764,12 @@ export default function Dashboard() {
       const a = document.createElement("a");
       a.href = url; a.download = `Status Report - ${safeReportName(name)} (${reportDateStamp()}).${format === "pdf" ? "pdf" : "xlsx"}`;
       document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      if (format === "pdf") {
+        openPdfBlob(url);
+      } else {
+        URL.revokeObjectURL(url);
+      }
     } catch (err: any) {
       toast({ variant: "destructive", title: "Download failed", description: err.message });
     } finally {

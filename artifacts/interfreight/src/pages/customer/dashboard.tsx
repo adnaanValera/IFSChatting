@@ -179,6 +179,11 @@ function sectionElementId(reportLabel: string): string {
   return `section-${reportLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
 }
 
+function openPdfBlob(url: string) {
+  window.open(url, "_blank", "noopener,noreferrer");
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export default function CustomerDashboard() {
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -320,7 +325,7 @@ export default function CustomerDashboard() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      openPdfBlob(url);
       toast({ title: "PDF downloaded", description: "Your latest status report has been saved." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Download failed", description: err?.message || "Download failed" });
