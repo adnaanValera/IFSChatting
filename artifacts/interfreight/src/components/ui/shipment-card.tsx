@@ -321,11 +321,15 @@ export function ShipmentCard({ shipment: s, statusChange, highlight = false, cha
           <div className="flex items-center justify-end gap-2 shrink-0 min-w-[96px] sm:min-w-[116px]">
             <div className="flex flex-col items-end gap-0.5 max-w-[112px] sm:max-w-[130px]">
               <StatusPill status={s.status} theme={theme} />
-              {highlight && (
+              {statusChange ? (
                 <span className="shipment-card__change-bell" aria-label="Shipment changed">
                   <Bell size={13} />
                 </span>
-              )}
+              ) : highlight ? (
+                <span className="text-[11px] font-extrabold tracking-[0.18em] text-red-400" aria-label="New shipment">
+                  NEW
+                </span>
+              ) : null}
             </div>
             <div className={`transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`}>
               <ChevronDown size={15} className="text-zinc-500" />

@@ -717,6 +717,14 @@ function namesMatch(a: unknown, b: unknown): boolean {
   return aKey === bKey || aKey.includes(bKey) || bKey.includes(aKey);
 }
 
+function shipmentVisibleToCustomer(shipment: {
+  companyName?: string | null;
+  consignee?: string | null;
+}, userCompany?: string | null) {
+  if (!userCompany) return false;
+  return namesMatch(shipment.companyName, userCompany) || namesMatch(shipment.consignee, userCompany);
+}
+
 async function notifyCustomersOfStatusChange(args: {
   companyName: string;
   consignee?: string;
@@ -725,21 +733,14 @@ async function notifyCustomersOfStatusChange(args: {
   extraFields?: Record<string, unknown>;
   change: ChangeLogEntry;
 }): Promise<void> {
-  const companyKey = matchText(args.companyName);
-  const consigneeKey = matchText(args.consignee);
   const customers = (await db
     .select({ id: usersTable.id, companyName: usersTable.companyName, role: usersTable.role })
     .from(usersTable))
     .filter((user) => user.role === "customer")
-    .filter((user) => {
-      const userKey = matchText(user.companyName);
-      return Boolean(
-        userKey && (
-          namesMatch(userKey, companyKey) ||
-          (consigneeKey && namesMatch(userKey, consigneeKey))
-        )
-      );
-    });
+    .filter((user) => shipmentVisibleToCustomer({
+      companyName: args.companyName,
+      consignee: args.consignee,
+    }, user.companyName));
 
   for (const { id: userId } of customers) {
     const label = shipmentNotificationLabel(args);
@@ -783,21 +784,14 @@ async function notifyCustomersOfNewShipment(args: {
   status: string;
   extraFields?: Record<string, unknown>;
 }): Promise<void> {
-  const companyKey = matchText(args.companyName);
-  const consigneeKey = matchText(args.consignee);
   const customers = (await db
     .select({ id: usersTable.id, companyName: usersTable.companyName, role: usersTable.role })
     .from(usersTable))
     .filter((user) => user.role === "customer")
-    .filter((user) => {
-      const userKey = matchText(user.companyName);
-      return Boolean(
-        userKey && (
-          namesMatch(userKey, companyKey) ||
-          (consigneeKey && namesMatch(userKey, consigneeKey))
-        )
-      );
-    });
+    .filter((user) => shipmentVisibleToCustomer({
+      companyName: args.companyName,
+      consignee: args.consignee,
+    }, user.companyName));
 
   for (const { id: userId } of customers) {
     const identifier = shipmentIdentifier(args);

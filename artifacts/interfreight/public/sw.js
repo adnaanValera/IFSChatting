@@ -16,7 +16,7 @@ self.addEventListener("push", (event) => {
   };
   const prefix = data.iconType && iconMap[data.iconType] ? `${iconMap[data.iconType]} ` : "";
   const title = `${prefix}${data.title || "InterFreight Solutions"}`;
-  const bodyParts = [data.referenceText, data.detailText, data.body].filter(Boolean);
+  const bodyParts = [...new Set([data.referenceText, data.detailText, data.body].filter(Boolean))];
   const options = {
     body: bodyParts.join("\n") || "You have a new update.",
     icon: "/ifs-app-icon-2026.png",
