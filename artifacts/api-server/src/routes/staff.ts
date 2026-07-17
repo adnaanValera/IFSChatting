@@ -278,6 +278,10 @@ function asycudaFindHeaderRow(rows: unknown[][], required: string[]): number {
 
 type AsycudaMasterEntry = { client: string; invoice: unknown; order: number };
 
+function isKashifAsycudaClient(value: unknown): boolean {
+  return asycudaValueString(value).toLowerCase().includes("kashif");
+}
+
 function asycudaSetGreenCell(cell: ExcelJS.Cell, value: unknown) {
   const normalizedValue = typeof value === "number" ? value : asycudaValueString(value);
   const baseStyle = {
@@ -371,7 +375,8 @@ async function processAsycudaWorkbook(
       }
       const excelRow = sheet.getRow(r + 1);
       if (chargeBlank) {
-        asycudaSetGreenCell(excelRow.getCell(chargeCol + 1), matches[0]!.invoice);
+        const chargeValue = isKashifAsycudaClient(matches[0]!.client) ? "Inclusive freight" : matches[0]!.invoice;
+        asycudaSetGreenCell(excelRow.getCell(chargeCol + 1), chargeValue);
         summary.charges++;
       }
       if (matches.length >= 2 && freightBlank) {
