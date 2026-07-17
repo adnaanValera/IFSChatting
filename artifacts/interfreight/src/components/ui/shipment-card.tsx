@@ -416,7 +416,7 @@ export function ShipmentCard({
                 {(hasStatusChange || isNewShipment) && (
                   <span className="text-[11px] font-semibold text-white/70">
                     {hasStatusChange && statusChange
-                      ? `${customerFriendlyStatus(statusChange.oldValue)} -&gt; ${customerFriendlyStatus(statusChange.newValue)}`
+                      ? `${customerFriendlyStatus(statusChange.oldValue)} -> ${customerFriendlyStatus(statusChange.newValue)}`
                       : "New consignment"}
                   </span>
                 )}
@@ -495,7 +495,7 @@ export function ShipmentCard({
               {(hasStatusChange || isNewShipment) && (
                 <p className="text-center text-xs font-semibold text-zinc-300 mt-3">
                   {hasStatusChange && statusChange
-                    ? `${customerFriendlyStatus(statusChange.oldValue)} -&gt; ${customerFriendlyStatus(statusChange.newValue)}`
+                    ? `${customerFriendlyStatus(statusChange.oldValue)} -> ${customerFriendlyStatus(statusChange.newValue)}`
                     : "New consignment added"}
                 </p>
               )}
