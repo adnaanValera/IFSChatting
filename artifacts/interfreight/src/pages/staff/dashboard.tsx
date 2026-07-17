@@ -1739,7 +1739,9 @@ export default function Dashboard() {
                     <div className="mt-4 space-y-2">
                       <p className="text-[10px] uppercase tracking-widest text-white/55 font-bold">Recent Announcements</p>
                       <div className="space-y-2">
-                        {announcementList.map((item) => {
+                        {announcementList
+                          .filter((item) => item.active || (item.expiresAt ? new Date(item.expiresAt).getTime() >= Date.now() : false))
+                          .map((item) => {
                           const isExpired = item.expiresAt ? new Date(item.expiresAt).getTime() < Date.now() : false;
                           return (
                             <div key={item.id} className="flex items-start justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">

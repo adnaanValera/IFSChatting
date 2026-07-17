@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import {
   LogOut, Package, Ship, MapPin,
   CheckCircle, Home, Download, Megaphone, ArrowRight, Bell,
-  AlertTriangle, Search, Smartphone,
+  AlertTriangle, Search, Smartphone, X,
 } from "lucide-react";
 import { Link } from "wouter";
 import { ShipmentCard } from "@/components/ui/shipment-card";
@@ -70,8 +70,6 @@ type Announcement = {
   message: string;
   updatedAt?: string;
 };
-
-type QuickFilter = "all" | "changed" | "new" | "sea" | "malawi";
 
 function authFetch(path: string, options: RequestInit = {}) {
   const token = localStorage.getItem("intf_token");
@@ -228,7 +226,6 @@ export default function CustomerDashboard() {
   const [search, setSearch] = useState("");
   const [showChangedOnly, setShowChangedOnly] = useState(false);
   const [changedOnlyRefs, setChangedOnlyRefs] = useState<string[] | null>(null);
-  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilter>("all");
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
   const [seenChangeTokens, setSeenChangeTokens] = useState<Set<string>>(() => new Set(readSeenChangeTokens()));
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState<Set<number>>(() => new Set());
@@ -450,22 +447,10 @@ export default function CustomerDashboard() {
   const hasShipmentChanges = changedShipmentRefs.size > 0;
   const activeChangedFilter = changedOnlyRefs ? new Set(changedOnlyRefs) : changedShipmentRefs;
   const filteredShipments = useMemo(() => {
-    let rows = showChangedOnly
+    return showChangedOnly
       ? searchedShipments.filter((shipment: any) => activeChangedFilter.has(shipment.ifsRef))
       : searchedShipments;
-
-    if (activeQuickFilter === "changed") {
-      rows = rows.filter((shipment: any) => changedShipmentRefs.has(shipment.ifsRef));
-    } else if (activeQuickFilter === "new") {
-      rows = rows.filter((shipment: any) => newShipmentRefs.has(shipment.ifsRef));
-    } else if (activeQuickFilter === "sea") {
-      rows = rows.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS ON SEA");
-    } else if (activeQuickFilter === "malawi") {
-      rows = rows.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS IN MALAWI");
-    }
-
-    return rows;
-  }, [activeChangedFilter, searchedShipments, showChangedOnly, activeQuickFilter, changedShipmentRefs, newShipmentRefs]);
+  }, [activeChangedFilter, searchedShipments, showChangedOnly]);
   const scrollToSection = (targetId: string) => {
     setHighlightedSectionId(targetId);
     document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -487,7 +472,6 @@ export default function CustomerDashboard() {
     const refs = [...changedShipmentRefs];
     setSearch("");
     setShowChangedOnly(true);
-    setActiveQuickFilter("changed");
     setChangedOnlyRefs(refs);
     const firstRef = refs[0];
     window.requestAnimationFrame(() => {
@@ -505,13 +489,6 @@ export default function CustomerDashboard() {
     { icon: Ship, label: "Shipments Enroute", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS ENROUTE").length, tone: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200", targetId: sectionElementId("SHIPMENTS ENROUTE") },
     { icon: MapPin, label: "Shipments At POD", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS AT POD").length, tone: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200", targetId: sectionElementId("SHIPMENTS AT POD") },
     { icon: AlertTriangle, label: "Shipments On Sea", value: shipments.filter((shipment: any) => shipmentSectionLabel(shipment) === "SHIPMENTS ON SEA").length, tone: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200", targetId: sectionElementId("SHIPMENTS ON SEA") },
-  ];
-  const quickFilters: { key: QuickFilter; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "changed", label: "Changed" },
-    { key: "new", label: "New" },
-    { key: "sea", label: "On Sea" },
-    { key: "malawi", label: "In Malawi" },
   ];
 
   if (userLoading) {
@@ -724,38 +701,17 @@ export default function CustomerDashboard() {
             </div>
             {showChangedOnly && (
               <button
-              type="button"
-              onClick={() => {
-                setShowChangedOnly(false);
-                setChangedOnlyRefs(null);
-              }}
-              className="inline-flex items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-500/15"
-            >
-              Showing changed cards
-              </button>
-            )}
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {quickFilters.map((filter) => (
-              <button
-                key={filter.key}
                 type="button"
                 onClick={() => {
-                  setActiveQuickFilter(filter.key);
-                  if (filter.key !== "changed") {
-                    setShowChangedOnly(false);
-                    if (filter.key === "all") setChangedOnlyRefs(null);
-                  }
+                  setShowChangedOnly(false);
+                  setChangedOnlyRefs(null);
                 }}
-                className={`rounded-full px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] transition-colors ${
-                  activeQuickFilter === filter.key
-                    ? "bg-primary text-white shadow-[0_0_14px_rgba(191,33,49,0.22)]"
-                    : "border border-border bg-background text-muted-foreground hover:text-secondary"
-                }`}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-500 transition-colors hover:bg-red-500/15"
               >
-                {filter.label}
+                Showing changed cards
+                <X size={15} />
               </button>
-            ))}
+            )}
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             Showing {filteredShipments.length} of {shipments.length} shipment{shipments.length !== 1 ? "s" : ""}.
