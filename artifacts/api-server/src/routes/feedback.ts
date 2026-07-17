@@ -67,13 +67,8 @@ router.post("/customer/problems", requireAuth, async (req, res) => {
     message?: string;
   };
 
-  const normalizedCategory = String(category ?? "").trim().toLowerCase();
-  const allowedCategories = new Set(["notification", "glitch", "other"]);
-
-  if (!allowedCategories.has(normalizedCategory)) {
-    res.status(400).json({ error: "Problem type must be Notification, Glitch, or Other" });
-    return;
-  }
+  void category;
+  const storedCategory = "problem";
 
   if (!message?.trim()) {
     res.status(400).json({ error: "Please describe the problem" });
@@ -101,7 +96,7 @@ router.post("/customer/problems", requireAuth, async (req, res) => {
     return;
   }
 
-  const prettyCategory = normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1);
+  const prettyCategory = "Problem";
 
   const [row] = await db
     .insert(feedbackTable)
@@ -111,7 +106,7 @@ router.post("/customer/problems", requireAuth, async (req, res) => {
       company: customer.companyName || authReq.user.companyName || null,
       phoneNumber: customer.phoneNumber || null,
       source: "customer_problem",
-      category: normalizedCategory,
+      category: storedCategory,
       message: message.trim(),
     })
     .returning();
