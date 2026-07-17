@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGetMe, useListShipments } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -229,12 +229,8 @@ export default function CustomerDashboard() {
   const [accounts, setAccounts] = useState<SavedAccount[]>(() => savedAccounts());
   const [seenChangeTokens, setSeenChangeTokens] = useState<Set<string>>(() => new Set(readSeenChangeTokens()));
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState<Set<number>>(() => new Set());
-  const [showIntro, setShowIntro] = useState(true);
-  const [introMorphing, setIntroMorphing] = useState(false);
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
-  const logoTargetRef = useRef<HTMLImageElement | null>(null);
-  const [logoTarget, setLogoTarget] = useState<{ x: number; y: number } | null>(null);
   const { canInstall, promptInstall } = useInstallPrompt();
 
   useEffect(() => {
@@ -242,30 +238,6 @@ export default function CustomerDashboard() {
     saveAccount(localStorage.getItem("intf_token"), user);
     setAccounts(savedAccounts());
   }, [user]);
-
-  useEffect(() => {
-    const measure = () => {
-      const rect = logoTargetRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      setLogoTarget({
-        x: rect.left + rect.width / 2 - window.innerWidth / 2,
-        y: rect.top + rect.height / 2 - window.innerHeight / 2,
-      });
-    };
-    const frame = window.requestAnimationFrame(measure);
-    const morphTimer = window.setTimeout(() => {
-      measure();
-      setIntroMorphing(true);
-    }, 1500);
-    const hideTimer = window.setTimeout(() => setShowIntro(false), 3400);
-    window.addEventListener("resize", measure);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.clearTimeout(morphTimer);
-      window.clearTimeout(hideTimer);
-      window.removeEventListener("resize", measure);
-    };
-  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -501,20 +473,6 @@ export default function CustomerDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {showIntro && (
-        <div className="dashboard-intro-overlay" aria-hidden="true">
-          <div
-            className={`dashboard-intro-stage ${introMorphing && logoTarget ? "dashboard-intro-stage--morphing" : ""}`}
-            style={introMorphing && logoTarget ? {
-              ["--dashboard-intro-x" as string]: `${logoTarget.x}px`,
-              ["--dashboard-intro-y" as string]: `${logoTarget.y}px`,
-              ["--dashboard-intro-scale" as string]: `${40 / 180}`,
-            } : undefined}
-          >
-            <img src={CUSTOMER_BADGE_URL} alt="" className="dashboard-intro-logo" />
-          </div>
-        </div>
-      )}
       <NotificationOptIn storageKey="intf_push_prompt_customer" scope={{ type: "auth" }} />
       {/* Top bar */}
       <div className="bg-secondary text-secondary-foreground shadow-lg sticky top-0 z-40">
@@ -526,7 +484,7 @@ export default function CustomerDashboard() {
               className="shrink-0 rounded-xl transition-opacity duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               aria-label="Open dashboard menu"
             >
-              <img ref={logoTargetRef} src={CUSTOMER_BADGE_URL} alt={typedUser?.fullName || typedUser?.name || "Profile"} className={`h-10 w-10 rounded-xl object-cover border border-white/15 ${showIntro ? "opacity-0" : "opacity-100"}`} />
+              <img src={CUSTOMER_BADGE_URL} alt={typedUser?.fullName || typedUser?.name || "Profile"} className="h-10 w-10 rounded-xl object-cover border border-white/15" />
             </button>
             {showQuickMenu && (
               <div className="absolute left-0 top-12 z-50 min-w-[180px] rounded-xl border border-white/10 bg-secondary/95 p-2 shadow-xl backdrop-blur">
