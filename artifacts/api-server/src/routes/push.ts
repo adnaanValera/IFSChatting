@@ -1,6 +1,6 @@
 import { Router, Request } from "express";
 import { requireAuth, AuthPayload } from "../middlewares/auth";
-import { deletePushSubscription, getPublicVapidKey, upsertPushSubscription } from "../lib/push";
+import { deletePushSubscription, getPublicVapidKey, sendPushToSubscription, upsertPushSubscription } from "../lib/push";
 
 const router = Router();
 
@@ -11,6 +11,17 @@ function parseSubscription(body: any) {
   const p256dh = String(body?.keys?.p256dh ?? "").trim();
   const auth = String(body?.keys?.auth ?? "").trim();
   return { endpoint, p256dh, auth };
+}
+
+async function sendWelcomePush(subscription: { endpoint: string; p256dh: string; auth: string }) {
+  await sendPushToSubscription(subscription, {
+    title: "InterFreight Solutions",
+    body: "Welcome to the InterFreight Solutions app, you will receive notifications about your shipments.",
+    url: "/dashboard",
+    tag: "welcome-to-interfreight-app",
+    iconType: "wave",
+    notificationType: "welcome",
+  });
 }
 
 router.get("/push/public-key", (_req, res) => {
@@ -31,6 +42,8 @@ router.post("/push/subscribe", requireAuth, async (req, res) => {
     userId: (req as AuthReq).user.userId,
     userAgent: req.get("user-agent"),
   });
+
+  await sendWelcomePush({ endpoint, p256dh, auth });
 
   res.status(204).send();
 });
@@ -61,6 +74,8 @@ router.post("/push/pending-subscribe", async (req, res) => {
     userAgent: req.get("user-agent"),
   });
 
+  await sendWelcomePush({ endpoint, p256dh, auth });
+
   res.status(204).send();
 });
 
@@ -78,6 +93,8 @@ router.post("/push/guest-subscribe", async (req, res) => {
     approvalToken: "__guest_install__",
     userAgent: req.get("user-agent"),
   });
+
+  await sendWelcomePush({ endpoint, p256dh, auth });
 
   res.status(204).send();
 });

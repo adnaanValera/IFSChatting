@@ -110,6 +110,10 @@ export async function sendPushToPendingSignup(approvalToken: string, payload: Pu
   await deliver(subscriptions, payload);
 }
 
+export async function sendPushToSubscription(subscription: StoredSubscription, payload: PushPayload) {
+  await deliver([subscription], payload);
+}
+
 export async function upsertPushSubscription(args: {
   endpoint: string;
   p256dh: string;

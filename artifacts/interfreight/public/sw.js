@@ -13,6 +13,7 @@ self.addEventListener("push", (event) => {
     truck: "🚚",
     pallet: "📦",
     announcement: "📢",
+    wave: "👋",
   };
   const prefix = data.iconType && iconMap[data.iconType] ? `${iconMap[data.iconType]} ` : "";
   const title = `${prefix}${data.title || "InterFreight Solutions"}`;
@@ -52,3 +53,4 @@ self.addEventListener("notificationclick", (event) => {
     if (clients.openWindow) await clients.openWindow(target);
   })());
 });
+
