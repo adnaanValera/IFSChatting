@@ -25,10 +25,6 @@ export default function AppInstallPage() {
   const authedHref = currentAccount?.role === "staff" || currentAccount?.role === "admin" ? "/staff/dashboard" : "/dashboard";
   const notificationScope = hasToken ? { type: "auth" as const } : { type: "guest" as const };
   const { canEnable, enable, isLoading: isEnablingNotifications, isSubscribed, permission, unsupportedReason } = usePushNotifications(notificationScope);
-  const isAndroid = /Android/i.test(userAgent);
-  const androidHelpKey = "intf_push_prompt_install_android_popup_help_done";
-  const [showAndroidHelper, setShowAndroidHelper] = useState(false);
-  const [showAndroidSteps, setShowAndroidSteps] = useState(false);
 
   useEffect(() => {
     if (hasToken) {
@@ -55,14 +51,6 @@ export default function AppInstallPage() {
     };
   }, [authedHref, canInstall, hasToken, installed, isIOS, isSubscribed, openedInApp, promptInstall]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!isAndroid) return;
-    if (!isSubscribed) return;
-    if (localStorage.getItem(androidHelpKey) === "1") return;
-    setShowAndroidHelper(true);
-  }, [androidHelpKey, isAndroid, isSubscribed]);
-
   const installHelpText = useMemo(() => {
     if (isIOS) {
       return "Press Install App and we will guide you through the final iPhone step. Once the app opens from your home screen, we will take you straight to login.";
@@ -72,14 +60,6 @@ export default function AppInstallPage() {
     }
     return "Install the InterFreight app first. Once it opens as the app, we will take you straight to login.";
   }, [canInstall, installed, isIOS]);
-
-  function dismissAndroidHelper() {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(androidHelpKey, "1");
-    }
-    setShowAndroidHelper(false);
-    setShowAndroidSteps(false);
-  }
 
   return (
     <div className="min-h-screen bg-background px-4 py-10 sm:py-14">
@@ -118,9 +98,6 @@ export default function AppInstallPage() {
                                 title: "Notifications enabled",
                                 description: "You can now install the InterFreight app.",
                               });
-                              if (isAndroid && typeof window !== "undefined" && localStorage.getItem(androidHelpKey) !== "1") {
-                                setShowAndroidHelper(true);
-                              }
                             }
                           })
                           .catch((error: any) => {
@@ -141,51 +118,6 @@ export default function AppInstallPage() {
                       <p className="mt-2 text-xs text-destructive">
                         Notifications were blocked on this device. Please allow them in your browser settings first.
                       </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {showAndroidHelper && (
-              <div className="rounded-xl border border-primary/15 bg-primary/5 px-4 py-4 text-left">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Bell size={18} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-extrabold text-secondary">One more quick Android step</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      To help your phone show InterFreight alerts properly, please allow pop-up notifications for your browser and remove battery restriction if alerts arrive late.
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowAndroidSteps((current) => !current)}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-secondary/15 px-3 py-2 text-xs font-semibold text-secondary transition-colors hover:bg-secondary/5"
-                      >
-                        <ExternalLink size={14} />
-                        {showAndroidSteps ? "Hide steps" : "Open settings steps"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={dismissAndroidHelper}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-secondary/92"
-                      >
-                        <X size={14} />
-                        I've done this
-                      </button>
-                    </div>
-                    {showAndroidSteps && (
-                      <div className="mt-3 rounded-xl border border-border bg-white/80 px-3 py-3 text-xs leading-relaxed text-muted-foreground">
-                        <p className="font-semibold text-secondary">On Android:</p>
-                        <ol className="mt-2 space-y-1.5">
-                          <li>1. Open Chrome app info, then tap Notifications.</li>
-                          <li>2. Allow pop-up or floating notifications.</li>
-                          <li>3. Allow lock screen notifications.</li>
-                          <li>4. If alerts feel delayed, set Battery to Unrestricted for Chrome.</li>
-                        </ol>
-                      </div>
                     )}
                   </div>
                 </div>
