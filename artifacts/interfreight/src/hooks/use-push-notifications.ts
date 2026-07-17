@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { isStandaloneDisplay, urlBase64ToUint8Array } from "@/lib/pwa";
 
-type Scope = { type: "auth" } | { type: "pending"; approvalToken: string };
+type Scope = { type: "auth" } | { type: "pending"; approvalToken: string } | { type: "guest" };
 
 function delay(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -48,16 +48,24 @@ async function fetchPublicKey() {
 
 async function upsertSubscription(scope: Scope, subscription: PushSubscription) {
   const token = localStorage.getItem("intf_token");
-  const endpoint = scope.type === "auth" ? "/api/push/subscribe" : "/api/push/pending-subscribe";
+  const endpoint = scope.type === "auth"
+    ? "/api/push/subscribe"
+    : scope.type === "pending"
+      ? "/api/push/pending-subscribe"
+      : "/api/push/guest-subscribe";
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(scope.type === "auth" && token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify(scope.type === "auth"
-      ? subscription.toJSON()
-      : { approvalToken: scope.approvalToken, ...subscription.toJSON() }),
+    body: JSON.stringify(
+      scope.type === "auth"
+        ? subscription.toJSON()
+        : scope.type === "pending"
+          ? { approvalToken: scope.approvalToken, ...subscription.toJSON() }
+          : subscription.toJSON(),
+    ),
   });
   if (!response.ok) {
     const message = await response.text().catch(() => "");

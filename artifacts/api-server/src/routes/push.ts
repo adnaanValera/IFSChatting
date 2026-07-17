@@ -64,6 +64,24 @@ router.post("/push/pending-subscribe", async (req, res) => {
   res.status(204).send();
 });
 
+router.post("/push/guest-subscribe", async (req, res) => {
+  const { endpoint, p256dh, auth } = parseSubscription(req.body);
+  if (!endpoint || !p256dh || !auth) {
+    res.status(400).json({ error: "Invalid push subscription" });
+    return;
+  }
+
+  await upsertPushSubscription({
+    endpoint,
+    p256dh,
+    auth,
+    approvalToken: "__guest_install__",
+    userAgent: req.get("user-agent"),
+  });
+
+  res.status(204).send();
+});
+
 router.delete("/push/pending-subscribe", async (req, res) => {
   const approvalToken = String(req.body?.approvalToken ?? "").trim();
   const endpoint = String(req.body?.endpoint ?? "").trim();

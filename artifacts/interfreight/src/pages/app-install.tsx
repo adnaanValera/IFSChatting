@@ -13,7 +13,6 @@ import { useToast } from "@/hooks/use-toast";
 export default function AppInstallPage() {
   const { toast } = useToast();
   const { canInstall, installed, promptInstall } = useInstallPrompt();
-  const { canEnable, enable, isLoading: isEnablingNotifications, isSubscribed, permission, unsupportedReason } = usePushNotifications({ type: "auth" });
   const [isPrompting, setIsPrompting] = useState(false);
   const [showIosInstallHelp, setShowIosInstallHelp] = useState(false);
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
@@ -24,6 +23,8 @@ export default function AppInstallPage() {
   const hasToken = !!currentToken;
   const currentAccount = currentToken ? savedAccounts().find((account) => account.token === currentToken) : null;
   const authedHref = currentAccount?.role === "staff" || currentAccount?.role === "admin" ? "/staff/dashboard" : "/dashboard";
+  const notificationScope = hasToken ? { type: "auth" as const } : { type: "guest" as const };
+  const { canEnable, enable, isLoading: isEnablingNotifications, isSubscribed, permission, unsupportedReason } = usePushNotifications(notificationScope);
 
   useEffect(() => {
     if (hasToken) {
