@@ -140,13 +140,15 @@ export async function upsertPushSubscription(args: {
 
   if (existing) {
     await db.update(pushSubscriptionsTable).set(values).where(eq(pushSubscriptionsTable.id, existing.id));
-    return;
+    return { created: false as const };
   }
 
   await db.insert(pushSubscriptionsTable).values({
     ...values,
     createdAt: new Date(),
   });
+
+  return { created: true as const };
 }
 
 export async function deletePushSubscription(endpoint: string, userId?: number | null, approvalToken?: string | null) {

@@ -35,7 +35,7 @@ router.post("/push/subscribe", requireAuth, async (req, res) => {
     return;
   }
 
-  await upsertPushSubscription({
+  const result = await upsertPushSubscription({
     endpoint,
     p256dh,
     auth,
@@ -43,7 +43,9 @@ router.post("/push/subscribe", requireAuth, async (req, res) => {
     userAgent: req.get("user-agent"),
   });
 
-  await sendWelcomePush({ endpoint, p256dh, auth });
+  if (result.created) {
+    await sendWelcomePush({ endpoint, p256dh, auth });
+  }
 
   res.status(204).send();
 });
@@ -66,7 +68,7 @@ router.post("/push/pending-subscribe", async (req, res) => {
     return;
   }
 
-  await upsertPushSubscription({
+  const result = await upsertPushSubscription({
     endpoint,
     p256dh,
     auth,
@@ -74,7 +76,9 @@ router.post("/push/pending-subscribe", async (req, res) => {
     userAgent: req.get("user-agent"),
   });
 
-  await sendWelcomePush({ endpoint, p256dh, auth });
+  if (result.created) {
+    await sendWelcomePush({ endpoint, p256dh, auth });
+  }
 
   res.status(204).send();
 });
@@ -86,7 +90,7 @@ router.post("/push/guest-subscribe", async (req, res) => {
     return;
   }
 
-  await upsertPushSubscription({
+  const result = await upsertPushSubscription({
     endpoint,
     p256dh,
     auth,
@@ -94,7 +98,9 @@ router.post("/push/guest-subscribe", async (req, res) => {
     userAgent: req.get("user-agent"),
   });
 
-  await sendWelcomePush({ endpoint, p256dh, auth });
+  if (result.created) {
+    await sendWelcomePush({ endpoint, p256dh, auth });
+  }
 
   res.status(204).send();
 });
