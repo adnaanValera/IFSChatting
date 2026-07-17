@@ -751,7 +751,7 @@ async function notifyCustomersOfStatusChange(args: {
     const actionUrl = `/dashboard?search=${focusValue}&changed=1`;
     await db.insert(notificationsTable).values({
       userId,
-      title: "Changes",
+      title: "InterFreightSolutions",
       message: `${label}: ${detailText}`,
       ifsRef: args.ifsRef,
       companyName: args.companyName,
@@ -763,7 +763,7 @@ async function notifyCustomersOfStatusChange(args: {
       actionUrl,
     });
     await sendPushToUser(userId, {
-      title: "Changes",
+      title: "InterFreightSolutions",
       body: "Tap to view more.",
       url: actionUrl,
       tag: `shipment-${args.ifsRef}-${Date.now()}`,

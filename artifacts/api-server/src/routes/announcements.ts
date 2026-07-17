@@ -118,7 +118,7 @@ router.put("/staff/announcements/current", requireAuth, requireStaff, async (req
           : "/dashboard?focus=announcement");
         return {
           userId,
-          title: "Announcement",
+          title: "InterFreightSolutions",
           message: cleanMessage,
           companyName: "InterFreight Solutions",
           status: "Announcement",
@@ -133,7 +133,7 @@ router.put("/staff/announcements/current", requireAuth, requireStaff, async (req
 
     await Promise.all(recipientIds.map((userId) =>
       sendPushToUser(userId, {
-        title: "Announcement",
+        title: "InterFreightSolutions",
         body: "Tap to open.",
         url: userId === authReq.user.userId ? "/staff/dashboard?tab=overview&focus=announcement" : (staffAndAdmins.some((row) => row.id === userId)
           ? "/staff/dashboard?tab=overview&focus=announcement"
