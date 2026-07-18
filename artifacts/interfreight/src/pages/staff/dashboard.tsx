@@ -24,6 +24,7 @@ import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { saveAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
+import { isStandaloneDisplay } from "@/lib/pwa";
 import { Spinner } from "@/components/ui/spinner";
 
 type Tab = "overview" | "import" | "history" | "messages" | "problems" | "cards" | "authorize" | "asycuda" | "activity";
@@ -40,6 +41,7 @@ type Announcement = {
 };
 
 type CompanyItem = { id: number; companyName: string; shipmentCount: number };
+const WEB_APP_ICON_REFRESH_KEY = "intf_web_app_icon_refresh_2026_07";
 type PendingSignup = {
   id: number;
   fullName: string;
@@ -354,6 +356,10 @@ export default function Dashboard() {
   const templateFileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const { canInstall, installed, promptInstall } = useInstallPrompt();
+  const [showWebAppRefresh, setShowWebAppRefresh] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem(WEB_APP_ICON_REFRESH_KEY);
+  });
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [isMasterUploading, setIsMasterUploading] = useState(false);
@@ -383,6 +389,13 @@ export default function Dashboard() {
   const [announcementCustomers, setAnnouncementCustomers] = useState<AnnouncementCustomer[]>([]);
   const [announcementTargetIds, setAnnouncementTargetIds] = useState<number[]>([]);
   const [pendingSignups, setPendingSignups] = useState<PendingSignup[]>([]);
+
+  const dismissWebAppRefresh = () => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(WEB_APP_ICON_REFRESH_KEY, "done");
+    }
+    setShowWebAppRefresh(false);
+  };
   const [signupHistory, setSignupHistory] = useState<PendingSignup[]>([]);
   const [pendingSignupsLoading, setPendingSignupsLoading] = useState(false);
   const [pendingSignupAction, setPendingSignupAction] = useState<string | null>(null);
@@ -1328,6 +1341,9 @@ export default function Dashboard() {
       icon: <AlertTriangle size={20} />,
       tone: "bg-amber-50 text-amber-700 border-amber-100",
     },
+  ];
+
+  const activityCards = [
     {
       id: "nearby" as const,
       label: "Arriving Soon",
@@ -1343,6 +1359,14 @@ export default function Dashboard() {
       value: newConsignments.length,
       icon: <Package size={20} />,
       tone: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    },
+    {
+      id: "activity" as const,
+      label: "Recent Activity",
+      helper: "Important shipment changes from the latest upload",
+      value: recentUpdates.length,
+      icon: <Clock size={20} />,
+      tone: "bg-slate-100 text-slate-700 border-slate-200",
     },
   ];
 
@@ -1640,6 +1664,19 @@ export default function Dashboard() {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
+                {showWebAppRefresh && (installed || isStandaloneDisplay()) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dismissWebAppRefresh();
+                      setLocation("/app-install?refresh=1");
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-secondary/15 bg-secondary/5 px-4 py-3 text-sm font-semibold text-secondary transition-colors hover:bg-secondary/10"
+                  >
+                    <Download size={16} />
+                    Update App Icon
+                  </button>
+                )}
                 {canInstall && (
                   <button
                     type="button"
@@ -1898,28 +1935,131 @@ export default function Dashboard() {
               <section className="space-y-4">
                 <div className="flex flex-col gap-1">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Recent Activity</p>
-                  <h3 className="text-xl font-extrabold text-secondary">Latest shipment changes</h3>
-                  <p className="text-sm text-muted-foreground">Only important changes from the latest upload are shown here.</p>
+                  <h3 className="text-xl font-extrabold text-secondary">Latest shipment changes and arrivals</h3>
+                  <p className="text-sm text-muted-foreground">Arriving soon, new consignments, and recent shipment changes are kept together here.</p>
                 </div>
 
-                <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedOverviewPanel(prev => prev === "activity" ? null : "activity")}
-                    className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
-                  >
-                    <span className="flex items-center gap-2 min-w-0">
-                      <Clock size={18} className="text-primary shrink-0" />
-                      <span className="font-bold text-secondary truncate">Recent Activity</span>
-                    </span>
-                    <span className="flex items-center gap-3 shrink-0">
-                      <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
-                        {recentUpdates.length}
-                      </span>
-                      <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "activity" ? "rotate-90" : ""}`} />
-                    </span>
-                  </button>
-                  {expandedOverviewPanel === "activity" && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                  {activityCards.map((card) => {
+                    const isExpanded = expandedOverviewPanel === card.id;
+                    const hasItems = card.value > 0;
+                    return (
+                      <div key={card.id} className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedOverviewPanel((prev) => prev === card.id ? null : card.id)}
+                          className="w-full p-5 text-left hover:bg-muted/20 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">{card.label}</p>
+                              <h3 className="text-3xl font-extrabold text-secondary">{card.value}</h3>
+                              <p className="mt-2 text-xs text-muted-foreground">{card.helper}</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <div className={`rounded-xl border px-3 py-3 ${card.tone} ${hasItems ? "animate-pulse shadow-[0_0_18px_rgba(191,33,49,0.12)]" : ""}`}>
+                                {card.icon}
+                              </div>
+                              <ChevronRight size={16} className={`text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                            </div>
+                          </div>
+                        </button>
+
+                        {card.id === "nearby" && isExpanded && renderOperationalAlertTable(
+                          operationalAlerts?.nearbyConsignments ?? [],
+                          "ETA",
+                          "No ETA consignments within the next 15 days",
+                          operationalAlertsLoading,
+                        )}
+                        {card.id === "new" && isExpanded && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                              <thead className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
+                                <tr>
+                                  <th className="px-5 py-3">Identifier</th>
+                                  <th className="px-5 py-3">Consignee</th>
+                                  <th className="px-5 py-3">Shipper</th>
+                                  <th className="px-5 py-3">Description</th>
+                                  <th className="px-5 py-3">Invoice</th>
+                                  <th className="px-5 py-3">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border">
+                                {newConsignments.map((item: any) => (
+                                  <tr key={item.id} className="hover:bg-muted/20 transition-colors">
+                                    <td className="px-5 py-3.5 font-semibold text-secondary whitespace-nowrap">{item.identifier || item.containerNo || item.ifsRef}</td>
+                                    <td className="px-5 py-3.5 text-muted-foreground">{item.consignee || item.companyName || "N/A"}</td>
+                                    <td className="px-5 py-3.5 text-muted-foreground">{item.shipper || "N/A"}</td>
+                                    <td className="px-5 py-3.5 text-muted-foreground min-w-[220px]">{item.cargoDescription || "N/A"}</td>
+                                    <td className="px-5 py-3.5 text-muted-foreground">{item.invoiceNo || "N/A"}</td>
+                                    <td className="px-5 py-3.5"><StatusBadge status={item.status || "New"} /></td>
+                                  </tr>
+                                ))}
+                                {!newConsignments.length && (
+                                  <tr>
+                                    <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground text-sm">
+                                      No new consignments found in the latest upload
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                        {card.id === "activity" && isExpanded && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                              <thead className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
+                                <tr>
+                                  <th className="px-5 py-3">Reference</th>
+                                  <th className="px-5 py-3">Company</th>
+                                  <th className="px-5 py-3">Changes</th>
+                                  <th className="px-5 py-3 text-right">Updated</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border">
+                                {recentUpdates.map((activity: any) => (
+                                  <tr key={activity.id} className="hover:bg-muted/20 transition-colors">
+                                    <td className="px-5 py-3.5 font-semibold text-secondary">{activity.ifsRef}</td>
+                                    <td className="px-5 py-3.5 text-muted-foreground">{activity.companyName}</td>
+                                    <td className="px-5 py-3.5 min-w-[260px]">
+                                      <div className="space-y-2">
+                                        {(activity.changes ?? []).slice(0, 4).map((change: any, index: number) => (
+                                          <div key={`${activity.id}-${change.field}-${index}`} className="text-xs">
+                                            <span className="font-semibold text-secondary">{change.field}: </span>
+                                            <span className="text-muted-foreground line-through decoration-muted-foreground/50">{change.oldValue || "N/A"}</span>
+                                            <span className="mx-1 font-semibold text-primary">-&gt;</span>
+                                            <span className="font-semibold text-secondary">{change.newValue || "N/A"}</span>
+                                          </div>
+                                        ))}
+                                        {(activity.changes ?? []).length > 4 && (
+                                          <p className="text-xs text-muted-foreground">+{(activity.changes ?? []).length - 4} more change(s)</p>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="px-5 py-3.5 text-right text-muted-foreground whitespace-nowrap text-xs">
+                                      {formatDate(activity.lastUpdated)}
+                                    </td>
+                                  </tr>
+                                ))}
+                                {!recentUpdates.length && (
+                                  <tr>
+                                    <td colSpan={4} className="px-5 py-10 text-center text-muted-foreground text-sm">
+                                      No changes found in the latest upload
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* compatibility state support for existing direct links */}
+                {false && expandedOverviewPanel === "activity" && (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
                           <thead className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
@@ -1966,7 +2106,6 @@ export default function Dashboard() {
                         </table>
                     </div>
                   )}
-                </div>
               </section>
             </div>
           )}

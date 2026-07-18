@@ -21,6 +21,7 @@ import { formatDateOnly } from "@/lib/utils";
 
 const CUSTOMER_BADGE_URL = "/ifs-app-premium.png";
 const READ_CHANGES_STORAGE_KEY = "intf_read_status_changes_v2";
+const WEB_APP_ICON_REFRESH_KEY = "intf_web_app_icon_refresh_2026_07";
 
 const STATUS_SECTIONS = [
   { label: "Shipments In Malawi", reportLabel: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
@@ -231,13 +232,24 @@ export default function CustomerDashboard() {
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState<Set<number>>(() => new Set());
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
-  const { canInstall, promptInstall } = useInstallPrompt();
+  const { canInstall, installed, promptInstall } = useInstallPrompt();
+  const [showWebAppRefresh, setShowWebAppRefresh] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem(WEB_APP_ICON_REFRESH_KEY);
+  });
 
   useEffect(() => {
     if (!user) return;
     saveAccount(localStorage.getItem("intf_token"), user);
     setAccounts(savedAccounts());
   }, [user]);
+
+  const dismissWebAppRefresh = () => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(WEB_APP_ICON_REFRESH_KEY, "done");
+    }
+    setShowWebAppRefresh(false);
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -584,6 +596,19 @@ export default function CustomerDashboard() {
               ))}
             </div>
             <div className="flex flex-wrap gap-3">
+              {showWebAppRefresh && (installed || isStandaloneDisplay()) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissWebAppRefresh();
+                    setLocation("/app-install?refresh=1");
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-secondary/15 bg-secondary/5 px-4 py-3 text-sm font-semibold text-secondary transition-colors hover:bg-secondary/10"
+                >
+                  <Download size={16} />
+                  Update app icon
+                </button>
+              )}
               {canInstall && (
                 <button
                   type="button"

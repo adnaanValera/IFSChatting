@@ -18,6 +18,7 @@ export default function AppInstallPage() {
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
   const isIOS = /iPad|iPhone|iPod/i.test(userAgent);
   const openedInApp = isStandaloneDisplay();
+  const refreshMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("refresh") === "1";
   const isWaitingForPrompt = !isIOS && !installed && !openedInApp && !canInstall;
   const currentToken = typeof window !== "undefined" ? localStorage.getItem("intf_token") : null;
   const hasToken = !!currentToken;
@@ -27,6 +28,7 @@ export default function AppInstallPage() {
   const { canEnable, enable, isLoading: isEnablingNotifications, isSubscribed, permission, unsupportedReason } = usePushNotifications(notificationScope);
 
   useEffect(() => {
+    if (refreshMode) return;
     if (hasToken) {
       window.location.replace(authedHref);
       return;
@@ -49,9 +51,12 @@ export default function AppInstallPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [authedHref, canInstall, hasToken, installed, isIOS, isSubscribed, openedInApp, promptInstall]);
+  }, [authedHref, canInstall, hasToken, installed, isIOS, isSubscribed, openedInApp, promptInstall, refreshMode]);
 
   const installHelpText = useMemo(() => {
+    if (refreshMode) {
+      return "To refresh the new app icon, remove the old InterFreight web app from your phone first, then install it again from your browser.";
+    }
     if (isIOS) {
       return "Press Install App and we will guide you through the final iPhone step. Once the app opens from your home screen, we will take you straight to login.";
     }
@@ -59,7 +64,7 @@ export default function AppInstallPage() {
       return "If your phone does not show the install prompt immediately, use your browser menu and choose Install App or Add to Home Screen.";
     }
     return "Install the InterFreight app first. Once it opens as the app, we will take you straight to login.";
-  }, [canInstall, installed, isIOS]);
+  }, [canInstall, installed, isIOS, refreshMode]);
 
   return (
     <div className="min-h-screen bg-background px-4 py-10 sm:py-14">
@@ -71,13 +76,13 @@ export default function AppInstallPage() {
             {isPrompting || isWaitingForPrompt ? <Spinner className="h-8 w-8" /> : <Smartphone size={28} />}
           </div>
 
-          <h1 className="text-2xl font-extrabold text-secondary sm:text-3xl">Wait a few seconds for it to be installed</h1>
+          <h1 className="text-2xl font-extrabold text-secondary sm:text-3xl">{refreshMode ? "Update your app icon" : "Wait a few seconds for it to be installed"}</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
             {installHelpText}
           </p>
 
           <div className="mt-6 space-y-3">
-            {!isSubscribed && (
+            {!refreshMode && !isSubscribed && (
               <div className="rounded-xl border border-primary/15 bg-primary/5 px-4 py-4 text-left">
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -124,6 +129,17 @@ export default function AppInstallPage() {
               </div>
             )}
 
+            {refreshMode && (
+              <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-left text-xs leading-relaxed text-muted-foreground">
+                <p className="font-semibold text-secondary">Quick steps</p>
+                <ol className="mt-2 space-y-1">
+                  <li>1. Remove the old InterFreight web app from your device.</li>
+                  <li>2. Open this page in your browser, not inside the installed app.</li>
+                  <li>3. Press <span className="font-semibold text-secondary">Install App</span> again to get the new icon.</li>
+                </ol>
+              </div>
+            )}
+
             {!installed && (
               <button
                 type="button"
@@ -136,11 +152,11 @@ export default function AppInstallPage() {
                   setIsPrompting(true);
                   void promptInstall().finally(() => setIsPrompting(false));
                 }}
-                disabled={isPrompting || !isSubscribed || (!isIOS && !canInstall)}
+                disabled={isPrompting || (!refreshMode && !isSubscribed) || (!isIOS && !canInstall)}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-bold text-white transition-all hover:bg-primary/90 disabled:opacity-70"
               >
                 {isPrompting ? <Spinner className="h-4 w-4" /> : <Download size={16} />}
-                {!isSubscribed ? "Enable notifications first" : isWaitingForPrompt ? "Please wait..." : "Install App"}
+                {!refreshMode && !isSubscribed ? "Enable notifications first" : isWaitingForPrompt ? "Please wait..." : "Install App"}
               </button>
             )}
 
