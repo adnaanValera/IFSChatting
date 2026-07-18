@@ -414,8 +414,6 @@ async function processAsycudaWorkbook(
       const excelRow = sheet.getRow(r + 1);
       const chargeCell = excelRow.getCell(chargeCol + 1);
       const freightCell = excelRow.getCell(freightCol + 1);
-      const currentCharge = asycudaValueString(chargeCell.value);
-      const currentFreight = asycudaValueString(freightCell.value);
       const primaryMatch = matches[0]!;
       const primaryInvoice = isKashifAsycudaClient(primaryMatch.client) ? "Inclusive freight" : asycudaValueString(primaryMatch.invoice);
       const distinctInvoices = [...new Set(matches
@@ -424,25 +422,18 @@ async function processAsycudaWorkbook(
       const secondaryInvoice = distinctInvoices[1];
 
       if (!secondaryInvoice) {
-        if (!currentCharge && primaryInvoice) {
+        if (primaryInvoice) {
           asycudaSetGreenCell(chargeCell, primaryInvoice);
           summary.charges++;
         }
-        if (currentFreight && currentFreight === primaryInvoice) {
-          if (!currentCharge && primaryInvoice) {
-            asycudaSetGreenCell(chargeCell, primaryInvoice);
-          }
-          asycudaClearCell(freightCell);
-        }
+        asycudaClearCell(freightCell);
       } else {
-        if (!currentCharge && primaryInvoice) {
+        if (primaryInvoice) {
           asycudaSetGreenCell(chargeCell, primaryInvoice);
           summary.charges++;
         }
-        if (!currentFreight || currentFreight === primaryInvoice) {
-          asycudaSetGreenCell(freightCell, secondaryInvoice);
-          summary.freight++;
-        }
+        asycudaSetGreenCell(freightCell, secondaryInvoice);
+        summary.freight++;
       }
     }
 
