@@ -318,10 +318,14 @@ function asycudaSetGreenCell(cell: ExcelJS.Cell, value: unknown) {
 
   cell.font = {
     name: "Calibri",
-    size: 11,
+    size: 8,
     bold: false,
     italic: false,
     color: { argb: "FF000000" },
+  };
+  cell.alignment = {
+    horizontal: "right",
+    vertical: "middle",
   };
   cell.fill = {
     type: "pattern",
@@ -395,8 +399,11 @@ async function processAsycudaWorkbook(
 
     for (let r = headerRow + 1; r < rows.length; r++) {
       const row = rows[r] ?? [];
-      const chargeBlank = asycudaValueString(row[chargeCol]) === "";
-      const freightBlank = asycudaValueString(row[freightCol]) === "";
+      const excelRow = sheet.getRow(r + 1);
+      const chargeCell = excelRow.getCell(chargeCol);
+      const freightCell = excelRow.getCell(freightCol);
+      const chargeBlank = asycudaValueString(chargeCell.value) === "";
+      const freightBlank = asycudaValueString(freightCell.value) === "";
       if (!chargeBlank && !freightBlank) continue;
       const type = asycudaValueString(row[typeCol]).toUpperCase();
       const number = asycudaValueString(row[numberCol]);
@@ -416,9 +423,6 @@ async function processAsycudaWorkbook(
         summary.ambiguous++;
         continue;
       }
-      const excelRow = sheet.getRow(r + 1);
-      const chargeCell = excelRow.getCell(chargeCol);
-      const freightCell = excelRow.getCell(freightCol);
       const primaryMatch = matches[0]!;
       const consigneeName = asycudaValueString(row[consCol]);
       const primaryInvoice = isKashifAsycudaConsignee(consigneeName) ? "Incl frt" : asycudaValueString(primaryMatch.invoice);
@@ -444,10 +448,10 @@ async function processAsycudaWorkbook(
     }
 
     for (let r = headerRow + 1; r < rows.length; r++) {
-      const row = rows[r] ?? [];
-      const chargeBlank = asycudaValueString(row[chargeCol]) === "";
+      const excelRow = sheet.getRow(r + 1);
+      const chargeBlank = asycudaValueString(excelRow.getCell(chargeCol).value) === "";
       if (chargeBlank) summary.remaining++;
-      sheet.getRow(r + 1).hidden = filterBlanks ? !chargeBlank : false;
+      excelRow.hidden = filterBlanks ? !chargeBlank : false;
     }
     if (filterBlanks && sheet.dimensions) {
       sheet.autoFilter = {
