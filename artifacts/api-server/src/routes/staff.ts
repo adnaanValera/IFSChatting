@@ -412,8 +412,8 @@ async function processAsycudaWorkbook(
         continue;
       }
       const excelRow = sheet.getRow(r + 1);
-      const chargeCell = excelRow.getCell(chargeCol + 1);
-      const freightCell = excelRow.getCell(freightCol + 1);
+      const chargeCell = excelRow.getCell(chargeCol);
+      const freightCell = excelRow.getCell(freightCol);
       const primaryMatch = matches[0]!;
       const primaryInvoice = isKashifAsycudaClient(primaryMatch.client) ? "Inclusive freight" : asycudaValueString(primaryMatch.invoice);
       const distinctInvoices = [...new Set(matches
