@@ -217,7 +217,7 @@ function shipmentSortText(shipment: Shipment): string {
     shipment.finalPortDestination ?? "",
     shipment.cargoDescription ?? "",
     ...Object.values(shipment.extraFields ?? {}).map((value) => String(value ?? "")),
-  ].join(" ");
+  ].join("  |  ");
 }
 
 function sortRowsForSection(label: string, rows: Shipment[]): Shipment[] {
@@ -1264,52 +1264,93 @@ export default function Dashboard() {
     dashboardStats?.sectionCounts?.find((section: { label: string; count: number }) => section.label === label)?.count ?? 0;
   const overviewCards = [
     {
-      label: "Total Containers",
+      label: "Total Consignments",
       value: dashboardStats?.totalContainers ?? 0,
-      note: "Managed in the system",
+      note: "All active shipments in the system",
       icon: <Package size={22} />,
       tone: "bg-blue-50 text-blue-600",
     },
     {
       label: "Companies",
       value: dashboardStats?.totalCompanies ?? 0,
-      note: "Active clients",
+      note: "Active customer accounts",
       icon: <Users size={22} />,
       tone: "bg-green-50 text-green-600",
     },
     {
-      label: "Shipments In Malawi",
+      label: "In Malawi",
       sectionLabel: "SHIPMENTS IN MALAWI",
       value: sectionCount("SHIPMENTS IN MALAWI"),
-      note: "Delivered or clearance",
+      note: "Already in Malawi or under clearance",
       icon: <CheckCircle2 size={22} />,
       tone: "bg-emerald-50 text-emerald-600",
     },
     {
-      label: "Shipments Enroute",
+      label: "Enroute",
       sectionLabel: "SHIPMENTS ENROUTE",
       value: sectionCount("SHIPMENTS ENROUTE"),
-      note: "Moving inland",
+      note: "Moving inland toward Malawi",
       icon: <Truck size={22} />,
       tone: "bg-amber-50 text-amber-600",
     },
     {
-      label: "Shipments At POD",
+      label: "At POD",
       sectionLabel: "SHIPMENTS AT POD",
       value: sectionCount("SHIPMENTS AT POD"),
-      note: "At discharge port",
+      note: "At port of discharge",
       icon: <Ship size={22} />,
       tone: "bg-indigo-50 text-indigo-600",
     },
     {
-      label: "Shipments On Sea",
+      label: "On Sea",
       sectionLabel: "SHIPMENTS ON SEA",
       value: sectionCount("SHIPMENTS ON SEA"),
-      note: "Sea freight stage",
+      note: "Currently on the sea leg",
       icon: <AlertTriangle size={22} />,
       tone: "bg-red-50 text-red-600",
     },
   ];
+
+  const priorityCards = [
+    {
+      id: "documents" as const,
+      label: "Documents Required",
+      helper: "Yellow-marked rows arriving within 15 days",
+      value: operationalAlerts?.documentsNeeded?.length ?? 0,
+      icon: <FileSpreadsheet size={20} />,
+      tone: "bg-red-50 text-red-700 border-red-100",
+    },
+    {
+      id: "mra" as const,
+      label: "Missing MRA Ref",
+      helper: "Enroute or Malawi shipments needing MRA Ref",
+      value: operationalAlerts?.mraRefNeeded?.length ?? 0,
+      icon: <AlertTriangle size={20} />,
+      tone: "bg-amber-50 text-amber-700 border-amber-100",
+    },
+    {
+      id: "nearby" as const,
+      label: "Arriving Soon",
+      helper: "ETA within the next 15 days",
+      value: operationalAlerts?.nearbyConsignments?.length ?? 0,
+      icon: <Clock size={20} />,
+      tone: "bg-blue-50 text-blue-700 border-blue-100",
+    },
+    {
+      id: "new" as const,
+      label: "New Consignments",
+      helper: "Added in the latest upload",
+      value: newConsignments.length,
+      icon: <Package size={20} />,
+      tone: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    },
+  ];
+
+  const prioritySummary = priorityCards
+    .filter((card) => card.value > 0)
+    .map((card) => `${card.value} ${card.label.toLowerCase()}`)
+    .slice(0, 4)
+    .join("  |  ");
 
   const primaryNavItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: "overview", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
@@ -1595,7 +1636,7 @@ export default function Dashboard() {
             <div className="space-y-8 max-w-6xl">
               <div>
                 <h2 className="text-2xl font-extrabold text-secondary mb-1">Dashboard</h2>
-                <p className="text-sm text-muted-foreground">Overview of all shipments and activity</p>
+                <p className="text-sm text-muted-foreground">Today&apos;s priorities, shipment overview, and recent activity in one place.</p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
@@ -1706,8 +1747,108 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Stats Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              <section className="space-y-4">
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Today&apos;s Priorities</p>
+                  <h3 className="text-xl font-extrabold text-secondary">What needs action now</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {prioritySummary || "No urgent shipment actions at the moment."}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+                  {priorityCards.map((card) => {
+                    const isExpanded = expandedOverviewPanel === card.id;
+                    const hasItems = card.value > 0;
+                    return (
+                      <div key={card.id} className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedOverviewPanel((prev) => prev === card.id ? null : card.id)}
+                          className="w-full p-5 text-left hover:bg-muted/20 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">{card.label}</p>
+                              <h3 className="text-3xl font-extrabold text-secondary">{card.value}</h3>
+                              <p className="mt-2 text-xs text-muted-foreground">{card.helper}</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <div className={`rounded-xl border px-3 py-3 ${card.tone} ${hasItems ? "animate-pulse shadow-[0_0_18px_rgba(191,33,49,0.12)]" : ""}`}>
+                                {card.icon}
+                              </div>
+                              <ChevronRight size={16} className={`text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                            </div>
+                          </div>
+                        </button>
+
+                        {card.id === "nearby" && isExpanded && renderOperationalAlertTable(
+                          operationalAlerts?.nearbyConsignments ?? [],
+                          "ETA",
+                          "No ETA consignments within the next 15 days",
+                          operationalAlertsLoading,
+                        )}
+                        {card.id === "documents" && isExpanded && renderOperationalAlertTable(
+                          operationalAlerts?.documentsNeeded ?? [],
+                          "ETA",
+                          "No yellow-marked document rows within the next 15 days",
+                          operationalAlertsLoading,
+                        )}
+                        {card.id === "mra" && isExpanded && renderOperationalAlertTable(
+                          operationalAlerts?.mraRefNeeded ?? [],
+                          "Status",
+                          "No enroute or Malawi consignments are missing MRA Ref",
+                          operationalAlertsLoading,
+                        )}
+                        {card.id === "new" && isExpanded && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                              <thead className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
+                                <tr>
+                                  <th className="px-5 py-3">Identifier</th>
+                                  <th className="px-5 py-3">Consignee</th>
+                                  <th className="px-5 py-3">Shipper</th>
+                                  <th className="px-5 py-3">Description</th>
+                                  <th className="px-5 py-3">Invoice</th>
+                                  <th className="px-5 py-3">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border">
+                                {newConsignments.map((item: any) => (
+                                  <tr key={item.id} className="hover:bg-muted/20 transition-colors">
+                                    <td className="px-5 py-3.5 font-semibold text-secondary whitespace-nowrap">{item.identifier || item.containerNo || item.ifsRef}</td>
+                                    <td className="px-5 py-3.5 text-muted-foreground">{item.consignee || item.companyName || "N/A"}</td>
+                                    <td className="px-5 py-3.5 text-muted-foreground">{item.shipper || "N/A"}</td>
+                                    <td className="px-5 py-3.5 text-muted-foreground min-w-[220px]">{item.cargoDescription || "N/A"}</td>
+                                    <td className="px-5 py-3.5 text-muted-foreground">{item.invoiceNo || "N/A"}</td>
+                                    <td className="px-5 py-3.5"><StatusBadge status={item.status || "New"} /></td>
+                                  </tr>
+                                ))}
+                                {!newConsignments.length && (
+                                  <tr>
+                                    <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground text-sm">
+                                      No new consignments found in the latest upload
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Shipment Overview</p>
+                  <h3 className="text-xl font-extrabold text-secondary">Where consignments currently are</h3>
+                  <p className="text-sm text-muted-foreground">Open a card to see the status details inside each shipment group.</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                 {overviewCards.map((card: any) => {
                   const sectionDetails = card.sectionLabel
                     ? (statusBreakdown as any[])?.find((item) => item.status === card.sectionLabel)
@@ -1751,183 +1892,35 @@ export default function Dashboard() {
                   </div>
                   );
                 })}
-              </div>
+                </div>
+              </section>
 
-              <div className="space-y-3">
-                <div className="space-y-3">
-                  <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedOverviewPanel(prev => prev === "nearby" ? null : "nearby")}
-                      className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
-                    >
-                      <span className="flex items-center gap-2 min-w-0">
-                        <Clock size={18} className="text-primary shrink-0" />
-                        <span className="font-bold text-secondary truncate">Nearby Consignments</span>
-                      </span>
-                      <span className="flex items-center gap-3 shrink-0">
-                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
-                          {operationalAlerts?.nearbyConsignments?.length ?? 0}
-                        </span>
-                        <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "nearby" ? "rotate-90" : ""}`} />
-                      </span>
-                    </button>
-                    {expandedOverviewPanel === "nearby" && renderOperationalAlertTable(
-                      operationalAlerts?.nearbyConsignments ?? [],
-                      "ETA",
-                      "No ETA consignments within the next 15 days",
-                      operationalAlertsLoading,
-                    )}
-                  </div>
+              <section className="space-y-4">
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Recent Activity</p>
+                  <h3 className="text-xl font-extrabold text-secondary">Latest shipment changes</h3>
+                  <p className="text-sm text-muted-foreground">Only important changes from the latest upload are shown here.</p>
+                </div>
 
-                  <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedOverviewPanel(prev => prev === "checking" ? null : "checking")}
-                      className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
-                    >
-                      <span className="flex items-center gap-2 min-w-0">
-                        <AlertTriangle size={18} className="text-primary shrink-0" />
-                        <span className="font-bold text-secondary truncate">Needs Checking</span>
+                <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedOverviewPanel(prev => prev === "activity" ? null : "activity")}
+                    className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <Clock size={18} className="text-primary shrink-0" />
+                      <span className="font-bold text-secondary truncate">Recent Activity</span>
+                    </span>
+                    <span className="flex items-center gap-3 shrink-0">
+                      <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
+                        {recentUpdates.length}
                       </span>
-                      <span className="flex items-center gap-3 shrink-0">
-                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
-                          {operationalAlerts?.needsChecking?.length ?? 0}
-                        </span>
-                        <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "checking" ? "rotate-90" : ""}`} />
-                      </span>
-                    </button>
-                    {expandedOverviewPanel === "checking" && renderOperationalAlertTable(
-                      operationalAlerts?.needsChecking ?? [],
-                      "MRA Ref",
-                      "No consignments currently need entry checking",
-                      operationalAlertsLoading,
-                    )}
-                  </div>
-
-                  <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedOverviewPanel(prev => prev === "documents" ? null : "documents")}
-                      className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
-                    >
-                      <span className="flex items-center gap-2 min-w-0">
-                        <FileSpreadsheet size={18} className="text-primary shrink-0" />
-                        <span className="font-bold text-secondary truncate">Documents needed!!!</span>
-                      </span>
-                      <span className="flex items-center gap-3 shrink-0">
-                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
-                          {operationalAlerts?.documentsNeeded?.length ?? 0}
-                        </span>
-                        <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "documents" ? "rotate-90" : ""}`} />
-                      </span>
-                    </button>
-                    {expandedOverviewPanel === "documents" && renderOperationalAlertTable(
-                      operationalAlerts?.documentsNeeded ?? [],
-                      "ETA",
-                      "No yellow-marked document rows within the next 15 days",
-                      operationalAlertsLoading,
-                    )}
-                  </div>
-
-                  <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedOverviewPanel(prev => prev === "mra" ? null : "mra")}
-                      className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
-                    >
-                      <span className="flex items-center gap-2 min-w-0">
-                        <AlertTriangle size={18} className="text-primary shrink-0" />
-                        <span className="font-bold text-secondary truncate">MRA Ref needed!!!</span>
-                      </span>
-                      <span className="flex items-center gap-3 shrink-0">
-                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
-                          {operationalAlerts?.mraRefNeeded?.length ?? 0}
-                        </span>
-                        <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "mra" ? "rotate-90" : ""}`} />
-                      </span>
-                    </button>
-                    {expandedOverviewPanel === "mra" && renderOperationalAlertTable(
-                      operationalAlerts?.mraRefNeeded ?? [],
-                      "Status",
-                      "No enroute or Malawi consignments are missing MRA Ref",
-                      operationalAlertsLoading,
-                    )}
-                  </div>
-
-                  <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedOverviewPanel(prev => prev === "new" ? null : "new")}
-                      className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
-                    >
-                      <span className="flex items-center gap-2 min-w-0">
-                        <Package size={18} className="text-primary shrink-0" />
-                        <span className="font-bold text-secondary truncate">New Consignments</span>
-                      </span>
-                      <span className="flex items-center gap-3 shrink-0">
-                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
-                          {newConsignments.length}
-                        </span>
-                        <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "new" ? "rotate-90" : ""}`} />
-                      </span>
-                    </button>
-                    {expandedOverviewPanel === "new" && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                          <thead className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
-                            <tr>
-                              <th className="px-5 py-3">Identifier</th>
-                              <th className="px-5 py-3">Consignee</th>
-                              <th className="px-5 py-3">Shipper</th>
-                              <th className="px-5 py-3">Description</th>
-                              <th className="px-5 py-3">Invoice</th>
-                              <th className="px-5 py-3">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border">
-                            {newConsignments.map((item: any) => (
-                              <tr key={item.id} className="hover:bg-muted/20 transition-colors">
-                                <td className="px-5 py-3.5 font-semibold text-secondary whitespace-nowrap">{item.identifier || item.containerNo || item.ifsRef}</td>
-                                <td className="px-5 py-3.5 text-muted-foreground">{item.consignee || item.companyName || "N/A"}</td>
-                                <td className="px-5 py-3.5 text-muted-foreground">{item.shipper || "N/A"}</td>
-                                <td className="px-5 py-3.5 text-muted-foreground min-w-[220px]">{item.cargoDescription || "N/A"}</td>
-                                <td className="px-5 py-3.5 text-muted-foreground">{item.invoiceNo || "N/A"}</td>
-                                <td className="px-5 py-3.5"><StatusBadge status={item.status || "New"} /></td>
-                              </tr>
-                            ))}
-                            {!newConsignments.length && (
-                              <tr>
-                                <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground text-sm">
-                                  No new consignments found in the latest upload
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedOverviewPanel(prev => prev === "activity" ? null : "activity")}
-                      className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
-                    >
-                      <span className="flex items-center gap-2 min-w-0">
-                        <Clock size={18} className="text-primary shrink-0" />
-                        <span className="font-bold text-secondary truncate">Recent Activity</span>
-                      </span>
-                      <span className="flex items-center gap-3 shrink-0">
-                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
-                          {recentUpdates.length}
-                        </span>
-                        <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "activity" ? "rotate-90" : ""}`} />
-                      </span>
-                    </button>
-                    {expandedOverviewPanel === "activity" && (
-                      <div className="overflow-x-auto">
+                      <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "activity" ? "rotate-90" : ""}`} />
+                    </span>
+                  </button>
+                  {expandedOverviewPanel === "activity" && (
+                    <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
                           <thead className="bg-muted/40 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
                             <tr>
@@ -1971,12 +1964,10 @@ export default function Dashboard() {
                             )}
                           </tbody>
                         </table>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
-
-              </div>
+              </section>
             </div>
           )}
 
@@ -2914,3 +2905,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+
