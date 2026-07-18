@@ -397,12 +397,7 @@ async function processAsycudaWorkbook(
         summary.missing++;
         continue;
       }
-      const partyCandidates = type === "E"
-        ? [asycudaValueString(row[shipCol]), asycudaValueString(row[consCol])].filter(Boolean)
-        : [asycudaValueString(row[consCol]), asycudaValueString(row[shipCol])].filter(Boolean);
-      const matches = entries.filter((entry) =>
-        partyCandidates.some((party) => asycudaNamesMatch(party, entry.client)),
-      );
+      const matches = entries;
       if (!matches.length) {
         summary.mismatch++;
         continue;
