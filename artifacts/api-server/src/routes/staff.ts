@@ -299,31 +299,41 @@ function asycudaFindHeaderRow(rows: unknown[][], required: string[]): number {
 
 type AsycudaMasterEntry = { client: string; invoice: unknown; order: number };
 
-function isKashifAsycudaClient(value: unknown): boolean {
+function isKashifAsycudaConsignee(value: unknown): boolean {
   return asycudaValueString(value).toLowerCase().includes("kashif");
 }
 
 function asycudaSetGreenCell(cell: ExcelJS.Cell, value: unknown) {
   const normalizedValue = typeof value === "number" ? value : asycudaValueString(value);
-  const baseStyle = {
-    ...(cell.style ?? {}),
-  };
 
   // Some ASYCUDA templates use shared-formula clone cells. Replacing the cell
   // model with a plain value cell avoids ExcelJS throwing when we overwrite
   // those clones directly.
   (cell as ExcelJS.Cell & { model: Record<string, unknown> }).model = {
     address: cell.address,
-    style: baseStyle,
+    style: {},
     type: typeof normalizedValue === "number" ? ExcelJS.ValueType.Number : ExcelJS.ValueType.String,
     value: normalizedValue,
   };
 
+  cell.font = {
+    name: "Calibri",
+    size: 11,
+    bold: false,
+    italic: false,
+    color: { argb: "FF000000" },
+  };
   cell.fill = {
     type: "pattern",
     pattern: "solid",
     fgColor: { argb: "FF00B050" },
     bgColor: { argb: "FF00B050" },
+  };
+  cell.border = {
+    top: { style: "thin", color: { argb: "FF000000" } },
+    left: { style: "thin", color: { argb: "FF000000" } },
+    bottom: { style: "thin", color: { argb: "FF000000" } },
+    right: { style: "thin", color: { argb: "FF000000" } },
   };
 }
 
@@ -410,9 +420,10 @@ async function processAsycudaWorkbook(
       const chargeCell = excelRow.getCell(chargeCol);
       const freightCell = excelRow.getCell(freightCol);
       const primaryMatch = matches[0]!;
-      const primaryInvoice = isKashifAsycudaClient(primaryMatch.client) ? "Inclusive freight" : asycudaValueString(primaryMatch.invoice);
+      const consigneeName = asycudaValueString(row[consCol]);
+      const primaryInvoice = isKashifAsycudaConsignee(consigneeName) ? "Incl frt" : asycudaValueString(primaryMatch.invoice);
       const distinctInvoices = [...new Set(matches
-        .map((match, index) => index === 0 && isKashifAsycudaClient(match.client) ? "Inclusive freight" : asycudaValueString(match.invoice))
+        .map((match, index) => index === 0 && isKashifAsycudaConsignee(consigneeName) ? "Incl frt" : asycudaValueString(match.invoice))
         .filter(Boolean))];
       const secondaryInvoice = distinctInvoices[1];
 
