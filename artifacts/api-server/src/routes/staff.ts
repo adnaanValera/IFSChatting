@@ -174,6 +174,24 @@ const asycudaStopWords = new Set([
 
 function asycudaValueString(value: unknown): string {
   if (value === null || value === undefined) return "";
+  if (typeof value === "object") {
+    if ("richText" in (value as object)) {
+      return ((value as { richText?: Array<{ text?: string }> }).richText ?? [])
+        .map((part) => part.text ?? "")
+        .join("")
+        .trim();
+    }
+    if ("text" in (value as object) && typeof (value as { text?: unknown }).text === "string") {
+      return String((value as { text?: unknown }).text ?? "").trim();
+    }
+    if ("result" in (value as object)) {
+      return asycudaValueString((value as { result?: unknown }).result);
+    }
+    if ("formula" in (value as object) && "sharedFormula" in (value as object)) {
+      return asycudaValueString((value as { result?: unknown }).result);
+    }
+  }
+  if (value instanceof Date) return value.toISOString().split("T")[0] ?? "";
   return String(value).trim();
 }
 
@@ -322,8 +340,8 @@ async function buildAsycudaMasterIndex(workbook: ExcelJS.Workbook): Promise<Map<
   const index = new Map<string, AsycudaMasterEntry[]>();
   rows.slice(headerRow + 1).forEach((row, offset) => {
     const rawRefs = asycudaValueString(row?.[refCol]);
-    const invoice = row?.[invoiceCol];
-    if (!rawRefs || asycudaValueString(invoice) === "") return;
+    const invoice = asycudaValueString(row?.[invoiceCol]);
+    if (!rawRefs || invoice === "") return;
     const entry = { client: asycudaValueString(row?.[clientCol]), invoice, order: headerRow + 1 + offset };
     [...new Set(rawRefs.split(/[,;\r\n]+/).map(asycudaNormalizeKey).filter(Boolean))].forEach((key) => {
       if (!index.has(key)) index.set(key, []);
