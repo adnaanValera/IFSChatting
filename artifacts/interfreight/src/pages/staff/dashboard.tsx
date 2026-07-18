@@ -289,7 +289,7 @@ function renderShipmentSections(shipments: Shipment[]) {
 
 function renderOperationalAlertTable(
   items: OperationalAlert[],
-  primaryLabel: "ETA" | "MRA Ref",
+  primaryLabel: "ETA" | "MRA Ref" | "Status",
   emptyText: string,
   loading: boolean,
 ) {
@@ -323,7 +323,11 @@ function renderOperationalAlertTable(
           {items.map((item) => (
             <tr key={`${primaryLabel}-${item.id}`} className="hover:bg-muted/20 transition-colors">
               <td className="px-4 py-3 font-bold text-secondary whitespace-nowrap">
-                {primaryLabel === "ETA" && item.eta ? formatDateOnly(item.eta) : item.mraRef}
+                {primaryLabel === "ETA"
+                  ? (item.eta ? formatDateOnly(item.eta) : "N/A")
+                  : primaryLabel === "MRA Ref"
+                    ? item.mraRef
+                    : (item.status || "N/A")}
               </td>
               <td className="px-4 py-3 font-semibold text-secondary whitespace-nowrap">{item.identifier}</td>
               <td className="px-4 py-3 text-muted-foreground">{item.consignee}</td>
@@ -367,7 +371,7 @@ export default function Dashboard() {
   const [deletingFeedbackId, setDeletingFeedbackId] = useState<number | null>(null);
   const [expandedFeedback, setExpandedFeedback] = useState<number | null>(null);
   const [expandedStatusSection, setExpandedStatusSection] = useState<string | null>(null);
-  const [expandedOverviewPanel, setExpandedOverviewPanel] = useState<"nearby" | "checking" | "new" | "activity" | null>(null);
+  const [expandedOverviewPanel, setExpandedOverviewPanel] = useState<"nearby" | "checking" | "documents" | "mra" | "new" | "activity" | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [replyTexts, setReplyTexts] = useState<Record<number, string>>({});
   const [sendingReply, setSendingReply] = useState<number | null>(null);
@@ -401,6 +405,8 @@ export default function Dashboard() {
   const [operationalAlerts, setOperationalAlerts] = useState<{
     nearbyConsignments: OperationalAlert[];
     needsChecking: OperationalAlert[];
+    documentsNeeded: OperationalAlert[];
+    mraRefNeeded: OperationalAlert[];
   } | null>(null);
   const [operationalAlertsLoading, setOperationalAlertsLoading] = useState(false);
 
@@ -537,7 +543,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Failed to load operational alerts");
       setOperationalAlerts(await res.json());
     } catch {
-      setOperationalAlerts({ nearbyConsignments: [], needsChecking: [] });
+      setOperationalAlerts({ nearbyConsignments: [], needsChecking: [], documentsNeeded: [], mraRefNeeded: [] });
     } finally {
       setOperationalAlertsLoading(false);
     }
@@ -1795,6 +1801,56 @@ export default function Dashboard() {
                       operationalAlerts?.needsChecking ?? [],
                       "MRA Ref",
                       "No consignments currently need entry checking",
+                      operationalAlertsLoading,
+                    )}
+                  </div>
+
+                  <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedOverviewPanel(prev => prev === "documents" ? null : "documents")}
+                      className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <FileSpreadsheet size={18} className="text-primary shrink-0" />
+                        <span className="font-bold text-secondary truncate">Documents needed!!!</span>
+                      </span>
+                      <span className="flex items-center gap-3 shrink-0">
+                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
+                          {operationalAlerts?.documentsNeeded?.length ?? 0}
+                        </span>
+                        <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "documents" ? "rotate-90" : ""}`} />
+                      </span>
+                    </button>
+                    {expandedOverviewPanel === "documents" && renderOperationalAlertTable(
+                      operationalAlerts?.documentsNeeded ?? [],
+                      "ETA",
+                      "No yellow-marked document rows within the next 15 days",
+                      operationalAlertsLoading,
+                    )}
+                  </div>
+
+                  <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedOverviewPanel(prev => prev === "mra" ? null : "mra")}
+                      className="w-full p-5 flex items-center justify-between gap-4 text-left bg-muted/20 hover:bg-muted/30 transition-colors"
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        <AlertTriangle size={18} className="text-primary shrink-0" />
+                        <span className="font-bold text-secondary truncate">MRA Ref needed!!!</span>
+                      </span>
+                      <span className="flex items-center gap-3 shrink-0">
+                        <span className="font-bold text-secondary bg-muted px-3 py-1 rounded-md text-sm">
+                          {operationalAlerts?.mraRefNeeded?.length ?? 0}
+                        </span>
+                        <ChevronRight size={16} className={`text-muted-foreground transition-transform ${expandedOverviewPanel === "mra" ? "rotate-90" : ""}`} />
+                      </span>
+                    </button>
+                    {expandedOverviewPanel === "mra" && renderOperationalAlertTable(
+                      operationalAlerts?.mraRefNeeded ?? [],
+                      "Status",
+                      "No enroute or Malawi consignments are missing MRA Ref",
                       operationalAlertsLoading,
                     )}
                   </div>

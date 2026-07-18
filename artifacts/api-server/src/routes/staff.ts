@@ -631,6 +631,12 @@ function sameText(a: unknown, b: unknown): boolean {
   return (a ?? "") === (b ?? "");
 }
 
+function cellHasYellowFill(cell: ExcelJS.Cell | undefined): boolean {
+  const color = cell?.fill && "fgColor" in cell.fill ? cell.fill.fgColor?.argb : undefined;
+  const normalized = String(color ?? "").toUpperCase();
+  return normalized === "FFFFFF00" || normalized === "FFFF00" || normalized.endsWith("FF00");
+}
+
 function matchText(value: unknown): string {
   return String(value ?? "")
     .trim()
@@ -1134,6 +1140,8 @@ export async function parseMasterWorksheet(
     const entry       = cellStr(vals[o + 12]);
     const status      = cellStr(vals[o + 13]);
     // o + 14 = Docs (informational, not stored)
+    const docsCell = worksheet.getRow(r).getCell(o + 14);
+    const hasYellowDocsFlag = cellHasYellowFill(docsCell);
 
     if (![ifsRef, shipper, consignee, containerNo, cargoDesc].some(Boolean)) continue;
     if (isCompletedSection(currentSection) || isCompletedSection(defaultSection)) continue;
@@ -1150,6 +1158,7 @@ export async function parseMasterWorksheet(
     if (blManifest) extraFields["BL / Manifest No."] = blManifest;
     if (agent) extraFields["Agent"] = agent;
     if (currentSection) extraFields["Source Section"] = currentSection;
+    if (hasYellowDocsFlag) extraFields["Needs Documents"] = "true";
 
     totalRows++;
     try {

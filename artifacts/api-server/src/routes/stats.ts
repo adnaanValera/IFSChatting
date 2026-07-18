@@ -242,6 +242,11 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
     invoiceNo: shipment.invoiceNo || "N/A",
   });
 
+  const isWithinWindow = (shipment: typeof shipments[number]) => {
+    const etaDate = parseEtaDate(shipment.status, today);
+    return Boolean(etaDate && etaDate >= today && etaDate <= maxDate);
+  };
+
   const nearbyConsignments = shipments
     .map((shipment) => ({ shipment, etaDate: parseEtaDate(shipment.status, today) }))
     .filter(({ etaDate }) => etaDate && etaDate >= today && etaDate <= maxDate)
@@ -259,7 +264,26 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
       mraRef: shipment.mraRef || "N/A",
     }));
 
-  res.json({ nearbyConsignments, needsChecking });
+  const documentsNeeded = shipments
+    .filter((shipment) => extraValue(shipment.extraFields, "Needs Documents").toLowerCase() === "true" && isWithinWindow(shipment))
+    .map((shipment) => ({
+      ...mapBase(shipment),
+      eta: parseEtaDate(shipment.status, today)?.toISOString(),
+      status: shipment.status,
+    }));
+
+  const mraRefNeeded = shipments
+    .filter((shipment) => {
+      if (shipment.mraRef?.trim()) return false;
+      const section = sectionLabelForShipment(shipment);
+      return section === "SHIPMENTS ENROUTE" || section === "SHIPMENTS IN MALAWI";
+    })
+    .map((shipment) => ({
+      ...mapBase(shipment),
+      status: shipment.status,
+    }));
+
+  res.json({ nearbyConsignments, needsChecking, documentsNeeded, mraRefNeeded });
 });
 
 router.get("/stats/status-breakdown", requireAuth, async (_req, res) => {
