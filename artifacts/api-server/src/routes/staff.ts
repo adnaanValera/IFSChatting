@@ -428,17 +428,18 @@ async function processAsycudaWorkbook(
           asycudaSetGreenCell(chargeCell, primaryInvoice);
           summary.charges++;
         }
-        if (!currentCharge && currentFreight === primaryInvoice) {
-          asycudaSetGreenCell(chargeCell, primaryInvoice);
+        if (currentFreight && currentFreight === primaryInvoice) {
+          if (!currentCharge && primaryInvoice) {
+            asycudaSetGreenCell(chargeCell, primaryInvoice);
+          }
           asycudaClearCell(freightCell);
-          summary.charges++;
         }
       } else {
         if (!currentCharge && primaryInvoice) {
           asycudaSetGreenCell(chargeCell, primaryInvoice);
           summary.charges++;
         }
-        if (!currentFreight) {
+        if (!currentFreight || currentFreight === primaryInvoice) {
           asycudaSetGreenCell(freightCell, secondaryInvoice);
           summary.freight++;
         }
