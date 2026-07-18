@@ -868,15 +868,56 @@ async function upsertShipment(record: {
   matchByContainer?: boolean; // when true, match by (ifsRef, containerNo) pair
 }): Promise<"new" | "updated" | "unchanged"> {
   const ignoredRecord = isIgnoredShipmentStatus(record.status);
-  const exactWhereClause = (record.matchByContainer && record.containerNo)
-    ? and(eq(shipmentsTable.ifsRef, record.ifsRef), eq(shipmentsTable.containerNo, record.containerNo))
-    : eq(shipmentsTable.ifsRef, record.ifsRef);
+  const incoming = {
+    ifsRef: matchText(record.ifsRef),
+    containerNo: matchContainer(record.containerNo),
+    mraRef: matchContainer(record.mraRef),
+    invoiceNo: matchContainer(record.invoiceNo),
+    consignee: matchText(record.consignee ?? record.companyName),
+    shipper: matchText(record.shipper),
+    blManifest: recordBlManifest(record),
+  };
 
-  let existing = await db
-    .select()
-    .from(shipmentsTable)
-    .where(exactWhereClause)
-    .limit(1);
+  let existing: any[] = [];
+
+  if (record.matchByContainer) {
+    const sameIfsCandidates = await db
+      .select()
+      .from(shipmentsTable)
+      .where(eq(shipmentsTable.ifsRef, record.ifsRef))
+      .limit(100);
+
+    const sameIfsMatch = sameIfsCandidates.find((candidate) => {
+      const candidateValues = {
+        ifsRef: matchText(candidate.ifsRef),
+        containerNo: matchContainer(candidate.containerNo),
+        mraRef: matchContainer(candidate.mraRef),
+        invoiceNo: matchContainer(candidate.invoiceNo),
+        consignee: matchText(candidate.consignee ?? candidate.companyName),
+        shipper: matchText(candidate.shipper),
+        blManifest: shipmentBlManifest(candidate),
+      };
+
+      if (incoming.containerNo && candidateValues.containerNo && incoming.containerNo === candidateValues.containerNo) return true;
+      if (incoming.mraRef && candidateValues.mraRef && incoming.mraRef === candidateValues.mraRef) return true;
+      if (incoming.blManifest && candidateValues.blManifest && incoming.blManifest === candidateValues.blManifest) {
+        if (incoming.invoiceNo && candidateValues.invoiceNo && incoming.invoiceNo === candidateValues.invoiceNo) return true;
+        if (incoming.consignee && candidateValues.consignee && incoming.consignee === candidateValues.consignee) return true;
+      }
+      if (!incoming.containerNo && !incoming.mraRef && incoming.invoiceNo && candidateValues.invoiceNo && incoming.invoiceNo === candidateValues.invoiceNo) {
+        return incoming.consignee === candidateValues.consignee || incoming.shipper === candidateValues.shipper;
+      }
+      return false;
+    });
+
+    if (sameIfsMatch) existing = [sameIfsMatch];
+  } else {
+    existing = await db
+      .select()
+      .from(shipmentsTable)
+      .where(eq(shipmentsTable.ifsRef, record.ifsRef))
+      .limit(1);
+  }
 
   if (existing.length === 0) {
     const candidates = await db
@@ -884,16 +925,6 @@ async function upsertShipment(record: {
       .from(shipmentsTable)
       .where(sql`lower(${shipmentsTable.companyName}) = lower(${record.companyName}) OR lower(${shipmentsTable.consignee}) = lower(${record.consignee ?? ""})`)
       .limit(250);
-
-    const incoming = {
-      ifsRef: matchText(record.ifsRef),
-      containerNo: matchContainer(record.containerNo),
-      mraRef: matchContainer(record.mraRef),
-      invoiceNo: matchContainer(record.invoiceNo),
-      consignee: matchText(record.consignee ?? record.companyName),
-      shipper: matchText(record.shipper),
-      blManifest: recordBlManifest(record),
-    };
 
     const matched = candidates.find((candidate) => {
       const candidateValues = {
