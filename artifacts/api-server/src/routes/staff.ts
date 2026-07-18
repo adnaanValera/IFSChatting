@@ -399,13 +399,18 @@ async function processAsycudaWorkbook(
         continue;
       }
       const excelRow = sheet.getRow(r + 1);
+      const primaryMatch = matches[0]!;
+      const secondaryMatch = matches[1];
       if (chargeBlank) {
-        const chargeValue = isKashifAsycudaClient(matches[0]!.client) ? "Inclusive freight" : matches[0]!.invoice;
+        const chargeValue = isKashifAsycudaClient(primaryMatch.client) ? "Inclusive freight" : primaryMatch.invoice;
         asycudaSetGreenCell(excelRow.getCell(chargeCol + 1), chargeValue);
         summary.charges++;
       }
-      if (matches.length >= 2 && freightBlank) {
-        asycudaSetGreenCell(excelRow.getCell(freightCol + 1), matches[1]!.invoice);
+      if (chargeBlank && freightBlank && secondaryMatch) {
+        asycudaSetGreenCell(excelRow.getCell(freightCol + 1), secondaryMatch.invoice);
+        summary.freight++;
+      } else if (!chargeBlank && freightBlank && secondaryMatch) {
+        asycudaSetGreenCell(excelRow.getCell(freightCol + 1), secondaryMatch.invoice);
         summary.freight++;
       }
     }
