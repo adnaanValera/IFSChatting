@@ -146,6 +146,7 @@ function displayText(value: unknown): string {
 const asycudaAliasPairs = [
   ["Petroda", "Namadzi"],
   ["Amin", "Office Zone"],
+  ["OZ", "OZ Trading"],
   ["Easy Pack", "Easypark"],
   ["Mothers Food", "Mothers Foods"],
   ["Mkango Allied", "Mkango Allied Industries"],
@@ -198,6 +199,8 @@ function asycudaCompactName(value: unknown): string {
     [/\bKRIS OFFSET(?: AND SCREEN PRINTERS)?\b/g, "KRISOFFSET"],
     [/\bPETRODA\b/g, "NAMADZI"],
     [/\bAMIN\b/g, "OFFICEZONE"],
+    [/\bOZ TRADING\b/g, "OZTRADING"],
+    [/\bOZ\b/g, "OZTRADING"],
     [/\bOFFICE ZONE\b/g, "OFFICEZONE"],
     [/\bEASY ?PARK\b/g, "EASYPACK"],
     [/\bEASY PACK\b/g, "EASYPACK"],
@@ -363,8 +366,12 @@ async function processAsycudaWorkbook(
         summary.missing++;
         continue;
       }
-      const party = asycudaValueString(row[type === "E" ? shipCol : consCol]);
-      const matches = entries.filter((entry) => asycudaNamesMatch(party, entry.client));
+      const partyCandidates = type === "E"
+        ? [asycudaValueString(row[shipCol]), asycudaValueString(row[consCol])].filter(Boolean)
+        : [asycudaValueString(row[consCol]), asycudaValueString(row[shipCol])].filter(Boolean);
+      const matches = entries.filter((entry) =>
+        partyCandidates.some((party) => asycudaNamesMatch(party, entry.client)),
+      );
       if (!matches.length) {
         summary.mismatch++;
         continue;
