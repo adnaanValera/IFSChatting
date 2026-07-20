@@ -354,6 +354,27 @@ function asycudaClearCell(cell: ExcelJS.Cell) {
   };
 }
 
+function asycudaExtractYearFromMasterDate(value: unknown): number | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.getFullYear();
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const parsed = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.getUTCFullYear();
+  }
+
+  const text = asycudaValueString(value);
+  if (!text) return null;
+
+  const yearMatch = text.match(/\b(20\d{2})\b/);
+  if (yearMatch) return Number(yearMatch[1]);
+
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getFullYear();
+}
+
 async function buildAsycudaMasterIndex(workbook: ExcelJS.Workbook): Promise<Map<string, AsycudaMasterEntry[]>> {
   const sheet = workbook.worksheets.find((ws) => ws.name.toLowerCase() === "list") ?? workbook.worksheets[0];
   if (!sheet) throw new Error("The master workbook has no worksheets.");
@@ -366,6 +387,8 @@ async function buildAsycudaMasterIndex(workbook: ExcelJS.Workbook): Promise<Map<
   const refCol = header.indexOf("MRA Ref");
   const index = new Map<string, AsycudaMasterEntry[]>();
   rows.slice(headerRow + 1).forEach((row, offset) => {
+    const masterYear = asycudaExtractYearFromMasterDate(row?.[2]);
+    if (masterYear !== 2025) return;
     const rawRefs = asycudaValueString(row?.[refCol]);
     const invoice = asycudaValueString(row?.[invoiceCol]);
     if (!rawRefs || invoice === "") return;
