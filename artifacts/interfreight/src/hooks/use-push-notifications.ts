@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { isStandaloneDisplay, urlBase64ToUint8Array } from "@/lib/pwa";
+import { isStandaloneDisplay, registerServiceWorker, urlBase64ToUint8Array } from "@/lib/pwa";
 
 type Scope = { type: "auth" } | { type: "pending"; approvalToken: string } | { type: "guest" };
 
@@ -68,9 +68,30 @@ async function upsertSubscription(scope: Scope, subscription: PushSubscription) 
     ),
   });
   if (!response.ok) {
-    const message = await response.text().catch(() => "");
+    const rawText = await response.text().catch(() => "");
+    let message = rawText;
+    try {
+      const parsed = JSON.parse(rawText);
+      message = parsed?.error || parsed?.message || rawText;
+    } catch {
+      // keep raw text
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw new Error("Your session has expired. Please log in again, then enable notifications.");
+    }
     throw new Error(message || "Could not save the push notification subscription.");
   }
+}
+
+async function recoverPushEnvironment() {
+  if (!("serviceWorker" in navigator)) return null;
+  const registrations = await navigator.serviceWorker.getRegistrations().catch(() => []);
+  await Promise.all(registrations.map(async (registration) => {
+    const subscription = await registration.pushManager.getSubscription().catch(() => null);
+    if (subscription) await subscription.unsubscribe().catch(() => undefined);
+    await registration.unregister().catch(() => undefined);
+  }));
+  return registerServiceWorker();
 }
 
 export function usePushNotifications(scope?: Scope) {
@@ -202,6 +223,18 @@ export function usePushNotifications(scope?: Scope) {
       if (!subscription) {
         const message = subscribeError instanceof Error ? subscribeError.message : "";
         const name = subscribeError instanceof Error ? subscribeError.name : "";
+        const recoveredRegistration = await recoverPushEnvironment().catch(() => null);
+        if (recoveredRegistration) {
+          const retriedSubscription = await recoveredRegistration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey,
+          }).catch(() => null);
+          if (retriedSubscription) {
+            await upsertSubscription(scope, retriedSubscription);
+            setIsSubscribed(true);
+            return true;
+          }
+        }
         if (isIOS && !standalone) {
           throw new Error("Install and open the InterFreight app first, then enable notifications there.");
         }
