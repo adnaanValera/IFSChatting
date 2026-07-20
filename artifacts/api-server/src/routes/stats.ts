@@ -187,6 +187,22 @@ function shipmentIdentifier(shipment: { containerNo: string | null; extraFields:
   return shipment.containerNo || blManifest || "N/A";
 }
 
+function normalizeUploadFamily(filename: string): string {
+  const safe = filename.toLowerCase().replace(/\.[^.]+$/, "");
+  const compact = safe
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (compact.includes("tracking master")) return "tracking master";
+
+  return compact
+    .replace(/\b\d{1,2}[./ -]\d{1,2}[./ -]\d{2,4}\b/g, "")
+    .replace(/\b\d{4}[./ -]\d{1,2}[./ -]\d{1,2}\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 type WorkbookDashboardStats = {
   totalContainers: number;
   totalCompanies: number;
@@ -223,15 +239,16 @@ async function loadDashboardStatsFromLatestTrackingMaster(): Promise<WorkbookDas
     id: number;
     filename: string;
     file_data: Buffer | null;
+    uploaded_at: Date;
   }>(
-    `SELECT id, filename, file_data
+    `SELECT id, filename, file_data, uploaded_at
      FROM uploads
-     WHERE filename ~* 'tracking master'
-       AND filename ~* '\\.(xlsx|xls)$'
      ORDER BY uploaded_at DESC, id DESC
-     LIMIT 1`,
+     LIMIT 50`,
   );
-  const latestUpload = latestUploadResult.rows[0];
+  const latestUpload = latestUploadResult.rows.find((row) =>
+    /\.(xlsx|xls)$/i.test(row.filename) && normalizeUploadFamily(row.filename) === "tracking master",
+  );
   if (!latestUpload) return null;
 
   if (latestUpload.file_data) {
