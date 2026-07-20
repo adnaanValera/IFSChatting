@@ -32,6 +32,10 @@ function sectionLabelForShipment(shipment: { status: string; extraFields: unknow
   ))?.label ?? "OTHER SHIPMENTS";
 }
 
+function shipmentBelongsToDashboardSection(shipment: { status: string; extraFields: unknown }): boolean {
+  return SECTION_MAP.some((section) => section.label === sectionLabelForShipment(shipment));
+}
+
 function isIgnoredShipmentStatus(status: unknown): boolean {
   const normalized = String(status ?? "").trim().toLowerCase();
   if (!normalized) return false;
@@ -52,6 +56,13 @@ const activeShipmentSql = sql`NOT (
   OR lower(trim(${shipmentsTable.status})) = 'mt'
   OR lower(${shipmentsTable.status}) LIKE 'mt %'
   OR lower(${shipmentsTable.status}) LIKE '%mt turn%'
+)`;
+
+const dashboardShipmentSql = sql`NOT (
+  lower(${shipmentsTable.status}) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'Source Section', '')) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'sourceSection', '')) LIKE '%completed%'
+  OR lower(coalesce(${shipmentsTable.extraFields}->>'Section', '')) LIKE '%completed%'
 )`;
 
 function extraValue(extraFields: unknown, ...keys: string[]): string {
@@ -166,26 +177,24 @@ function shipmentIdentifier(shipment: { containerNo: string | null; extraFields:
 }
 
 router.get("/stats/dashboard", requireAuth, async (_req, res) => {
-  const [companiesCount] = await db
-    .select({ count: sql<number>`count(DISTINCT lower(${shipmentsTable.companyName}))::int` })
-    .from(shipmentsTable)
-    .where(activeShipmentSql);
-  const [shipmentsCount] = await db.select({ count: sql<number>`count(*)::int` }).from(shipmentsTable).where(activeShipmentSql);
-
-  const statusCounts = await db
-    .select({ status: shipmentsTable.status, count: sql<number>`count(*)::int` })
-    .from(shipmentsTable)
-    .where(activeShipmentSql)
-    .groupBy(shipmentsTable.status);
-
-  const counts = Object.fromEntries(statusCounts.map((s) => [s.status, s.count]));
   const sectionCounts = Object.fromEntries(SECTION_MAP.map((section) => [section.label, 0]));
-  const sectionRows = await db
-    .select({ status: shipmentsTable.status, extraFields: shipmentsTable.extraFields })
+  const allDashboardRows = await db
+    .select({
+      companyName: shipmentsTable.companyName,
+      status: shipmentsTable.status,
+      extraFields: shipmentsTable.extraFields,
+    })
     .from(shipmentsTable)
-    .where(activeShipmentSql);
+    .where(dashboardShipmentSql);
 
-  for (const shipment of sectionRows) {
+  const dashboardRows = allDashboardRows.filter((shipment) => shipmentBelongsToDashboardSection(shipment));
+  const companyKeys = new Set(
+    dashboardRows
+      .map((shipment) => shipment.companyName?.trim().toLowerCase())
+      .filter((value): value is string => Boolean(value)),
+  );
+
+  for (const shipment of dashboardRows) {
     const label = sectionLabelForShipment(shipment);
     if (label in sectionCounts) sectionCounts[label] += 1;
   }
@@ -197,13 +206,13 @@ router.get("/stats/dashboard", requireAuth, async (_req, res) => {
     .limit(1);
 
   res.json({
-    totalCompanies: companiesCount?.count ?? 0,
-    totalContainers: shipmentsCount?.count ?? 0,
-    inTransit: counts["In Transit"] ?? 0,
-    delivered: counts["Delivered"] ?? 0,
-    awaitingClearance: counts["Awaiting Clearance"] ?? 0,
-    atPort: counts["At Port"] ?? 0,
-    delayed: counts["Delayed"] ?? 0,
+    totalCompanies: companyKeys.size,
+    totalContainers: dashboardRows.length,
+    inTransit: 0,
+    delivered: 0,
+    awaitingClearance: 0,
+    atPort: 0,
+    delayed: 0,
     sectionCounts: SECTION_MAP.map((section) => ({
       label: section.label,
       count: sectionCounts[section.label] ?? 0,
@@ -231,7 +240,7 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
       extraFields: shipmentsTable.extraFields,
     })
     .from(shipmentsTable)
-    .where(activeShipmentSql);
+    .where(dashboardShipmentSql);
 
   const mapBase = (shipment: typeof shipments[number]) => ({
     id: shipment.id,
@@ -306,7 +315,7 @@ router.get("/stats/status-breakdown", requireAuth, async (_req, res) => {
     .where(activeShipmentSql);
 
   for (const shipment of shipments) {
-    if (isIgnoredShipmentStatus(shipment.status)) continue;
+    if (!shipmentBelongsToDashboardSection(shipment)) continue;
     const label = sectionLabelForShipment(shipment);
     if (label in sectionCounts) {
       sectionCounts[label] += 1;
