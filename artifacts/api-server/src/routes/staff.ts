@@ -1254,14 +1254,14 @@ export async function parseMasterWorksheet(
     const docsCell = worksheet.getRow(r).getCell(o + 14);
     const hasYellowDocsFlag = cellHasYellowFill(docsCell);
 
-    if (![ifsRef, shipper, consignee, containerNo, cargoDesc].some(Boolean)) continue;
+    if (!consignee) continue;
     if (isCompletedSection(currentSection) || isCompletedSection(defaultSection)) continue;
 
     // Use consignee as the company (this is the tracking master — one company per row)
-    const companyName = (consignee ?? shipper ?? "Unknown").trim();
+    const companyName = consignee.trim();
     consigneeSet.add(companyName);
 
-    const rowKey = [mraRef, containerNo, invoiceNo, `r${r}`].filter(Boolean).join("|");
+    const rowKey = [mraRef, containerNo, invoiceNo, companyName, `r${r}`].filter(Boolean).join("|");
     const finalIfsRef = ifsRef ?? autoIfsRef(companyName, rowKey);
 
     const extraFields: Record<string, unknown> = {};
@@ -1274,9 +1274,17 @@ export async function parseMasterWorksheet(
     totalRows++;
     try {
       const result = await upsertShipment({
-        ifsRef: finalIfsRef, mraRef, shipper, consignee, containerNo,
-        cargoDescription: cargoDesc, invoiceNo, pod, entry,
-        finalPortDestination: fpd, status: status ?? "In Transit",
+        ifsRef: finalIfsRef,
+        mraRef: mraRef ?? "N/A",
+        shipper: shipper ?? "N/A",
+        consignee: companyName,
+        containerNo: containerNo ?? "N/A",
+        cargoDescription: cargoDesc ?? "N/A",
+        invoiceNo: invoiceNo ?? "N/A",
+        pod: pod ?? "N/A",
+        entry: entry ?? "N/A",
+        finalPortDestination: fpd ?? "N/A",
+        status: status ?? "N/A",
         companyName, uploadBatchId,
         extraFields: Object.keys(extraFields).length > 0 ? extraFields : undefined,
         matchByContainer: true, // distinguish multiple containers per IFS ref
