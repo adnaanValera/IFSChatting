@@ -5,8 +5,16 @@ import { requireAuth } from "../middlewares/auth";
 import fs from "node:fs/promises";
 import path from "node:path";
 import ExcelJS from "exceljs";
+import fsSync from "node:fs";
 
 const router = Router();
+const workspaceRoot = process.cwd().endsWith(path.join("artifacts", "api-server"))
+  ? path.resolve(process.cwd(), "../..")
+  : process.cwd();
+const uploadsDir = process.env.VERCEL
+  ? path.resolve("/tmp", "ifs-uploads")
+  : path.resolve(workspaceRoot, "artifacts/api-server/uploads");
+if (!fsSync.existsSync(uploadsDir)) fsSync.mkdirSync(uploadsDir, { recursive: true });
 
 const SECTION_MAP: { label: string; statuses: string[] }[] = [
   { label: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
@@ -210,22 +218,37 @@ function rowHasMeaningfulData(row: ExcelJS.Row): boolean {
 }
 
 async function loadDashboardStatsFromLatestTrackingMaster(): Promise<WorkbookDashboardStats | null> {
-  const uploadsDir = path.resolve(process.cwd(), "artifacts", "api-server", "uploads");
-  const entries = await fs.readdir(uploadsDir, { withFileTypes: true }).catch(() => []);
-  const files = await Promise.all(
-    entries
-      .filter((entry) => entry.isFile() && /tracking master/i.test(entry.name) && /\.(xlsx|xls)$/i.test(entry.name))
-      .map(async (entry) => {
-        const fullPath = path.join(uploadsDir, entry.name);
-        const stat = await fs.stat(fullPath);
-        return { fullPath, mtimeMs: stat.mtimeMs };
-      }),
-  );
-  const latest = files.sort((a, b) => b.mtimeMs - a.mtimeMs)[0];
-  if (!latest) return null;
-
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(latest.fullPath);
+  const latestUploadResult = await pool.query<{
+    id: number;
+    filename: string;
+    file_data: Buffer | null;
+  }>(
+    `SELECT id, filename, file_data
+     FROM uploads
+     WHERE filename ~* 'tracking master'
+       AND filename ~* '\\.(xlsx|xls)$'
+     ORDER BY uploaded_at DESC, id DESC
+     LIMIT 1`,
+  );
+  const latestUpload = latestUploadResult.rows[0];
+  if (!latestUpload) return null;
+
+  if (latestUpload.file_data) {
+    await workbook.xlsx.load(latestUpload.file_data);
+  } else {
+    const candidates = await fs.readdir(uploadsDir).catch(() => []);
+    const storedName = candidates
+      .filter((name) => name.endsWith(`-${latestUpload.filename}`))
+      .sort()
+      .at(-1);
+    if (!storedName) return null;
+    const fallbackPath = path.resolve(uploadsDir, storedName);
+    const fallbackData = await fs.readFile(fallbackPath).catch(() => null);
+    if (!fallbackData) return null;
+    await workbook.xlsx.load(fallbackData);
+  }
+
   const worksheet = workbook.getWorksheet("Sheet1") ?? workbook.worksheets[0];
   if (!worksheet) return null;
 
