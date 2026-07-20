@@ -299,10 +299,6 @@ function asycudaFindHeaderRow(rows: unknown[][], required: string[]): number {
 
 type AsycudaMasterEntry = { client: string; invoice: unknown; order: number };
 
-function isKashifAsycudaConsignee(value: unknown): boolean {
-  return asycudaValueString(value).toLowerCase().includes("kashif");
-}
-
 function asycudaSetGreenCell(cell: ExcelJS.Cell, value: unknown) {
   const normalizedValue = typeof value === "number" ? value : asycudaValueString(value);
 
@@ -447,10 +443,9 @@ async function processAsycudaWorkbook(
         continue;
       }
       const primaryMatch = matches[0]!;
-      const consigneeName = asycudaValueString(row[consCol]);
-      const primaryInvoice = isKashifAsycudaConsignee(consigneeName) ? "Incl frt" : asycudaValueString(primaryMatch.invoice);
+      const primaryInvoice = asycudaValueString(primaryMatch.invoice);
       const distinctInvoices = [...new Set(matches
-        .map((match, index) => index === 0 && isKashifAsycudaConsignee(consigneeName) ? "Incl frt" : asycudaValueString(match.invoice))
+        .map((match) => asycudaValueString(match.invoice))
         .filter(Boolean))];
       const secondaryInvoice = distinctInvoices[1];
 
