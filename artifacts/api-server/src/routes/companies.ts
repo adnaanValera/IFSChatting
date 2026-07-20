@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, companiesTable, shipmentsTable } from "@workspace/db";
-import { ilike, sql } from "drizzle-orm";
+import { and, ilike, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
 const router = Router();
@@ -16,8 +16,12 @@ const activeShipmentSql = sql`NOT (
   OR lower(${shipmentsTable.status}) LIKE '%mt turn%'
 )`;
 
-router.get("/companies", requireAuth, async (_req, res) => {
-  const companies = await db
+router.get("/companies", requireAuth, async (req, res) => {
+  const authReq = req as typeof req & { user?: { role?: string; companyName?: string | null } };
+  const isCustomer = authReq.user?.role === "customer";
+  const userCompany = authReq.user?.companyName?.trim();
+
+  let query = db
     .select({
       id: sql<number>`min(${companiesTable.id})`,
       companyName: sql<string>`min(${companiesTable.companyName})`,
@@ -25,14 +29,39 @@ router.get("/companies", requireAuth, async (_req, res) => {
     })
     .from(companiesTable)
     .innerJoin(shipmentsTable, sql`lower(${companiesTable.companyName}) = lower(${shipmentsTable.companyName}) AND ${activeShipmentSql}`)
+    .$dynamic();
+
+  if (isCustomer) {
+    if (!userCompany) {
+      res.json([]);
+      return;
+    }
+    query = query.where(sql`lower(${companiesTable.companyName}) = lower(${userCompany})`);
+  }
+
+  const companies = await query
     .groupBy(sql`lower(${companiesTable.companyName})`)
     .orderBy(sql`min(${companiesTable.companyName})`);
+
   res.json(companies);
 });
 
 router.get("/companies/search", requireAuth, async (req, res) => {
+  const authReq = req as typeof req & { user?: { role?: string; companyName?: string | null } };
   const q = (req.query.q as string) ?? "";
   if (!q) { res.json([]); return; }
+  const isCustomer = authReq.user?.role === "customer";
+  const userCompany = authReq.user?.companyName?.trim();
+  const conditions = [ilike(companiesTable.companyName, `%${q}%`)];
+
+  if (isCustomer) {
+    if (!userCompany) {
+      res.json([]);
+      return;
+    }
+    conditions.push(sql`lower(${companiesTable.companyName}) = lower(${userCompany})`);
+  }
+
   const companies = await db
     .select({
       id: sql<number>`min(${companiesTable.id})`,
@@ -41,10 +70,11 @@ router.get("/companies/search", requireAuth, async (req, res) => {
     })
     .from(companiesTable)
     .innerJoin(shipmentsTable, sql`lower(${companiesTable.companyName}) = lower(${shipmentsTable.companyName}) AND ${activeShipmentSql}`)
-    .where(ilike(companiesTable.companyName, `%${q}%`))
+    .where(and(...conditions))
     .groupBy(sql`lower(${companiesTable.companyName})`)
     .orderBy(sql`min(${companiesTable.companyName})`)
     .limit(20);
+
   res.json(companies);
 });
 

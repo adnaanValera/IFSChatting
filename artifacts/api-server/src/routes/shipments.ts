@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, shipmentsTable, companiesTable, usersTable } from "@workspace/db";
 import { eq, ilike, or, sql, desc, and } from "drizzle-orm";
-import { optionalAuth, requireAuth, requireStaff } from "../middlewares/auth";
+import { requireAuth, requireStaff } from "../middlewares/auth";
 import type { AuthPayload } from "../middlewares/auth";
 
 // Statuses that are closed/archived — hidden from public tracking
@@ -50,7 +50,7 @@ const router = Router();
 // ── List shipments ────────────────────────────────────────────────────────────
 // Public — no auth required. Authenticated customers are scoped to their company.
 
-router.get("/shipments", optionalAuth, async (req, res) => {
+router.get("/shipments", requireAuth, async (req, res) => {
   const authReq = req as typeof req & { user?: AuthPayload };
   const role = authReq.user?.role;
   const userCompany = authReq.user?.companyName;
@@ -66,7 +66,25 @@ router.get("/shipments", optionalAuth, async (req, res) => {
 
   conditions.push(activeShipmentSql);
 
-  if (role !== "customer" && companyFilter) {
+  const isCustomer = role === "customer";
+  const customerTerm = userCompany?.trim();
+
+  if (isCustomer) {
+    if (!customerTerm) {
+      res.json({ items: [], total: 0, page, limit });
+      return;
+    }
+
+    const companyLike = `%${customerTerm}%`;
+    conditions.push(
+      or(
+        ilike(shipmentsTable.companyName, companyLike),
+        ilike(shipmentsTable.consignee, companyLike),
+      )!,
+    );
+  }
+
+  if (!isCustomer && companyFilter) {
     conditions.push(sql`lower(${shipmentsTable.companyName}) = lower(${companyFilter})`);
   }
 
@@ -103,8 +121,8 @@ router.get("/shipments", optionalAuth, async (req, res) => {
     countQuery = countQuery.where(combined);
   }
 
-  const queryLimit = role === "customer" ? 2000 : limit;
-  const queryOffset = role === "customer" ? 0 : offset;
+  const queryLimit = isCustomer ? 2000 : limit;
+  const queryOffset = isCustomer ? 0 : offset;
 
   const [rawItems, countResult] = await Promise.all([
     query.orderBy(desc(shipmentsTable.lastUpdated)).limit(queryLimit).offset(queryOffset),
@@ -114,7 +132,7 @@ router.get("/shipments", optionalAuth, async (req, res) => {
   let items = rawItems;
   let total = Number(countResult[0]?.count ?? 0);
 
-  if (role === "customer") {
+  if (isCustomer) {
     const scopedItems = rawItems.filter((shipment) => shipmentVisibleToCustomer(shipment, userCompany));
     total = scopedItems.length;
     items = scopedItems.slice(offset, offset + limit);
@@ -135,7 +153,7 @@ router.post("/shipments", requireAuth, requireStaff, async (req, res) => {
 // ── Get single shipment ───────────────────────────────────────────────────────
 // Public — anyone with the ID can view it (public tracking page).
 
-router.get("/shipments/:id", optionalAuth, async (req, res) => {
+router.get("/shipments/:id", requireAuth, async (req, res) => {
   const authReq = req as typeof req & { user?: AuthPayload };
   const id = parseInt(req.params["id"] as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
