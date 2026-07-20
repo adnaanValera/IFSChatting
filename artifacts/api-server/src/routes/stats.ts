@@ -2,19 +2,8 @@ import { Router } from "express";
 import { db, pool, shipmentsTable, uploadsTable } from "@workspace/db";
 import { sql, eq, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
-import fs from "node:fs/promises";
-import path from "node:path";
-import ExcelJS from "exceljs";
-import fsSync from "node:fs";
 
 const router = Router();
-const workspaceRoot = process.cwd().endsWith(path.join("artifacts", "api-server"))
-  ? path.resolve(process.cwd(), "../..")
-  : process.cwd();
-const uploadsDir = process.env.VERCEL
-  ? path.resolve("/tmp", "ifs-uploads")
-  : path.resolve(workspaceRoot, "artifacts/api-server/uploads");
-if (!fsSync.existsSync(uploadsDir)) fsSync.mkdirSync(uploadsDir, { recursive: true });
 
 const SECTION_MAP: { label: string; statuses: string[] }[] = [
   { label: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
@@ -187,131 +176,44 @@ function shipmentIdentifier(shipment: { containerNo: string | null; extraFields:
   return shipment.containerNo || blManifest || "N/A";
 }
 
-function normalizeUploadFamily(filename: string): string {
-  const safe = filename.toLowerCase().replace(/\.[^.]+$/, "");
-  const compact = safe
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (compact.includes("tracking master")) return "tracking master";
-
-  return compact
-    .replace(/\b\d{1,2}[./ -]\d{1,2}[./ -]\d{2,4}\b/g, "")
-    .replace(/\b\d{4}[./ -]\d{1,2}[./ -]\d{1,2}\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-type WorkbookDashboardStats = {
+type DashboardStatsPayload = {
   totalContainers: number;
   totalCompanies: number;
   sectionCounts: Record<string, number>;
   statusCountsBySection: Record<string, Record<string, number>>;
 };
 
-function rowText(ws: ExcelJS.Worksheet, rowNumber: number): string {
-  const row = ws.getRow(rowNumber);
-  return row.values
-    .slice(1)
-    .map((value) => String(value ?? "").trim())
-    .filter(Boolean)
-    .join(" ");
-}
-
-function headerColumnIndex(ws: ExcelJS.Worksheet, headerRow: number, headerName: string): number {
-  const normalizedTarget = normalizeSectionLabel(headerName);
-  const values = ws.getRow(headerRow).values.slice(1) as unknown[];
-  for (let i = 0; i < values.length; i++) {
-    if (normalizeSectionLabel(String(values[i] ?? "")) === normalizedTarget) return i + 1;
-  }
-  return -1;
-}
-
-function rowHasMeaningfulData(row: ExcelJS.Row): boolean {
-  const values = row.values.slice(1) as unknown[];
-  return values.some((value) => String(value ?? "").trim() !== "");
-}
-
-async function loadDashboardStatsFromLatestTrackingMaster(): Promise<WorkbookDashboardStats | null> {
-  const workbook = new ExcelJS.Workbook();
-  const latestUploadResult = await pool.query<{
-    id: number;
-    filename: string;
-    file_data: Buffer | null;
-    uploaded_at: Date;
-  }>(
-    `SELECT id, filename, file_data, uploaded_at
-     FROM uploads
-     ORDER BY uploaded_at DESC, id DESC
-     LIMIT 50`,
-  );
-  const latestUpload = latestUploadResult.rows.find((row) =>
-    /\.(xlsx|xls)$/i.test(row.filename) && normalizeUploadFamily(row.filename) === "tracking master",
-  );
-  if (!latestUpload) return null;
-
-  if (latestUpload.file_data) {
-    await workbook.xlsx.load(latestUpload.file_data);
-  } else {
-    const candidates = await fs.readdir(uploadsDir).catch(() => []);
-    const storedName = candidates
-      .filter((name) => name.endsWith(`-${latestUpload.filename}`))
-      .sort()
-      .at(-1);
-    if (!storedName) return null;
-    const fallbackPath = path.resolve(uploadsDir, storedName);
-    const fallbackData = await fs.readFile(fallbackPath).catch(() => null);
-    if (!fallbackData) return null;
-    await workbook.xlsx.load(fallbackData);
-  }
-
-  const worksheet = workbook.getWorksheet("Sheet1") ?? workbook.worksheets[0];
-  if (!worksheet) return null;
-
-  const headings: Array<{ label: string; row: number }> = [];
-  for (let rowNumber = 1; rowNumber <= worksheet.rowCount; rowNumber++) {
-    const text = rowText(worksheet, rowNumber);
-    const normalized = normalizeSectionLabel(text);
-    const matched = SECTION_MAP.find((section) => normalized === normalizeSectionLabel(section.label));
-    if (matched) headings.push({ label: matched.label, row: rowNumber });
-  }
-  if (headings.length === 0) return null;
-
+async function loadDashboardStatsFromShipments(): Promise<DashboardStatsPayload> {
   const sectionCounts = Object.fromEntries(SECTION_MAP.map((section) => [section.label, 0])) as Record<string, number>;
   const statusCountsBySection = Object.fromEntries(
     SECTION_MAP.map((section) => [section.label, {} as Record<string, number>]),
   ) as Record<string, Record<string, number>>;
   const companyKeys = new Set<string>();
+  const shipments = await db
+    .select({
+      companyName: shipmentsTable.companyName,
+      consignee: shipmentsTable.consignee,
+      status: shipmentsTable.status,
+      extraFields: shipmentsTable.extraFields,
+    })
+    .from(shipmentsTable)
+    .where(dashboardShipmentSql);
+
   let totalContainers = 0;
+  for (const shipment of shipments) {
+    const extra = (shipment.extraFields as Record<string, unknown>) ?? {};
+    const sourceSection = String(extra["Source Section"] ?? extra["sourceSection"] ?? "").trim();
+    const normalizedSource = normalizeSectionLabel(sourceSection);
+    const matchedSection = SECTION_MAP.find((section) => normalizeSectionLabel(section.label) === normalizedSource);
+    if (!matchedSection) continue;
 
-  for (let i = 0; i < headings.length; i++) {
-    const current = headings[i]!;
-    const nextHeadingRow = headings[i + 1]?.row ?? (worksheet.rowCount + 1);
-    let headerRow = current.row + 1;
-    for (let rowNumber = current.row + 1; rowNumber < nextHeadingRow; rowNumber++) {
-      if (normalizeSectionLabel(rowText(worksheet, rowNumber)).includes("IFS REF")) {
-        headerRow = rowNumber;
-        break;
-      }
-    }
+    totalContainers += 1;
+    sectionCounts[matchedSection.label] += 1;
+    statusCountsBySection[matchedSection.label][shipment.status] = (statusCountsBySection[matchedSection.label][shipment.status] ?? 0) + 1;
 
-    const statusCol = headerColumnIndex(worksheet, headerRow, "Status");
-    const consigneeCol = headerColumnIndex(worksheet, headerRow, "Consignee");
-
-    for (let rowNumber = headerRow + 1; rowNumber < nextHeadingRow; rowNumber++) {
-      const row = worksheet.getRow(rowNumber);
-      if (!rowHasMeaningfulData(row)) continue;
-      totalContainers += 1;
-      sectionCounts[current.label] += 1;
-
-      const status = statusCol > 0 ? String(row.getCell(statusCol).value ?? "").trim() || "N/A" : "N/A";
-      statusCountsBySection[current.label][status] = (statusCountsBySection[current.label][status] ?? 0) + 1;
-
-      if (consigneeCol > 0) {
-        const consignee = String(row.getCell(consigneeCol).value ?? "").trim().toLowerCase();
-        if (consignee) companyKeys.add(consignee);
-      }
+    const companyKey = String(shipment.consignee ?? shipment.companyName ?? "").trim().toLowerCase();
+    if (companyKey) {
+      companyKeys.add(companyKey);
     }
   }
 
@@ -324,8 +226,7 @@ async function loadDashboardStatsFromLatestTrackingMaster(): Promise<WorkbookDas
 }
 
 router.get("/stats/dashboard", requireAuth, async (_req, res) => {
-  const workbookStats = await loadDashboardStatsFromLatestTrackingMaster();
-  const sectionCounts = workbookStats?.sectionCounts ?? Object.fromEntries(SECTION_MAP.map((section) => [section.label, 0]));
+  const shipmentStats = await loadDashboardStatsFromShipments();
 
   const [latestUpload] = await db
     .select({ uploadedAt: uploadsTable.uploadedAt })
@@ -334,8 +235,8 @@ router.get("/stats/dashboard", requireAuth, async (_req, res) => {
     .limit(1);
 
   res.json({
-    totalCompanies: workbookStats?.totalCompanies ?? 0,
-    totalContainers: workbookStats?.totalContainers ?? 0,
+    totalCompanies: shipmentStats.totalCompanies,
+    totalContainers: shipmentStats.totalContainers,
     inTransit: 0,
     delivered: 0,
     awaitingClearance: 0,
@@ -343,7 +244,7 @@ router.get("/stats/dashboard", requireAuth, async (_req, res) => {
     delayed: 0,
     sectionCounts: SECTION_MAP.map((section) => ({
       label: section.label,
-      count: sectionCounts[section.label] ?? 0,
+      count: shipmentStats.sectionCounts[section.label] ?? 0,
     })),
     latestUpload: latestUpload?.uploadedAt?.toISOString() ?? null,
   });
@@ -424,66 +325,16 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
 });
 
 router.get("/stats/status-breakdown", requireAuth, async (_req, res) => {
-  const workbookStats = await loadDashboardStatsFromLatestTrackingMaster();
-  if (workbookStats) {
-    res.json(SECTION_MAP.map((section) => ({
-      status: section.label,
-      count: workbookStats.sectionCounts[section.label] ?? 0,
-      details: Object.entries(workbookStats.statusCountsBySection[section.label] ?? {})
-        .map(([status, count]) => ({ status, count }))
-        .sort((a, b) => {
-          if (section.label === "SHIPMENTS ON SEA") {
-            const aKey = shipmentDateSortKey(a.status) ?? Number.MAX_SAFE_INTEGER;
-            const bKey = shipmentDateSortKey(b.status) ?? Number.MAX_SAFE_INTEGER;
-            if (aKey !== bKey) return aKey - bKey;
-          }
-          return b.count - a.count;
-        }),
-    })));
-    return;
-  }
-
-  const sectionCounts = Object.fromEntries(SECTION_MAP.map((section) => [section.label, 0])) as Record<string, number>;
-  const statusCountsBySection = Object.fromEntries(
-    SECTION_MAP.map((section) => [section.label, {} as Record<string, number>])
-  ) as Record<string, Record<string, number>>;
-  const statusSortBySection = Object.fromEntries(
-    SECTION_MAP.map((section) => [section.label, {} as Record<string, number>])
-  ) as Record<string, Record<string, number>>;
-  const shipments = await db
-    .select({
-      status: shipmentsTable.status,
-      pod: shipmentsTable.pod,
-      finalPortDestination: shipmentsTable.finalPortDestination,
-      cargoDescription: shipmentsTable.cargoDescription,
-      extraFields: shipmentsTable.extraFields,
-    })
-    .from(shipmentsTable)
-    .where(activeShipmentSql);
-
-  for (const shipment of shipments) {
-    if (!shipmentBelongsToDashboardSection(shipment)) continue;
-    const label = sectionLabelForShipment(shipment);
-    if (label in sectionCounts) {
-      sectionCounts[label] += 1;
-      statusCountsBySection[label][shipment.status] = (statusCountsBySection[label][shipment.status] ?? 0) + 1;
-      const sortKey = shipmentDateSortKey(shipmentSortText(shipment));
-      if (sortKey !== null) {
-        const currentKey = statusSortBySection[label][shipment.status];
-        statusSortBySection[label][shipment.status] = currentKey === undefined ? sortKey : Math.min(currentKey, sortKey);
-      }
-    }
-  }
-
+  const shipmentStats = await loadDashboardStatsFromShipments();
   res.json(SECTION_MAP.map((section) => ({
     status: section.label,
-    count: sectionCounts[section.label] ?? 0,
-    details: Object.entries(statusCountsBySection[section.label] ?? {})
+    count: shipmentStats.sectionCounts[section.label] ?? 0,
+    details: Object.entries(shipmentStats.statusCountsBySection[section.label] ?? {})
       .map(([status, count]) => ({ status, count }))
       .sort((a, b) => {
         if (section.label === "SHIPMENTS ON SEA") {
-          const aKey = statusSortBySection[section.label][a.status] ?? Number.MAX_SAFE_INTEGER;
-          const bKey = statusSortBySection[section.label][b.status] ?? Number.MAX_SAFE_INTEGER;
+          const aKey = shipmentDateSortKey(a.status) ?? Number.MAX_SAFE_INTEGER;
+          const bKey = shipmentDateSortKey(b.status) ?? Number.MAX_SAFE_INTEGER;
           if (aKey !== bKey) return aKey - bKey;
         }
         return b.count - a.count;
