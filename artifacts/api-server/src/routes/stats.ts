@@ -2,8 +2,19 @@ import { Router } from "express";
 import { db, pool, shipmentsTable, uploadsTable } from "@workspace/db";
 import { sql, eq, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
+import ExcelJS from "exceljs";
+import fs from "fs";
+import path from "path";
 
 const router = Router();
+
+const workspaceRoot = process.cwd().endsWith(path.join("artifacts", "api-server"))
+  ? path.resolve(process.cwd(), "../..")
+  : process.cwd();
+
+const uploadsDir = process.env.VERCEL
+  ? path.resolve("/tmp", "ifs-uploads")
+  : path.resolve(workspaceRoot, "artifacts/api-server/uploads");
 
 const SECTION_MAP: { label: string; statuses: string[] }[] = [
   { label: "SHIPMENTS IN MALAWI", statuses: ["Delivered", "Awaiting Clearance"] },
@@ -14,6 +25,37 @@ const SECTION_MAP: { label: string; statuses: string[] }[] = [
 
 function normalizeSectionLabel(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function cellStr(val: unknown): string | undefined {
+  if (val === null || val === undefined) return undefined;
+  if (typeof val === "object" && "richText" in (val as object)) {
+    return (val as { richText: { text: string }[] }).richText.map((rt) => rt.text).join("").trim() || undefined;
+  }
+  if (val instanceof Date) return val.toISOString().split("T")[0];
+  const s = String(val).trim();
+  return s || undefined;
+}
+
+function detectColOffset(vals: unknown[]): number | null {
+  for (let i = 1; i <= 3; i++) {
+    if (cellStr(vals[i])?.toLowerCase() === "ifs ref") return i;
+  }
+  return null;
+}
+
+function sectionLabelFromRow(vals: unknown[]): string | null {
+  const cells = vals.slice(1).map((v) => cellStr(v)).filter(Boolean) as string[];
+  if (cells.length === 0) return null;
+  const first = cells[0];
+  if (cells.every((c) => normalizeSectionLabel(c) === normalizeSectionLabel(first))) {
+    return first.toUpperCase().trim();
+  }
+  return null;
+}
+
+function isCompletedSection(value: unknown): boolean {
+  return String(value ?? "").trim().toLowerCase().includes("completed");
 }
 
 function isMeaningfulValue(value: unknown): boolean {
@@ -214,6 +256,130 @@ function shipmentIdentifier(shipment: { containerNo: string | null; extraFields:
   return shipment.containerNo || blManifest || "N/A";
 }
 
+type TrackingSnapshotRow = {
+  companyName: string;
+  consignee: string;
+  shipper: string;
+  cargoDescription: string;
+  invoiceNo: string;
+  containerNo: string;
+  mraRef: string;
+  entry: string;
+  status: string;
+  docs: string;
+  section: string;
+  extraFields: Record<string, unknown>;
+};
+
+async function readLatestTrackingMasterBuffer(): Promise<Buffer | null> {
+  const result = await pool.query<{
+    id: number;
+    filename: string;
+    file_data: Buffer | null;
+    uploaded_at: Date;
+  }>(
+    `SELECT id, filename, file_data, uploaded_at
+     FROM uploads
+     WHERE lower(filename) LIKE '%tracking%' AND lower(filename) LIKE '%master%'
+     ORDER BY uploaded_at DESC, id DESC
+     LIMIT 1`,
+  );
+
+  const latest = result.rows[0];
+  if (!latest) return null;
+  if (latest.file_data) return latest.file_data;
+
+  const candidates = await fs.promises.readdir(uploadsDir).catch(() => []);
+  const storedName = candidates
+    .filter((name) => name.endsWith(`-${latest.filename}`))
+    .sort()
+    .at(-1);
+  if (!storedName) return null;
+
+  return fs.promises.readFile(path.resolve(uploadsDir, storedName)).catch(() => null);
+}
+
+async function loadTrackingSnapshotRows(): Promise<TrackingSnapshotRow[] | null> {
+  const buffer = await readLatestTrackingMasterBuffer();
+  if (!buffer) return null;
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+
+  const rows: TrackingSnapshotRow[] = [];
+  const activeWorksheets = workbook.worksheets.filter((sheet) => !/completed/i.test(sheet.name));
+
+  for (const worksheet of activeWorksheets) {
+    let colOffset: number | null = null;
+    let currentSection: string | null = sheet.name ?? null;
+
+    for (let r = 1; r <= worksheet.rowCount; r++) {
+      const vals = worksheet.getRow(r).values as unknown[];
+      if (!vals || vals.length <= 1) continue;
+
+      const sectionLabel = sectionLabelFromRow(vals);
+      if (sectionLabel) {
+        currentSection = sectionLabel;
+        colOffset = null;
+        continue;
+      }
+
+      const detected = detectColOffset(vals);
+      if (detected !== null) {
+        colOffset = detected;
+        continue;
+      }
+
+      if (colOffset === null) continue;
+      if (isCompletedSection(currentSection) || isCompletedSection(sheet.name)) continue;
+
+      const o = colOffset;
+      const typeField = cellStr(vals[o + 1]);
+      const blManifest = cellStr(vals[o + 2]);
+      const containerNo = cellStr(vals[o + 3]);
+      const shipper = cellStr(vals[o + 4]);
+      const consignee = cellStr(vals[o + 5]);
+      const cargoDesc = cellStr(vals[o + 6]);
+      const invoiceNo = cellStr(vals[o + 7]);
+      const pod = cellStr(vals[o + 8]);
+      const fpd = cellStr(vals[o + 9]);
+      const agent = cellStr(vals[o + 10]);
+      const mraRef = cellStr(vals[o + 11]);
+      const entry = cellStr(vals[o + 12]);
+      const status = cellStr(vals[o + 13]);
+      const docs = cellStr(vals[o + 14]);
+
+      if (!consignee) continue;
+      if (isIgnoredShipmentStatus(status)) continue;
+
+      const extraFields: Record<string, unknown> = {};
+      if (typeField) extraFields["Type"] = typeField;
+      if (blManifest) extraFields["BL / Manifest No."] = blManifest;
+      if (agent) extraFields["Agent"] = agent;
+      if (pod) extraFields["POD"] = pod;
+      if (fpd) extraFields["FPD"] = fpd;
+      if (currentSection) extraFields["Source Section"] = currentSection;
+
+      rows.push({
+        companyName: consignee,
+        consignee,
+        shipper: shipper ?? "N/A",
+        cargoDescription: cargoDesc ?? "N/A",
+        invoiceNo: invoiceNo ?? "N/A",
+        containerNo: containerNo ?? "N/A",
+        mraRef: mraRef ?? "N/A",
+        entry: entry ?? "N/A",
+        status: status ?? "N/A",
+        docs: docs ?? "",
+        section: currentSection ?? "",
+        extraFields,
+      });
+    }
+  }
+
+  return rows;
+}
+
 type DashboardStatsPayload = {
   totalContainers: number;
   totalCompanies: number;
@@ -222,6 +388,32 @@ type DashboardStatsPayload = {
 };
 
 async function loadDashboardStatsFromShipments(): Promise<DashboardStatsPayload> {
+  const trackingRows = await loadTrackingSnapshotRows();
+  if (trackingRows) {
+    const sectionCounts = Object.fromEntries(SECTION_MAP.map((section) => [section.label, 0])) as Record<string, number>;
+    const statusCountsBySection = Object.fromEntries(
+      SECTION_MAP.map((section) => [section.label, {} as Record<string, number>]),
+    ) as Record<string, Record<string, number>>;
+    const companyKeys = new Set<string>();
+
+    for (const row of trackingRows) {
+      const sectionLabel = sectionLabelForShipment({ status: row.status, extraFields: row.extraFields });
+      const matchedSection = SECTION_MAP.find((section) => section.label === sectionLabel);
+      if (!matchedSection) continue;
+
+      sectionCounts[matchedSection.label] += 1;
+      statusCountsBySection[matchedSection.label][row.status] = (statusCountsBySection[matchedSection.label][row.status] ?? 0) + 1;
+      companyKeys.add(row.consignee.trim().toLowerCase());
+    }
+
+    return {
+      totalContainers: trackingRows.length,
+      totalCompanies: companyKeys.size,
+      sectionCounts,
+      statusCountsBySection,
+    };
+  }
+
   const sectionCounts = Object.fromEntries(SECTION_MAP.map((section) => [section.label, 0])) as Record<string, number>;
   const statusCountsBySection = Object.fromEntries(
     SECTION_MAP.map((section) => [section.label, {} as Record<string, number>]),
@@ -290,6 +482,79 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
   const today = startOfDay(new Date());
   const maxDate = new Date(today);
   maxDate.setDate(maxDate.getDate() + 15);
+
+  const trackingRows = await loadTrackingSnapshotRows();
+  if (trackingRows) {
+    const rows = trackingRows.map((row, index) => ({
+      id: index + 1,
+      status: row.status,
+      containerNo: row.containerNo,
+      shipper: row.shipper,
+      consignee: row.consignee,
+      cargoDescription: row.cargoDescription,
+      invoiceNo: row.invoiceNo,
+      mraRef: row.mraRef,
+      entry: row.entry,
+      docs: row.docs,
+      extraFields: row.extraFields,
+    }));
+
+    const mapBase = (shipment: typeof rows[number]) => ({
+      id: shipment.id,
+      identifier: shipmentIdentifier({ containerNo: shipment.containerNo, extraFields: shipment.extraFields }),
+      consignee: shipment.consignee || "N/A",
+      shipper: shipment.shipper || "N/A",
+      cargoDescription: shipment.cargoDescription || "N/A",
+      invoiceNo: shipment.invoiceNo || "N/A",
+    });
+
+    const nearbyConsignments = rows
+      .map((shipment) => ({ shipment, etaDate: parseEtaDate(shipment.status, today) }))
+      .filter(({ etaDate }) => etaDate && etaDate >= today && etaDate <= maxDate)
+      .sort((a, b) => a.etaDate!.getTime() - b.etaDate!.getTime())
+      .map(({ shipment, etaDate }) => ({
+        ...mapBase(shipment),
+        eta: etaDate!.toISOString(),
+        status: shipment.status,
+      }));
+
+    const needsChecking = rows
+      .filter((shipment) => isMeaningfulValue(shipment.mraRef) && !isMeaningfulValue(shipment.entry))
+      .map((shipment) => ({
+        ...mapBase(shipment),
+        mraRef: shipment.mraRef || "N/A",
+      }));
+
+    const documentsNeeded = rows
+      .filter((shipment) => {
+        const section = sectionLabelForShipment({ status: shipment.status, extraFields: shipment.extraFields });
+        if (section !== "SHIPMENTS ON SEA") return false;
+        const docsText = String(shipment.docs ?? "").trim().toLowerCase();
+        if (!docsText || docsText.includes("submitted")) return false;
+        if (!docsText.includes("not submitted")) return false;
+        const etaDate = parseEtaDate(shipment.status, today);
+        return Boolean(etaDate && etaDate >= today && etaDate <= maxDate);
+      })
+      .map((shipment) => ({
+        ...mapBase(shipment),
+        eta: parseEtaDate(shipment.status, today)?.toISOString(),
+        status: shipment.status,
+      }));
+
+    const mraRefNeeded = rows
+      .filter((shipment) => {
+        if (isMeaningfulValue(shipment.mraRef)) return false;
+        const section = sectionLabelForShipment({ status: shipment.status, extraFields: shipment.extraFields });
+        return section === "SHIPMENTS ENROUTE" || section === "SHIPMENTS IN MALAWI";
+      })
+      .map((shipment) => ({
+        ...mapBase(shipment),
+        status: shipment.status,
+      }));
+
+    res.json({ nearbyConsignments, needsChecking, documentsNeeded, mraRefNeeded });
+    return;
+  }
 
   const shipments = await db
     .select({
