@@ -300,84 +300,88 @@ async function readLatestTrackingMasterBuffer(): Promise<Buffer | null> {
 }
 
 async function loadTrackingSnapshotRows(): Promise<TrackingSnapshotRow[] | null> {
-  const buffer = await readLatestTrackingMasterBuffer();
-  if (!buffer) return null;
+  try {
+    const buffer = await readLatestTrackingMasterBuffer();
+    if (!buffer) return null;
 
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
 
-  const rows: TrackingSnapshotRow[] = [];
-  const activeWorksheets = workbook.worksheets.filter((sheet) => !/completed/i.test(sheet.name));
+    const rows: TrackingSnapshotRow[] = [];
+    const activeWorksheets = workbook.worksheets.filter((worksheet) => !/completed/i.test(worksheet.name));
 
-  for (const worksheet of activeWorksheets) {
-    let colOffset: number | null = null;
-    let currentSection: string | null = sheet.name ?? null;
+    for (const worksheet of activeWorksheets) {
+      let colOffset: number | null = null;
+      let currentSection: string | null = worksheet.name ?? null;
 
-    for (let r = 1; r <= worksheet.rowCount; r++) {
-      const vals = worksheet.getRow(r).values as unknown[];
-      if (!vals || vals.length <= 1) continue;
+      for (let r = 1; r <= worksheet.rowCount; r++) {
+        const vals = worksheet.getRow(r).values as unknown[];
+        if (!vals || vals.length <= 1) continue;
 
-      const sectionLabel = sectionLabelFromRow(vals);
-      if (sectionLabel) {
-        currentSection = sectionLabel;
-        colOffset = null;
-        continue;
+        const sectionLabel = sectionLabelFromRow(vals);
+        if (sectionLabel) {
+          currentSection = sectionLabel;
+          colOffset = null;
+          continue;
+        }
+
+        const detected = detectColOffset(vals);
+        if (detected !== null) {
+          colOffset = detected;
+          continue;
+        }
+
+        if (colOffset === null) continue;
+        if (isCompletedSection(currentSection) || isCompletedSection(worksheet.name)) continue;
+
+        const o = colOffset;
+        const typeField = cellStr(vals[o + 1]);
+        const blManifest = cellStr(vals[o + 2]);
+        const containerNo = cellStr(vals[o + 3]);
+        const shipper = cellStr(vals[o + 4]);
+        const consignee = cellStr(vals[o + 5]);
+        const cargoDesc = cellStr(vals[o + 6]);
+        const invoiceNo = cellStr(vals[o + 7]);
+        const pod = cellStr(vals[o + 8]);
+        const fpd = cellStr(vals[o + 9]);
+        const agent = cellStr(vals[o + 10]);
+        const mraRef = cellStr(vals[o + 11]);
+        const entry = cellStr(vals[o + 12]);
+        const status = cellStr(vals[o + 13]);
+        const docs = cellStr(vals[o + 14]);
+
+        if (!consignee) continue;
+        if (isIgnoredShipmentStatus(status)) continue;
+
+        const extraFields: Record<string, unknown> = {};
+        if (typeField) extraFields["Type"] = typeField;
+        if (blManifest) extraFields["BL / Manifest No."] = blManifest;
+        if (agent) extraFields["Agent"] = agent;
+        if (pod) extraFields["POD"] = pod;
+        if (fpd) extraFields["FPD"] = fpd;
+        if (currentSection) extraFields["Source Section"] = currentSection;
+
+        rows.push({
+          companyName: consignee,
+          consignee,
+          shipper: shipper ?? "N/A",
+          cargoDescription: cargoDesc ?? "N/A",
+          invoiceNo: invoiceNo ?? "N/A",
+          containerNo: containerNo ?? "N/A",
+          mraRef: mraRef ?? "N/A",
+          entry: entry ?? "N/A",
+          status: status ?? "N/A",
+          docs: docs ?? "",
+          section: currentSection ?? "",
+          extraFields,
+        });
       }
-
-      const detected = detectColOffset(vals);
-      if (detected !== null) {
-        colOffset = detected;
-        continue;
-      }
-
-      if (colOffset === null) continue;
-      if (isCompletedSection(currentSection) || isCompletedSection(sheet.name)) continue;
-
-      const o = colOffset;
-      const typeField = cellStr(vals[o + 1]);
-      const blManifest = cellStr(vals[o + 2]);
-      const containerNo = cellStr(vals[o + 3]);
-      const shipper = cellStr(vals[o + 4]);
-      const consignee = cellStr(vals[o + 5]);
-      const cargoDesc = cellStr(vals[o + 6]);
-      const invoiceNo = cellStr(vals[o + 7]);
-      const pod = cellStr(vals[o + 8]);
-      const fpd = cellStr(vals[o + 9]);
-      const agent = cellStr(vals[o + 10]);
-      const mraRef = cellStr(vals[o + 11]);
-      const entry = cellStr(vals[o + 12]);
-      const status = cellStr(vals[o + 13]);
-      const docs = cellStr(vals[o + 14]);
-
-      if (!consignee) continue;
-      if (isIgnoredShipmentStatus(status)) continue;
-
-      const extraFields: Record<string, unknown> = {};
-      if (typeField) extraFields["Type"] = typeField;
-      if (blManifest) extraFields["BL / Manifest No."] = blManifest;
-      if (agent) extraFields["Agent"] = agent;
-      if (pod) extraFields["POD"] = pod;
-      if (fpd) extraFields["FPD"] = fpd;
-      if (currentSection) extraFields["Source Section"] = currentSection;
-
-      rows.push({
-        companyName: consignee,
-        consignee,
-        shipper: shipper ?? "N/A",
-        cargoDescription: cargoDesc ?? "N/A",
-        invoiceNo: invoiceNo ?? "N/A",
-        containerNo: containerNo ?? "N/A",
-        mraRef: mraRef ?? "N/A",
-        entry: entry ?? "N/A",
-        status: status ?? "N/A",
-        docs: docs ?? "",
-        section: currentSection ?? "",
-        extraFields,
-      });
     }
-  }
 
-  return rows;
+    return rows;
+  } catch {
+    return null;
+  }
 }
 
 type DashboardStatsPayload = {
