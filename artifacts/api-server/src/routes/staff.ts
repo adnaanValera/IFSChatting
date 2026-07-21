@@ -1785,6 +1785,10 @@ const SAMPLE_TEMPLATE_MAX_WIDTHS: Record<number, number> = {
   15: 27.86,
 };
 
+const FLEXIBLE_BASE_WIDTH_KEYS = new Set<typeof REPORT_KEYS[number]>([
+  "containerNo",
+]);
+
 function cellTextLength(value: unknown): number {
   if (value == null) return 0;
   if (typeof value === "string") return value.length;
@@ -1858,7 +1862,9 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
       const best = maxLen[colIdx] ?? 0;
       const padding = REPORT_WIDTHS[key]?.wrap ? 1 : (key === "ifsRef" ? 2 : 1);
       const computedWidth = Math.min(Math.max(best + padding, limits.min), limits.max);
-      const baseWidth = key === "finalPortDestination" ? 0 : (SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0);
+      const baseWidth = key === "finalPortDestination" || FLEXIBLE_BASE_WIDTH_KEYS.has(key)
+        ? 0
+        : (SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0);
       col.width = Math.min(Math.max(computedWidth, baseWidth), limits.max);
       continue;
     }
