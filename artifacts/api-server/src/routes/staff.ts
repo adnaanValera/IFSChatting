@@ -1790,7 +1790,7 @@ const FLEXIBLE_BASE_WIDTH_KEYS = new Set<typeof REPORT_KEYS[number]>([
 ]);
 
 const FIXED_REPORT_COLUMN_WIDTHS: Record<number, number> = {
-  6: 8.57, // F ~= 60px
+  6: 6.67, // F exact template width
 };
 
 function cellTextLength(value: unknown): number {
@@ -1898,6 +1898,15 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
       }
     });
   });
+}
+
+function enforceFinalReportColumnWidths(ws: ExcelJS.Worksheet): void {
+  for (const [colIdxText, width] of Object.entries(FIXED_REPORT_COLUMN_WIDTHS)) {
+    const colIdx = Number(colIdxText);
+    if (Number.isFinite(colIdx) && width > 0) {
+      ws.getColumn(colIdx).width = width;
+    }
+  }
 }
 
 const SECTION_MAP: { label: string; statuses: string[] }[] = [
@@ -2227,6 +2236,7 @@ async function generateCompanyReportWorkbook(
     updateTemplateDate(ws, dateStr);
     if (fillTemplateSections(ws, shipments)) {
       autoFitWorksheet(ws);
+      enforceFinalReportColumnWidths(ws);
       return wb;
     }
   } else {
@@ -2365,6 +2375,7 @@ async function generateCompanyReportWorkbook(
 
   // Auto-fit column widths to content
   autoFitWorksheet(ws);
+  enforceFinalReportColumnWidths(ws);
 
   return wb;
 }
