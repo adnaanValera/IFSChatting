@@ -1789,6 +1789,10 @@ const FLEXIBLE_BASE_WIDTH_KEYS = new Set<typeof REPORT_KEYS[number]>([
   "containerNo",
 ]);
 
+const FIXED_REPORT_COLUMN_WIDTHS: Record<number, number> = {
+  6: 8.57, // F ~= 60px
+};
+
 function cellTextLength(value: unknown): number {
   if (value == null) return 0;
   if (typeof value === "string") return value.length;
@@ -1853,6 +1857,12 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
     const col = ws.getColumn(colIdx);
     if (colIdx < firstDataColumn) {
       col.width = 3;
+      continue;
+    }
+
+    const fixedWidth = FIXED_REPORT_COLUMN_WIDTHS[colIdx];
+    if (fixedWidth) {
+      col.width = fixedWidth;
       continue;
     }
 
