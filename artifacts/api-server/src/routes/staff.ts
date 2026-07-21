@@ -714,7 +714,14 @@ function sameText(a: unknown, b: unknown): boolean {
 function cellHasYellowFill(cell: ExcelJS.Cell | undefined): boolean {
   const color = cell?.fill && "fgColor" in cell.fill ? cell.fill.fgColor?.argb : undefined;
   const normalized = String(color ?? "").toUpperCase();
-  return normalized === "FFFFFF00" || normalized === "FFFF00" || normalized.endsWith("FF00");
+  return (
+    normalized === "FFFFFF00"
+    || normalized === "FFFF00"
+    || normalized.endsWith("FF00")
+    || normalized.includes("FFD966")
+    || normalized.includes("FFF2CC")
+    || normalized.includes("FFC000")
+  );
 }
 
 function matchText(value: unknown): string {
@@ -1250,7 +1257,7 @@ export async function parseMasterWorksheet(
     const mraRef      = cellStr(vals[o + 11]);
     const entry       = cellStr(vals[o + 12]);
     const status      = cellStr(vals[o + 13]);
-    // o + 14 = Docs (informational, not stored)
+    const docsValue    = cellStr(vals[o + 14]);
     const docsCell = worksheet.getRow(r).getCell(o + 14);
     const hasYellowDocsFlag = cellHasYellowFill(docsCell);
 
@@ -1269,7 +1276,7 @@ export async function parseMasterWorksheet(
     if (blManifest) extraFields["BL / Manifest No."] = blManifest;
     if (agent) extraFields["Agent"] = agent;
     if (currentSection) extraFields["Source Section"] = currentSection;
-    if (hasYellowDocsFlag) extraFields["Needs Documents"] = "true";
+    if (hasYellowDocsFlag || docsValue) extraFields["Needs Documents"] = "true";
 
     totalRows++;
     try {

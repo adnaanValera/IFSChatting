@@ -16,17 +16,55 @@ function normalizeSectionLabel(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function isMeaningfulValue(value: unknown): boolean {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return Boolean(normalized && normalized !== "n/a" && normalized !== "na" && normalized !== "-");
+}
+
+function matchSectionFromLabel(value: string): string | null {
+  const normalized = normalizeSectionLabel(value);
+  if (!normalized) return null;
+  if (normalized.includes("MALAWI")) return "SHIPMENTS IN MALAWI";
+  if (normalized.includes("ENROUTE") || normalized.includes("EN ROUTE")) return "SHIPMENTS ENROUTE";
+  if (normalized.includes("POD") || normalized.includes("AT PORT") || normalized.includes("PORT OF DISCHARGE")) {
+    return "SHIPMENTS AT POD";
+  }
+  if (normalized.includes("SEA") || normalized.includes("VESSEL")) return "SHIPMENTS ON SEA";
+
+  const exact = SECTION_MAP.find((section) => normalizeSectionLabel(section.label) === normalized);
+  return exact?.label ?? null;
+}
+
 function sectionLabelForShipment(shipment: { status: string; extraFields: unknown }): string {
   const extra = (shipment.extraFields as Record<string, unknown>) ?? {};
   const sourceSection = String(extra["Source Section"] ?? extra["sourceSection"] ?? "").trim();
   if (sourceSection) {
-    const matchingSection = SECTION_MAP.find((section) =>
-      normalizeSectionLabel(section.label) === normalizeSectionLabel(sourceSection)
-    );
-    if (matchingSection) return matchingSection.label;
+    const matchingSection = matchSectionFromLabel(sourceSection);
+    if (matchingSection) return matchingSection;
   }
 
-  const status = shipment.status.toLowerCase();
+  const status = String(shipment.status ?? "").toLowerCase();
+  if (
+    status.includes("eta")
+    || status.includes("on sea")
+    || status.includes("at sea")
+    || status.includes("delayed")
+    || status.includes("vessel")
+    || status.includes("beira")
+    || status.includes("nacala")
+  ) return "SHIPMENTS ON SEA";
+  if (status.includes("at port") || status.includes("pod") || status.includes("offloading")) return "SHIPMENTS AT POD";
+  if (status.includes("enroute") || status.includes("en route") || status.includes("in transit") || status.includes("transit")) {
+    return "SHIPMENTS ENROUTE";
+  }
+  if (
+    status.includes("malawi")
+    || status.includes("delivered")
+    || status.includes("awaiting clearance")
+    || status.includes("entry done")
+    || status.includes("clearing")
+  ) return "SHIPMENTS IN MALAWI";
+
   return SECTION_MAP.find((section) => section.statuses.some(
     (st) => status.includes(st.toLowerCase()) || st.toLowerCase().includes(status),
   ))?.label ?? "OTHER SHIPMENTS";
@@ -197,14 +235,12 @@ async function loadDashboardStatsFromShipments(): Promise<DashboardStatsPayload>
       extraFields: shipmentsTable.extraFields,
     })
     .from(shipmentsTable)
-    .where(dashboardShipmentSql);
+    .where(activeShipmentSql);
 
   let totalContainers = 0;
   for (const shipment of shipments) {
-    const extra = (shipment.extraFields as Record<string, unknown>) ?? {};
-    const sourceSection = String(extra["Source Section"] ?? extra["sourceSection"] ?? "").trim();
-    const normalizedSource = normalizeSectionLabel(sourceSection);
-    const matchedSection = SECTION_MAP.find((section) => normalizeSectionLabel(section.label) === normalizedSource);
+    if (isIgnoredShipmentStatus(shipment.status)) continue;
+    const matchedSection = SECTION_MAP.find((section) => section.label === sectionLabelForShipment(shipment));
     if (!matchedSection) continue;
 
     totalContainers += 1;
@@ -269,7 +305,7 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
       extraFields: shipmentsTable.extraFields,
     })
     .from(shipmentsTable)
-    .where(dashboardShipmentSql);
+    .where(activeShipmentSql);
 
   const mapBase = (shipment: typeof shipments[number]) => ({
     id: shipment.id,
@@ -296,14 +332,17 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
     }));
 
   const needsChecking = shipments
-    .filter((shipment) => Boolean(shipment.mraRef?.trim()) && !shipment.entry?.trim())
+    .filter((shipment) => isMeaningfulValue(shipment.mraRef) && !isMeaningfulValue(shipment.entry))
     .map((shipment) => ({
       ...mapBase(shipment),
       mraRef: shipment.mraRef || "N/A",
     }));
 
   const documentsNeeded = shipments
-    .filter((shipment) => extraValue(shipment.extraFields, "Needs Documents").toLowerCase() === "true" && isWithinWindow(shipment))
+    .filter((shipment) => {
+      const docsFlag = extraValue(shipment.extraFields, "Needs Documents", "needsDocuments", "Docs", "docs");
+      return (docsFlag.toLowerCase() === "true" || isMeaningfulValue(docsFlag)) && isWithinWindow(shipment);
+    })
     .map((shipment) => ({
       ...mapBase(shipment),
       eta: parseEtaDate(shipment.status, today)?.toISOString(),
@@ -312,7 +351,7 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
 
   const mraRefNeeded = shipments
     .filter((shipment) => {
-      if (shipment.mraRef?.trim()) return false;
+      if (isMeaningfulValue(shipment.mraRef)) return false;
       const section = sectionLabelForShipment(shipment);
       return section === "SHIPMENTS ENROUTE" || section === "SHIPMENTS IN MALAWI";
     })
