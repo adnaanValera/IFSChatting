@@ -1032,6 +1032,10 @@ async function upsertShipment(record: {
         blManifest: shipmentBlManifest(candidate),
       };
 
+      if (incoming.containerNo) {
+        return !!candidateValues.containerNo && incoming.containerNo === candidateValues.containerNo;
+      }
+
       if (incoming.containerNo && candidateValues.containerNo && incoming.containerNo === candidateValues.containerNo) return true;
       if (incoming.mraRef && candidateValues.mraRef && incoming.mraRef === candidateValues.mraRef) return true;
       if (incoming.blManifest && candidateValues.blManifest && incoming.blManifest === candidateValues.blManifest) {
