@@ -1035,6 +1035,7 @@ async function upsertShipment(record: {
       if (incoming.containerNo && candidateValues.containerNo && incoming.containerNo === candidateValues.containerNo) return true;
       if (incoming.mraRef && candidateValues.mraRef && incoming.mraRef === candidateValues.mraRef) return true;
       if (incoming.blManifest && candidateValues.blManifest && incoming.blManifest === candidateValues.blManifest) {
+        if (incoming.containerNo && candidateValues.containerNo && incoming.containerNo !== candidateValues.containerNo) return false;
         if (incoming.invoiceNo && candidateValues.invoiceNo && incoming.invoiceNo === candidateValues.invoiceNo) return true;
         if (incoming.consignee && candidateValues.consignee && incoming.consignee === candidateValues.consignee) return true;
       }
@@ -1073,6 +1074,7 @@ async function upsertShipment(record: {
 
       if (incoming.mraRef && candidateValues.mraRef && incoming.mraRef === candidateValues.mraRef) return true;
       if (incoming.blManifest && candidateValues.blManifest && incoming.blManifest === candidateValues.blManifest) {
+        if (incoming.containerNo && candidateValues.containerNo && incoming.containerNo !== candidateValues.containerNo) return false;
         return (
           (incoming.containerNo && candidateValues.containerNo && incoming.containerNo === candidateValues.containerNo) ||
           (incoming.invoiceNo && candidateValues.invoiceNo && incoming.invoiceNo === candidateValues.invoiceNo) ||
