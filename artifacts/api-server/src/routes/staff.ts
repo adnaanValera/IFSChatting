@@ -1734,38 +1734,21 @@ const REPORT_KEYS = [
   "invoiceNo", "pod", "finalPortDestination", "agent", "mraRef", "entry", "status",
 ] as const;
 
-const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }> = {
-  ifsRef: { min: 10, max: 22.14 },
-  type: { min: 5, max: 6.71 },
-  blNo: { min: 8, max: 20.71 },
-  containerNo: { min: 8, max: 22.86 },
-  shipper: { min: 8, max: 27.86, wrap: true },
-  consignee: { min: 8, max: 27.86, wrap: true },
-  cargoDescription: { min: 10, max: 27.86, wrap: true },
-  invoiceNo: { min: 8, max: 23.57 },
-  pod: { min: 6, max: 7.86 },
-  finalPortDestination: { min: 6, max: 7.86 },
-  agent: { min: 8, max: 13.57, wrap: true },
-  mraRef: { min: 8, max: 13.57 },
-  entry: { min: 8, max: 12.14 },
-  status: { min: 8, max: 27.86, wrap: true },
-};
-
-const SAMPLE_TEMPLATE_MAX_WIDTHS: Record<number, number> = {
-  2: 22.14,
-  3: 6.71,
-  4: 20.71,
-  5: 22.86,
-  6: 27.86,
-  7: 27.86,
-  8: 27.86,
-  9: 23.57,
-  10: 7.86,
-  11: 7.86,
-  12: 13.57,
-  13: 13.57,
-  14: 12.14,
-  15: 27.86,
+const REPORT_WIDTHS: Record<string, { min: number; wrap?: boolean }> = {
+  ifsRef: { min: 10 },
+  type: { min: 5 },
+  blNo: { min: 8 },
+  containerNo: { min: 8 },
+  shipper: { min: 8, wrap: true },
+  consignee: { min: 8, wrap: true },
+  cargoDescription: { min: 10, wrap: true },
+  invoiceNo: { min: 8 },
+  pod: { min: 6 },
+  finalPortDestination: { min: 6 },
+  agent: { min: 8, wrap: true },
+  mraRef: { min: 8 },
+  entry: { min: 8 },
+  status: { min: 8, wrap: true },
 };
 
 function cellTextLength(value: unknown): number {
@@ -1840,15 +1823,14 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
       const limits = REPORT_WIDTHS[key];
       const best = maxLen[colIdx] ?? 0;
       const padding = REPORT_WIDTHS[key]?.wrap ? 1 : (key === "ifsRef" ? 2 : 1);
-      const computedWidth = Math.min(Math.max(best + padding, limits.min), limits.max);
+      const computedWidth = Math.max(best + padding, limits.min);
       col.width = computedWidth;
       continue;
     }
 
     const best = maxLen[colIdx] ?? 0;
-    const computedWidth = best > 0 ? Math.min(Math.max(best + 2, 8), 24) : 0;
-    const maxWidth = SAMPLE_TEMPLATE_MAX_WIDTHS[colIdx] ?? 24;
-    if (computedWidth > 0) col.width = Math.min(computedWidth, maxWidth);
+    const computedWidth = best > 0 ? Math.max(best + 2, 8) : 0;
+    if (computedWidth > 0) col.width = computedWidth;
   }
 
   ws.eachRow((row) => {
