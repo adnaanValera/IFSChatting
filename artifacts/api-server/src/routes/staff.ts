@@ -1054,7 +1054,7 @@ async function upsertShipment(record: {
       .limit(1);
   }
 
-  if (existing.length === 0) {
+  if (existing.length === 0 && !record.matchByContainer) {
     const candidates = await db
       .select()
       .from(shipmentsTable)
