@@ -2419,8 +2419,32 @@ function generateCompanyReportPdfBuffer(
   const top = 26;
   const contentWidth = pageWidth - left - right;
   const bottom = pageHeight - 28;
-  const colWidths = [90, 34, 82, 72, 76, 84, 112, 66, 38, 38, 54, 68, 56, 70];
+  const pdfWidthRules = [
+    { min: 78, max: 92 },  // IFS Ref
+    { min: 30, max: 36 },  // Type
+    { min: 72, max: 88 },  // BL / Manifest No.
+    { min: 60, max: 72 },  // Container No.
+    { min: 42, max: 48 },  // Shipper (Excel F)
+    { min: 70, max: 86 },  // Consignee
+    { min: 98, max: 114 }, // Cargo Desc
+    { min: 58, max: 68 },  // Invoice No.
+    { min: 34, max: 40 },  // POD
+    { min: 34, max: 40 },  // FPD
+    { min: 48, max: 56 },  // Agent
+    { min: 60, max: 68 },  // MRA Ref
+    { min: 50, max: 58 },  // Entry
+    { min: 66, max: 74 },  // Status
+  ] as const;
   const labels = ["IFS Ref", "Type", "BL / Manifest No.", "Container No.", "Shipper", "Consignee", "Cargo Desc", "Invoice No.", "POD", "FPD", "Agent", "MRA Ref", "Entry", "Status"];
+  const pdfRows = shipments.map((shipment) => shipmentReportValues(shipment));
+  const colWidths = pdfWidthRules.map((rule, index) => {
+    const longest = Math.max(
+      labels[index]?.length ?? 0,
+      ...pdfRows.map((row) => String(row[index] ?? "").replace(/\s+/g, " ").trim().length),
+    );
+    const approx = Math.ceil(longest * 4.4) + 8;
+    return Math.max(rule.min, Math.min(approx, rule.max));
+  });
   const pages: string[] = [];
   let content = "";
   let y = top;
@@ -2664,7 +2688,7 @@ router.get("/staff/company-report/:company/pdf", requireAuth, requireStaff, asyn
   try {
     const companyName = decodeURIComponent(req.params["company"] as string);
     const shipments = await db.select().from(shipmentsTable).where(and(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`, activeShipmentSql)).orderBy(asc(shipmentsTable.ifsRef));
-    await streamCompanyReportPdfFromExcel(res, companyName, `Status Report - ${companyName} (${todayString()}).pdf`, shipments);
+    streamCompanyReportPdf(res, companyName, `Status Report - ${companyName} (${todayString()}).pdf`, shipments);
   } catch (err) {
     handlePdfRouteError(res, err);
   }
@@ -2685,7 +2709,7 @@ router.get("/customer/company-report/pdf", requireAuth, async (req, res) => {
       .where(and(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`, activeShipmentSql))
       .orderBy(asc(shipmentsTable.ifsRef));
 
-    await streamCompanyReportPdfFromExcel(res, companyName, `Status Report - ${companyName} (${todayString()}).pdf`, shipments);
+    streamCompanyReportPdf(res, companyName, `Status Report - ${companyName} (${todayString()}).pdf`, shipments);
   } catch (err) {
     handlePdfRouteError(res, err);
   }
@@ -2752,7 +2776,7 @@ router.get("/staff/company-report/:company/consignee/:consignee/pdf", requireAut
       .orderBy(asc(shipmentsTable.ifsRef));
 
     const reportLabel = isUnspecified ? companyName : (shipments[0]?.consignee ?? consigneeName);
-    await streamCompanyReportPdfFromExcel(res, reportLabel, `Status Report - ${companyName} - ${reportLabel} (${todayString()}).pdf`, shipments);
+    streamCompanyReportPdf(res, reportLabel, `Status Report - ${companyName} - ${reportLabel} (${todayString()}).pdf`, shipments);
   } catch (err) {
     handlePdfRouteError(res, err);
   }
