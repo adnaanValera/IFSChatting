@@ -1072,9 +1072,12 @@ async function upsertShipment(record: {
         blManifest: shipmentBlManifest(candidate),
       };
 
+      if (incoming.containerNo && candidateValues.containerNo && incoming.containerNo !== candidateValues.containerNo) {
+        return false;
+      }
+
       if (incoming.mraRef && candidateValues.mraRef && incoming.mraRef === candidateValues.mraRef) return true;
       if (incoming.blManifest && candidateValues.blManifest && incoming.blManifest === candidateValues.blManifest) {
-        if (incoming.containerNo && candidateValues.containerNo && incoming.containerNo !== candidateValues.containerNo) return false;
         return (
           (incoming.containerNo && candidateValues.containerNo && incoming.containerNo === candidateValues.containerNo) ||
           (incoming.invoiceNo && candidateValues.invoiceNo && incoming.invoiceNo === candidateValues.invoiceNo) ||
@@ -1085,7 +1088,7 @@ async function upsertShipment(record: {
         return incoming.consignee === candidateValues.consignee || incoming.shipper === candidateValues.shipper;
       }
       if (incoming.ifsRef && candidateValues.ifsRef && incoming.ifsRef === candidateValues.ifsRef) {
-        return !incoming.containerNo || !candidateValues.containerNo || incoming.containerNo === candidateValues.containerNo || incoming.invoiceNo === candidateValues.invoiceNo;
+        return !incoming.containerNo || !candidateValues.containerNo || incoming.containerNo === candidateValues.containerNo;
       }
       return false;
     });
