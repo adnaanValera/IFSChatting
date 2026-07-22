@@ -2562,6 +2562,8 @@ async function streamCompanyReportPdfFromExcel(
 ): Promise<void> {
   const template = await getReportTemplate();
   const wb = await generateCompanyReportWorkbook(reportLabel, shipments, template?.buffer ?? null);
+  const pdfSheet = wb.worksheets[0];
+  if (pdfSheet) autoFitWorksheet(pdfSheet);
   const xlsxName = fileName.replace(/\.pdf$/i, ".xlsx");
   const pdf = await convertWorkbookToPdfBuffer(wb, xlsxName);
   res.setHeader("Content-Type", "application/pdf");
@@ -2581,6 +2583,8 @@ router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, as
   const shipments = await db.select().from(shipmentsTable).where(and(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`, activeShipmentSql)).orderBy(asc(shipmentsTable.ifsRef));
   const template = await getReportTemplate();
   const wb = await generateCompanyReportWorkbook(companyName, shipments, template?.buffer ?? null);
+  const excelSheet = wb.worksheets[0];
+  if (excelSheet) autoFitWorksheet(excelSheet);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName} (${todayString()}).xlsx"`);
   await wb.xlsx.write(res);
@@ -2648,6 +2652,8 @@ router.get("/staff/company-report/:company/consignee/:consignee/excel", requireA
   const template = await getReportTemplate();
   const reportLabel = isUnspecified ? companyName : (shipments[0]?.consignee ?? consigneeName);
   const wb = await generateCompanyReportWorkbook(reportLabel, shipments, template?.buffer ?? null);
+  const consigneeExcelSheet = wb.worksheets[0];
+  if (consigneeExcelSheet) autoFitWorksheet(consigneeExcelSheet);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName} - ${reportLabel} (${todayString()}).xlsx"`);
   await wb.xlsx.write(res);
