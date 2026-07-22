@@ -1,23 +1,38 @@
 {
+  "id": "/dashboard?app=ifs-web-v3",
   "name": "InterFreight Solutions",
   "short_name": "InterFreight",
   "description": "Shipment tracking and customer updates for InterFreight Solutions.",
-  "start_url": "/dashboard",
+  "start_url": "/dashboard?app=ifs-web-v3",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay"],
   "background_color": "#121417",
   "theme_color": "#A31E2C",
   "icons": [
     {
-      "src": "/ifs-app-icon-2026-v2.png",
+      "src": "/app-icon-v3.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/ifs-app-icon-2026-v2.png",
+      "src": "/app-icon-v3.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/app-icon-v3.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/app-icon-v3.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
