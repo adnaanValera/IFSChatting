@@ -1742,40 +1742,8 @@ const WRAPPED_REPORT_KEYS = new Set<typeof REPORT_KEYS[number]>([
   "status",
 ]);
 
-function cellTextLength(value: unknown): number {
-  if (value == null) return 0;
-  if (typeof value === "string") return value.length;
-  if (typeof value === "number") return String(value).length;
-  if (value instanceof Date) return 10;
-  if (typeof value === "object" && (value as any).richText) {
-    return ((value as any).richText as any[]).map((r: any) => r.text ?? "").join("").length;
-  }
-  if (typeof value === "object" && (value as any).text) return String((value as any).text).length;
-  return String(value).length;
-}
-
-function wrappedCellFitLength(value: unknown): number {
-  if (value == null) return 0;
-  const text = typeof value === "string"
-    ? value
-    : typeof value === "object" && (value as any).richText
-      ? ((value as any).richText as any[]).map((r: any) => r.text ?? "").join("")
-      : typeof value === "object" && (value as any).text
-        ? String((value as any).text)
-        : String(value);
-
-  const chunks = text
-    .split(/\s+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (chunks.length === 0) return 0;
-  return Math.max(...chunks.map((chunk) => chunk.length));
-}
-
-// Auto-fit report columns by content.
+// Preserve report cell wrapping/alignment without forcing column widths.
 function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
-  const maxLen: Record<number, number> = {};
   const columnKeys: Record<number, typeof REPORT_KEYS[number]> = {};
 
   ws.eachRow((row) => {
@@ -1783,46 +1751,9 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
       const headerKey = reportKeyFromHeader(cellStr(cell.value) ?? "");
       if (headerKey) {
         columnKeys[colIdx] = headerKey;
-        return;
       }
-      const activeKey = headerKey ?? columnKeys[colIdx];
-      const len = activeKey && WRAPPED_REPORT_KEYS.has(activeKey)
-        ? wrappedCellFitLength(cell.value)
-        : cellTextLength(cell.value);
-      maxLen[colIdx] = Math.max(maxLen[colIdx] ?? 0, len);
     });
   });
-
-  const mappedColumnIndexes = Object.keys(columnKeys).map((key) => Number(key)).filter((value) => Number.isFinite(value));
-  const firstDataColumn = mappedColumnIndexes.length > 0 ? Math.min(...mappedColumnIndexes) : 3;
-
-  const usedColumnIndexes = new Set<number>([
-    ...Object.keys(maxLen).map((key) => Number(key)),
-    ...Object.keys(columnKeys).map((key) => Number(key)),
-    1,
-  ]);
-
-  for (const colIdx of [...usedColumnIndexes].sort((a, b) => a - b)) {
-    const col = ws.getColumn(colIdx);
-    if (colIdx < firstDataColumn) {
-      col.width = 3;
-      continue;
-    }
-
-    const key = columnKeys[colIdx];
-    if (key) {
-      const best = maxLen[colIdx] ?? 0;
-      const padding = WRAPPED_REPORT_KEYS.has(key) ? 1 : (key === "ifsRef" ? 2 : 1);
-      const minimum = key === "type" ? 5 : key === "pod" || key === "finalPortDestination" ? 6 : 8;
-      const computedWidth = Math.max(best + padding, minimum);
-      col.width = computedWidth;
-      continue;
-    }
-
-    const best = maxLen[colIdx] ?? 0;
-    const computedWidth = best > 0 ? Math.max(best + 2, 8) : 0;
-    if (computedWidth > 0) col.width = Math.min(computedWidth, 24);
-  }
 
   ws.eachRow((row) => {
     row.eachCell({ includeEmpty: false }, (cell, colIdx) => {
