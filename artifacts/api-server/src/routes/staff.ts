@@ -1751,23 +1751,6 @@ const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }
   status: { min: 8, max: 27.86, wrap: true },
 };
 
-const SAMPLE_TEMPLATE_BASE_WIDTHS: Record<number, number> = {
-  2: 17.77734375, // B from current Sample.xlsx
-  3: 5.77734375,  // C
-  4: 16.6640625,  // D
-  5: 18.33203125, // E
-  6: 22.21875,    // F
-  7: 22.21875,    // G
-  8: 22.21875,    // H
-  9: 18.88671875, // I
-  10: 6.6640625,  // J
-  11: 6.6640625,  // K
-  12: 11.44140625, // L
-  13: 8.33203125, // M
-  14: 5.44140625, // N
-  15: 22.33203125, // O
-};
-
 const SAMPLE_TEMPLATE_MAX_WIDTHS: Record<number, number> = {
   2: 22.14,
   3: 6.71,
@@ -1784,10 +1767,6 @@ const SAMPLE_TEMPLATE_MAX_WIDTHS: Record<number, number> = {
   14: 12.14,
   15: 27.86,
 };
-
-const FLEXIBLE_BASE_WIDTH_KEYS = new Set<typeof REPORT_KEYS[number]>([
-  "containerNo",
-]);
 
 function cellTextLength(value: unknown): number {
   if (value == null) return 0;
@@ -1862,18 +1841,14 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
       const best = maxLen[colIdx] ?? 0;
       const padding = REPORT_WIDTHS[key]?.wrap ? 1 : (key === "ifsRef" ? 2 : 1);
       const computedWidth = Math.min(Math.max(best + padding, limits.min), limits.max);
-      const baseWidth = key === "finalPortDestination" || FLEXIBLE_BASE_WIDTH_KEYS.has(key)
-        ? 0
-        : (SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0);
-      col.width = Math.min(Math.max(computedWidth, baseWidth), limits.max);
+      col.width = computedWidth;
       continue;
     }
 
     const best = maxLen[colIdx] ?? 0;
     const computedWidth = best > 0 ? Math.min(Math.max(best + 2, 8), 24) : 0;
-    const baseWidth = SAMPLE_TEMPLATE_BASE_WIDTHS[colIdx] ?? 0;
     const maxWidth = SAMPLE_TEMPLATE_MAX_WIDTHS[colIdx] ?? 24;
-    if (computedWidth > 0 || baseWidth > 0) col.width = Math.min(Math.max(computedWidth, baseWidth), maxWidth);
+    if (computedWidth > 0) col.width = Math.min(computedWidth, maxWidth);
   }
 
   ws.eachRow((row) => {
