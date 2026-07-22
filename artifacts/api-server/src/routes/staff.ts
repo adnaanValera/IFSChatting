@@ -1734,21 +1734,21 @@ const REPORT_KEYS = [
   "invoiceNo", "pod", "finalPortDestination", "agent", "mraRef", "entry", "status",
 ] as const;
 
-const REPORT_WIDTHS: Record<string, { min: number; wrap?: boolean }> = {
-  ifsRef: { min: 10 },
-  type: { min: 5 },
-  blNo: { min: 8 },
-  containerNo: { min: 8 },
-  shipper: { min: 8, wrap: true },
-  consignee: { min: 8, wrap: true },
-  cargoDescription: { min: 10, wrap: true },
-  invoiceNo: { min: 8 },
-  pod: { min: 6 },
-  finalPortDestination: { min: 6 },
-  agent: { min: 8, wrap: true },
-  mraRef: { min: 8 },
-  entry: { min: 8 },
-  status: { min: 8, wrap: true },
+const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }> = {
+  ifsRef: { min: 10, max: 22.14 },
+  type: { min: 5, max: 6.71 },
+  blNo: { min: 8, max: 20.71 },
+  containerNo: { min: 8, max: 22.86 },
+  shipper: { min: 8, max: 18, wrap: true },
+  consignee: { min: 8, max: 22, wrap: true },
+  cargoDescription: { min: 10, max: 27.86, wrap: true },
+  invoiceNo: { min: 8, max: 18 },
+  pod: { min: 6, max: 7.86 },
+  finalPortDestination: { min: 6, max: 7.86 },
+  agent: { min: 8, max: 13.57, wrap: true },
+  mraRef: { min: 8, max: 13.57 },
+  entry: { min: 8, max: 12.14 },
+  status: { min: 8, max: 27.86, wrap: true },
 };
 
 function cellTextLength(value: unknown): number {
@@ -1823,14 +1823,14 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
       const limits = REPORT_WIDTHS[key];
       const best = maxLen[colIdx] ?? 0;
       const padding = REPORT_WIDTHS[key]?.wrap ? 1 : (key === "ifsRef" ? 2 : 1);
-      const computedWidth = Math.max(best + padding, limits.min);
+      const computedWidth = Math.min(Math.max(best + padding, limits.min), limits.max);
       col.width = computedWidth;
       continue;
     }
 
     const best = maxLen[colIdx] ?? 0;
     const computedWidth = best > 0 ? Math.max(best + 2, 8) : 0;
-    if (computedWidth > 0) col.width = computedWidth;
+    if (computedWidth > 0) col.width = Math.min(computedWidth, 24);
   }
 
   ws.eachRow((row) => {
