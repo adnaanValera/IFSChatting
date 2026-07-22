@@ -530,22 +530,22 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
       }));
 
     const documentsNeeded = rows
-      .filter((shipment) => {
+      .map((shipment) => ({ shipment, etaDate: parseEtaDate(shipment.status, today) }))
+      .filter(({ shipment, etaDate }) => {
         const section = sectionLabelForShipment({ status: shipment.status, extraFields: shipment.extraFields });
         if (section !== "SHIPMENTS ON SEA") return false;
         const docsText = String(shipment.docs ?? "").trim().toLowerCase();
         if (!docsText) return false;
         if (docsText.includes("not submitted")) {
-          const etaDate = parseEtaDate(shipment.status, today);
           return Boolean(etaDate && etaDate >= today && etaDate <= maxDate);
         }
         if (docsText.includes("submitted")) return false;
-        const etaDate = parseEtaDate(shipment.status, today);
         return false;
       })
-      .map((shipment) => ({
+      .sort((a, b) => a.etaDate!.getTime() - b.etaDate!.getTime())
+      .map(({ shipment, etaDate }) => ({
         ...mapBase(shipment),
-        eta: parseEtaDate(shipment.status, today)?.toISOString(),
+        eta: etaDate?.toISOString(),
         status: shipment.status,
       }));
 
@@ -612,13 +612,15 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
     }));
 
   const documentsNeeded = shipments
-    .filter((shipment) => {
+    .map((shipment) => ({ shipment, etaDate: parseEtaDate(shipment.status, today) }))
+    .filter(({ shipment, etaDate }) => {
       const docsFlag = extraValue(shipment.extraFields, "Needs Documents", "needsDocuments", "Docs", "docs");
-      return (docsFlag.toLowerCase() === "true" || isMeaningfulValue(docsFlag)) && isWithinWindow(shipment);
+      return (docsFlag.toLowerCase() === "true" || isMeaningfulValue(docsFlag)) && Boolean(etaDate && etaDate >= today && etaDate <= maxDate);
     })
-    .map((shipment) => ({
+    .sort((a, b) => a.etaDate!.getTime() - b.etaDate!.getTime())
+    .map(({ shipment, etaDate }) => ({
       ...mapBase(shipment),
-      eta: parseEtaDate(shipment.status, today)?.toISOString(),
+      eta: etaDate?.toISOString(),
       status: shipment.status,
     }));
 
