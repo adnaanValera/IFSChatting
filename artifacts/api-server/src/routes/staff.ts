@@ -85,6 +85,12 @@ function appendDateToFilename(filename: string, date: Date | string): string {
   return `${safe.slice(0, dot)}-${stamp}${safe.slice(dot)}`;
 }
 
+function normalizeSavedReportName(filename: string): string {
+  return safeDownloadName(filename)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function normalizeUploadFamily(filename: string): string {
   const safe = safeDownloadName(filename).toLowerCase();
   const withoutExtension = safe.replace(/\.[^.]+$/, "");
@@ -107,6 +113,47 @@ async function saveOriginalUploadFile(uploadId: number, file: Express.Multer.Fil
   await pool.query(
     "UPDATE uploads SET file_data = $1, mime_type = $2, file_size = $3 WHERE id = $4",
     [fileData, file.mimetype || "application/octet-stream", file.size ?? fileData.length, uploadId],
+  );
+}
+
+async function saveGeneratedReport(args: {
+  scope: "company" | "consignee";
+  companyName: string;
+  consigneeName?: string | null;
+  format: "excel" | "pdf";
+  filename: string;
+  mimeType: string;
+  fileData: Buffer;
+  generatedBy?: string | null;
+}): Promise<void> {
+  await pool.query(
+    `DELETE FROM saved_reports
+      WHERE report_scope = $1
+        AND lower(company_name) = lower($2)
+        AND lower(coalesce(consignee_name, '')) = lower($3)
+        AND lower(format) = lower($4)`,
+    [
+      args.scope,
+      args.companyName,
+      args.consigneeName ?? "",
+      args.format,
+    ],
+  );
+
+  await pool.query(
+    `INSERT INTO saved_reports
+      (report_scope, company_name, consignee_name, format, filename, mime_type, file_data, generated_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [
+      args.scope,
+      args.companyName,
+      args.consigneeName ?? null,
+      args.format,
+      normalizeSavedReportName(args.filename),
+      args.mimeType,
+      args.fileData,
+      args.generatedBy ?? null,
+    ],
   );
 }
 
@@ -1628,10 +1675,55 @@ router.get("/staff/uploads/:id/download", requireAuth, requireStaff, async (req,
   res.end(uploadRecord.file_data);
 });
 
+router.get("/staff/saved-reports", requireAuth, requireStaff, async (_req, res) => {
+  const result = await pool.query<{
+    id: number;
+    report_scope: string;
+    company_name: string;
+    consignee_name: string | null;
+    format: string;
+    filename: string;
+    mime_type: string;
+    generated_by: string | null;
+    created_at: Date;
+  }>(
+    `SELECT id, report_scope, company_name, consignee_name, format, filename, mime_type, generated_by, created_at
+       FROM saved_reports
+      ORDER BY created_at DESC, id DESC`,
+  );
+  res.json(result.rows);
+});
+
+router.get("/staff/saved-reports/:id/download", requireAuth, requireStaff, async (req, res) => {
+  const id = parseInt(req.params["id"] as string, 10);
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: "Invalid report id" });
+    return;
+  }
+
+  const result = await pool.query<{
+    filename: string;
+    mime_type: string;
+    file_data: Buffer;
+    created_at: Date;
+  }>("SELECT filename, mime_type, file_data, created_at FROM saved_reports WHERE id = $1 LIMIT 1", [id]);
+  const report = result.rows[0];
+  if (!report) {
+    res.status(404).json({ error: "Saved report not found" });
+    return;
+  }
+
+  res.setHeader("Content-Type", report.mime_type || "application/octet-stream");
+  res.setHeader("Content-Disposition", contentDispositionFilename(appendDateToFilename(report.filename, report.created_at)));
+  res.setHeader("Content-Length", String(report.file_data.length));
+  res.end(report.file_data);
+});
+
 // ── Delete ALL uploads + all shipments (staff only) ──────────────────────────
 
 router.delete("/staff/uploads", requireAuth, requireStaff, async (_req, res) => {
   await pool.query("DELETE FROM shipment_change_logs");
+  await pool.query("DELETE FROM saved_reports");
   await db.delete(shipmentsTable);
   await db.delete(uploadsTable);
   await db.delete(companiesTable);
@@ -2485,6 +2577,13 @@ async function convertWorkbookToPdfBuffer(wb: ExcelJS.Workbook, fileName: string
   throw new Error("ConvertAPI did not return a PDF file.");
 }
 
+async function workbookToBuffer(wb: ExcelJS.Workbook): Promise<Buffer> {
+  const workbookData = await wb.xlsx.writeBuffer();
+  return Buffer.isBuffer(workbookData)
+    ? workbookData
+    : Buffer.from(workbookData as ArrayBuffer);
+}
+
 async function streamCompanyReportPdfFromExcel(
   res: any,
   reportLabel: string,
@@ -2510,23 +2609,54 @@ function handlePdfRouteError(res: any, err: unknown) {
 }
 
 router.get("/staff/company-report/:company/excel", requireAuth, requireStaff, async (req, res) => {
+  const authReq = req as typeof req & { user: { email: string } };
   const companyName = decodeURIComponent(req.params["company"] as string);
   const shipments = await db.select().from(shipmentsTable).where(and(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`, activeShipmentSql)).orderBy(asc(shipmentsTable.ifsRef));
   const template = await getReportTemplate();
   const wb = await generateCompanyReportWorkbook(companyName, shipments, template?.buffer ?? null);
   const excelSheet = wb.worksheets[0];
   if (excelSheet) autoFitWorksheet(excelSheet);
+  const fileName = `Status Report - ${companyName} (${todayString()}).xlsx`;
+  const fileData = await workbookToBuffer(wb);
+  await saveGeneratedReport({
+    scope: "company",
+    companyName,
+    format: "excel",
+    filename: fileName,
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    fileData,
+    generatedBy: authReq.user.email,
+  });
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName} (${todayString()}).xlsx"`);
-  await wb.xlsx.write(res);
-  res.end();
+  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  res.setHeader("Content-Length", String(fileData.length));
+  res.end(fileData);
 });
 
 router.get("/staff/company-report/:company/pdf", requireAuth, requireStaff, async (req, res) => {
   try {
+    const authReq = req as typeof req & { user: { email: string } };
     const companyName = decodeURIComponent(req.params["company"] as string);
     const shipments = await db.select().from(shipmentsTable).where(and(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`, activeShipmentSql)).orderBy(asc(shipmentsTable.ifsRef));
-    await streamCompanyReportPdfFromExcel(res, companyName, `Status Report - ${companyName} (${todayString()}).pdf`, shipments);
+    const fileName = `Status Report - ${companyName} (${todayString()}).pdf`;
+    const template = await getReportTemplate();
+    const wb = await generateCompanyReportWorkbook(companyName, shipments, template?.buffer ?? null);
+    const pdfSheet = wb.worksheets[0];
+    if (pdfSheet) autoFitWorksheet(pdfSheet);
+    const pdf = await convertWorkbookToPdfBuffer(wb, fileName.replace(/\.pdf$/i, ".xlsx"));
+    await saveGeneratedReport({
+      scope: "company",
+      companyName,
+      format: "pdf",
+      filename: fileName,
+      mimeType: "application/pdf",
+      fileData: pdf,
+      generatedBy: authReq.user.email,
+    });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.setHeader("Content-Length", String(pdf.length));
+    res.end(pdf);
   } catch (err) {
     handlePdfRouteError(res, err);
   }
@@ -2547,7 +2677,25 @@ router.get("/customer/company-report/pdf", requireAuth, async (req, res) => {
       .where(and(sql`lower(${shipmentsTable.companyName}) = lower(${companyName})`, activeShipmentSql))
       .orderBy(asc(shipmentsTable.ifsRef));
 
-    await streamCompanyReportPdfFromExcel(res, companyName, `Status Report - ${companyName} (${todayString()}).pdf`, shipments);
+    const fileName = `Status Report - ${companyName} (${todayString()}).pdf`;
+    const template = await getReportTemplate();
+    const wb = await generateCompanyReportWorkbook(companyName, shipments, template?.buffer ?? null);
+    const pdfSheet = wb.worksheets[0];
+    if (pdfSheet) autoFitWorksheet(pdfSheet);
+    const pdf = await convertWorkbookToPdfBuffer(wb, fileName.replace(/\.pdf$/i, ".xlsx"));
+    await saveGeneratedReport({
+      scope: "company",
+      companyName,
+      format: "pdf",
+      filename: fileName,
+      mimeType: "application/pdf",
+      fileData: pdf,
+      generatedBy: authReq.user.companyName,
+    });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.setHeader("Content-Length", String(pdf.length));
+    res.end(pdf);
   } catch (err) {
     handlePdfRouteError(res, err);
   }
@@ -2558,6 +2706,7 @@ router.get("/customer/company-report/pdf", requireAuth, async (req, res) => {
 // consignee within that company.
 
 router.get("/staff/company-report/:company/consignee/:consignee/excel", requireAuth, requireStaff, async (req, res) => {
+  const authReq = req as typeof req & { user: { email: string } };
   const companyName = decodeURIComponent(req.params["company"] as string);
   const consigneeName = decodeURIComponent(req.params["consignee"] as string);
   const isUnspecified = consigneeName === "__unspecified__";
@@ -2585,14 +2734,27 @@ router.get("/staff/company-report/:company/consignee/:consignee/excel", requireA
   const wb = await generateCompanyReportWorkbook(reportLabel, shipments, template?.buffer ?? null);
   const consigneeExcelSheet = wb.worksheets[0];
   if (consigneeExcelSheet) autoFitWorksheet(consigneeExcelSheet);
+  const fileName = `Status Report - ${companyName} - ${reportLabel} (${todayString()}).xlsx`;
+  const fileData = await workbookToBuffer(wb);
+  await saveGeneratedReport({
+    scope: "consignee",
+    companyName,
+    consigneeName: reportLabel,
+    format: "excel",
+    filename: fileName,
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    fileData,
+    generatedBy: authReq.user.email,
+  });
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", `attachment; filename="Status Report - ${companyName} - ${reportLabel} (${todayString()}).xlsx"`);
-  await wb.xlsx.write(res);
-  res.end();
+  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  res.setHeader("Content-Length", String(fileData.length));
+  res.end(fileData);
 });
 
 router.get("/staff/company-report/:company/consignee/:consignee/pdf", requireAuth, requireStaff, async (req, res) => {
   try {
+    const authReq = req as typeof req & { user: { email: string } };
     const companyName = decodeURIComponent(req.params["company"] as string);
     const consigneeName = decodeURIComponent(req.params["consignee"] as string);
     const isUnspecified = consigneeName === "__unspecified__";
@@ -2616,7 +2778,26 @@ router.get("/staff/company-report/:company/consignee/:consignee/pdf", requireAut
       .orderBy(asc(shipmentsTable.ifsRef));
 
     const reportLabel = isUnspecified ? companyName : (shipments[0]?.consignee ?? consigneeName);
-    await streamCompanyReportPdfFromExcel(res, reportLabel, `Status Report - ${companyName} - ${reportLabel} (${todayString()}).pdf`, shipments);
+    const fileName = `Status Report - ${companyName} - ${reportLabel} (${todayString()}).pdf`;
+    const template = await getReportTemplate();
+    const wb = await generateCompanyReportWorkbook(reportLabel, shipments, template?.buffer ?? null);
+    const pdfSheet = wb.worksheets[0];
+    if (pdfSheet) autoFitWorksheet(pdfSheet);
+    const pdf = await convertWorkbookToPdfBuffer(wb, fileName.replace(/\.pdf$/i, ".xlsx"));
+    await saveGeneratedReport({
+      scope: "consignee",
+      companyName,
+      consigneeName: reportLabel,
+      format: "pdf",
+      filename: fileName,
+      mimeType: "application/pdf",
+      fileData: pdf,
+      generatedBy: authReq.user.email,
+    });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.setHeader("Content-Length", String(pdf.length));
+    res.end(pdf);
   } catch (err) {
     handlePdfRouteError(res, err);
   }

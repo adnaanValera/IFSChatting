@@ -168,6 +168,19 @@ async function createTables() {
       uploaded_at timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT single_report_template CHECK (id = 1)
     );
+
+    CREATE TABLE IF NOT EXISTS saved_reports (
+      id serial PRIMARY KEY,
+      report_scope text NOT NULL DEFAULT 'company',
+      company_name text NOT NULL,
+      consignee_name text,
+      format text NOT NULL,
+      filename text NOT NULL,
+      mime_type text NOT NULL,
+      file_data bytea NOT NULL,
+      generated_by text,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
   `);
 
   await pool.query(`

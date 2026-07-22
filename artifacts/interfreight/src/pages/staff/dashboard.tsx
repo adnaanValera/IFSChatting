@@ -61,6 +61,17 @@ type AnnouncementCustomer = {
   companyName: string;
   email: string;
 };
+type SavedReport = {
+  id: number;
+  report_scope: string;
+  company_name: string;
+  consignee_name?: string | null;
+  format: string;
+  filename: string;
+  mime_type: string;
+  generated_by?: string | null;
+  created_at: string;
+};
 type FeedbackItem = {
   id: number;
   name: string;
@@ -409,6 +420,9 @@ export default function Dashboard() {
   const { data: statusBreakdown, isLoading: breakdownLoading } = useGetStatusBreakdown();
   const { data: recentActivity, isLoading: activityLoading } = useGetRecentActivity();
   const { data: uploads, isLoading: uploadsLoading } = useListUploads();
+  const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
+  const [savedReportsLoading, setSavedReportsLoading] = useState(false);
+  const [downloadingSavedReportId, setDownloadingSavedReportId] = useState<number | null>(null);
 
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
@@ -427,6 +441,10 @@ export default function Dashboard() {
     if (!user) return;
     saveAccount(localStorage.getItem("intf_token"), user);
   }, [user]);
+
+  useEffect(() => {
+    void loadSavedReports(true);
+  }, []);
 
   const loadPendingSignups = async () => {
     setPendingSignupsLoading(true);
@@ -464,6 +482,25 @@ export default function Dashboard() {
       setSignupHistory(await res.json());
     } catch {
       setSignupHistory([]);
+    }
+  };
+
+  const loadSavedReports = async (silent = false) => {
+    setSavedReportsLoading(true);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/saved-reports`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to load saved reports");
+      setSavedReports(await res.json());
+    } catch (err: any) {
+      if (!silent) {
+        toast({ variant: "destructive", title: "Could not load saved reports", description: err.message });
+      }
+    } finally {
+      setSavedReportsLoading(false);
     }
   };
 
@@ -716,6 +753,7 @@ export default function Dashboard() {
       } else {
         URL.revokeObjectURL(url);
       }
+      void loadSavedReports(true);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Download failed", description: err.message });
     } finally {
@@ -744,10 +782,47 @@ export default function Dashboard() {
       } else {
         URL.revokeObjectURL(url);
       }
+      void loadSavedReports(true);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Download failed", description: err.message });
     } finally {
       setDownloadingCompany(null);
+    }
+  };
+
+  const handleDownloadSavedReport = async (report: SavedReport) => {
+    setDownloadingSavedReportId(report.id);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/saved-reports/${report.id}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Download failed");
+      }
+
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = disposition.match(/filename="([^"]+)"/);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filenameMatch?.[1] || report.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      if ((report.format || "").toLowerCase() === "pdf") {
+        openPdfBlob(url);
+      } else {
+        URL.revokeObjectURL(url);
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Download failed", description: err.message });
+    } finally {
+      setDownloadingSavedReportId(null);
     }
   };
 
@@ -2546,6 +2621,76 @@ export default function Dashboard() {
                         </div>
                       </div>
                     )})}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                <div className="p-5 border-b border-border flex items-center justify-between bg-muted/20">
+                  <div className="flex items-center gap-2">
+                    <Download size={18} className="text-primary" />
+                    <h3 className="font-bold text-secondary">
+                      {savedReports.length} Saved Report{savedReports.length !== 1 ? "s" : ""}
+                    </h3>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Latest saved Excel and PDF report copies</span>
+                </div>
+
+                {savedReportsLoading ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Spinner className="w-8 h-8" />
+                  </div>
+                ) : !savedReports.length ? (
+                  <div className="py-16 text-center">
+                    <FileSpreadsheet className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="font-semibold text-secondary mb-1">No saved reports yet</p>
+                    <p className="text-sm text-muted-foreground">Generate an Excel or PDF status report and it will be saved here automatically.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {savedReports.map((report, index) => {
+                      const isLatest = index === 0;
+                      const label = report.report_scope === "consignee" && report.consignee_name
+                        ? `${report.company_name} / ${report.consignee_name}`
+                        : report.company_name;
+
+                      return (
+                        <div key={report.id} className={`flex flex-col gap-3 px-4 py-4 hover:bg-muted/20 transition-colors sm:flex-row sm:items-center sm:gap-4 sm:px-6 ${isLatest ? "download-ready-glow" : ""}`}>
+                          <div className={`p-2 rounded-lg shrink-0 ${isLatest ? "bg-green-50 border border-green-200" : "bg-muted"}`}>
+                            <FileSpreadsheet size={18} className="text-muted-foreground" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-semibold text-sm text-secondary leading-snug break-words sm:truncate" title={report.filename}>
+                                {report.filename}
+                              </p>
+                              {isLatest && (
+                                <span className="download-ready-badge inline-flex items-center gap-2 text-[11px] text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full font-semibold">
+                                  <span className="live-updates-dot !bg-green-500 !shadow-[0_0_0_3px_rgba(34,197,94,0.16),0_0_14px_rgba(34,197,94,0.42)]" />
+                                  Latest saved
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {label} · {String(report.format).toUpperCase()} · Saved {formatDate(report.created_at)}{report.generated_by ? ` · by ${report.generated_by}` : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 sm:shrink-0">
+                            <button
+                              onClick={() => handleDownloadSavedReport(report)}
+                              disabled={downloadingSavedReportId === report.id}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-secondary/90 disabled:opacity-60"
+                            >
+                              {downloadingSavedReportId === report.id
+                                ? <Spinner className="h-[14px] w-[14px]" />
+                                : <Download size={14} />
+                              }
+                              Download
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
