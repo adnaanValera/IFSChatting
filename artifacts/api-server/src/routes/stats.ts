@@ -534,10 +534,14 @@ router.get("/stats/operational-alerts", requireAuth, async (_req, res) => {
         const section = sectionLabelForShipment({ status: shipment.status, extraFields: shipment.extraFields });
         if (section !== "SHIPMENTS ON SEA") return false;
         const docsText = String(shipment.docs ?? "").trim().toLowerCase();
-        if (!docsText || docsText.includes("submitted")) return false;
-        if (!docsText.includes("not submitted")) return false;
+        if (!docsText) return false;
+        if (docsText.includes("not submitted")) {
+          const etaDate = parseEtaDate(shipment.status, today);
+          return Boolean(etaDate && etaDate >= today && etaDate <= maxDate);
+        }
+        if (docsText.includes("submitted")) return false;
         const etaDate = parseEtaDate(shipment.status, today);
-        return Boolean(etaDate && etaDate >= today && etaDate <= maxDate);
+        return false;
       })
       .map((shipment) => ({
         ...mapBase(shipment),
