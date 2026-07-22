@@ -431,7 +431,7 @@ async function buildAsycudaMasterIndex(workbook: ExcelJS.Workbook): Promise<Map<
   const index = new Map<string, AsycudaMasterEntry[]>();
   rows.slice(headerRow + 1).forEach((row, offset) => {
     const masterYear = asycudaExtractYearFromMasterDate(row?.[2]);
-    if (masterYear !== 2025) return;
+    if (masterYear !== 2024) return;
     const rawRefs = asycudaValueString(row?.[refCol]);
     const invoice = asycudaValueString(row?.[invoiceCol]);
     if (!rawRefs || invoice === "") return;
