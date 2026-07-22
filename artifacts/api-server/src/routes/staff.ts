@@ -1734,22 +1734,13 @@ const REPORT_KEYS = [
   "invoiceNo", "pod", "finalPortDestination", "agent", "mraRef", "entry", "status",
 ] as const;
 
-const REPORT_WIDTHS: Record<string, { min: number; max: number; wrap?: boolean }> = {
-  ifsRef: { min: 10, max: 22.14 },
-  type: { min: 5, max: 6.71 },
-  blNo: { min: 8, max: 20.71 },
-  containerNo: { min: 8, max: 22.86 },
-  shipper: { min: 8, max: 18, wrap: true },
-  consignee: { min: 8, max: 22, wrap: true },
-  cargoDescription: { min: 10, max: 27.86, wrap: true },
-  invoiceNo: { min: 8, max: 18 },
-  pod: { min: 6, max: 7.86 },
-  finalPortDestination: { min: 6, max: 7.86 },
-  agent: { min: 8, max: 13.57, wrap: true },
-  mraRef: { min: 8, max: 13.57 },
-  entry: { min: 8, max: 12.14 },
-  status: { min: 8, max: 27.86, wrap: true },
-};
+const WRAPPED_REPORT_KEYS = new Set<typeof REPORT_KEYS[number]>([
+  "shipper",
+  "consignee",
+  "cargoDescription",
+  "agent",
+  "status",
+]);
 
 function cellTextLength(value: unknown): number {
   if (value == null) return 0;
@@ -1795,7 +1786,7 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
         return;
       }
       const activeKey = headerKey ?? columnKeys[colIdx];
-      const len = activeKey && REPORT_WIDTHS[activeKey]?.wrap
+      const len = activeKey && WRAPPED_REPORT_KEYS.has(activeKey)
         ? wrappedCellFitLength(cell.value)
         : cellTextLength(cell.value);
       maxLen[colIdx] = Math.max(maxLen[colIdx] ?? 0, len);
@@ -1820,10 +1811,10 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
 
     const key = columnKeys[colIdx];
     if (key) {
-      const limits = REPORT_WIDTHS[key];
       const best = maxLen[colIdx] ?? 0;
-      const padding = REPORT_WIDTHS[key]?.wrap ? 1 : (key === "ifsRef" ? 2 : 1);
-      const computedWidth = Math.min(Math.max(best + padding, limits.min), limits.max);
+      const padding = WRAPPED_REPORT_KEYS.has(key) ? 1 : (key === "ifsRef" ? 2 : 1);
+      const minimum = key === "type" ? 5 : key === "pod" || key === "finalPortDestination" ? 6 : 8;
+      const computedWidth = Math.max(best + padding, minimum);
       col.width = computedWidth;
       continue;
     }
@@ -1839,7 +1830,7 @@ function autoFitWorksheet(ws: ExcelJS.Worksheet): void {
       if (key) {
         cell.alignment = {
           ...(cell.alignment ?? {}),
-          wrapText: Boolean(REPORT_WIDTHS[key]?.wrap),
+          wrapText: WRAPPED_REPORT_KEYS.has(key),
           vertical: "middle",
         };
       }
