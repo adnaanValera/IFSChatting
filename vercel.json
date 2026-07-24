@@ -14,7 +14,15 @@
       "schedule": "0 8 * * *"
     },
     {
+      "path": "/api/notifications/remind-documents",
+      "schedule": "0 9 * * *"
+    },
+    {
       "path": "/api/notifications/remind-unread",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/notifications/remind-documents",
       "schedule": "0 13 * * *"
     }
   ],
