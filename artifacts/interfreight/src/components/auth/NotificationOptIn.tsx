@@ -3,6 +3,7 @@ import { Bell } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { useToast } from "@/hooks/use-toast";
+import { isNativeAppEnvironment } from "@/lib/pwa";
 
 type Props = {
   storageKey: string;
@@ -12,6 +13,7 @@ type Props = {
 export function NotificationOptIn({ storageKey, scope }: Props) {
   const { toast } = useToast();
   const { canEnable, enable, isLoading, isSubscribed, permission, unsupportedReason } = usePushNotifications(scope);
+  const nativeApp = typeof window !== "undefined" && isNativeAppEnvironment();
   void storageKey;
 
   const shouldShowPrompt = useMemo(
@@ -19,7 +21,7 @@ export function NotificationOptIn({ storageKey, scope }: Props) {
     [canEnable, isSubscribed, permission],
   );
 
-  if (!shouldShowPrompt) return null;
+  if (nativeApp || !shouldShowPrompt) return null;
 
   async function handleEnable() {
     try {
