@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BeforeInstallPromptEvent, isStandaloneDisplay } from "@/lib/pwa";
+import { BeforeInstallPromptEvent, isNativeAppEnvironment, isStandaloneDisplay } from "@/lib/pwa";
 
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 let installedState = typeof window !== "undefined" ? isStandaloneDisplay() : false;
@@ -12,6 +12,7 @@ function notifyListeners() {
 
 function bindGlobalInstallListeners() {
   if (globalListenersBound || typeof window === "undefined") return;
+  if (isNativeAppEnvironment()) return;
   globalListenersBound = true;
 
   const syncInstalledState = () => {
@@ -39,6 +40,7 @@ function bindGlobalInstallListeners() {
 bindGlobalInstallListeners();
 
 export function useInstallPrompt() {
+  const nativeApp = typeof window !== "undefined" && isNativeAppEnvironment();
   const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(() => deferredPrompt);
   const [installed, setInstalled] = useState(() => installedState);
 
@@ -55,9 +57,10 @@ export function useInstallPrompt() {
     };
   }, []);
 
-  const canInstall = useMemo(() => !installed && !!promptEvent, [installed, promptEvent]);
+  const canInstall = useMemo(() => !nativeApp && !installed && !!promptEvent, [installed, nativeApp, promptEvent]);
 
   async function promptInstall() {
+    if (nativeApp) return false;
     if (!promptEvent) return false;
     await promptEvent.prompt();
     const choice = await promptEvent.userChoice;

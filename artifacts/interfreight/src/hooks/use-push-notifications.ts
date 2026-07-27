@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { isStandaloneDisplay, registerServiceWorker, urlBase64ToUint8Array } from "@/lib/pwa";
+import { isNativeAppEnvironment, isStandaloneDisplay, registerServiceWorker, urlBase64ToUint8Array } from "@/lib/pwa";
 
 type Scope = { type: "auth" } | { type: "pending"; approvalToken: string } | { type: "guest" };
 
@@ -95,6 +95,7 @@ async function recoverPushEnvironment() {
 }
 
 export function usePushNotifications(scope?: Scope) {
+  const nativeApp = typeof window !== "undefined" && isNativeAppEnvironment();
   const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
   const isIOS = /iPad|iPhone|iPod/i.test(userAgent);
   const isAndroid = /Android/i.test(userAgent);
@@ -108,17 +109,18 @@ export function usePushNotifications(scope?: Scope) {
 
   useEffect(() => {
     setIsSupported(
+      !nativeApp &&
       typeof window !== "undefined" &&
       window.isSecureContext &&
       "serviceWorker" in navigator &&
       "PushManager" in window &&
       "Notification" in window,
     );
-  }, []);
+  }, [nativeApp]);
 
   useEffect(() => {
     async function checkSubscription() {
-      if (!isSupported || !scope || !("serviceWorker" in navigator)) return;
+      if (!isSupported || !scope || nativeApp || !("serviceWorker" in navigator)) return;
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
       if (!subscription) {
@@ -133,10 +135,13 @@ export function usePushNotifications(scope?: Scope) {
       }
     }
     void checkSubscription();
-  }, [isSupported, scope]);
+  }, [isSupported, nativeApp, scope]);
 
   const unsupportedReason = useMemo(() => {
     if (!scope) return "";
+    if (nativeApp) {
+      return "Notifications are not available inside this app build yet.";
+    }
     if (typeof window !== "undefined" && !window.isSecureContext) {
       return "Notifications need a secure HTTPS connection.";
     }
@@ -147,7 +152,7 @@ export function usePushNotifications(scope?: Scope) {
       return "This device does not support push notifications here yet.";
     }
     return "";
-  }, [isIOS, isSupported, scope, standalone]);
+  }, [isIOS, isSupported, nativeApp, scope, standalone]);
 
   const canEnable = useMemo(
     () => isSupported && !!scope && permission !== "denied" && !unsupportedReason,

@@ -18,6 +18,7 @@ import { saveAccount, savedAccounts, type SavedAccount } from "@/lib/saved-accou
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateOnly } from "@/lib/utils";
+import { isNativeAppEnvironment } from "@/lib/pwa";
 
 const CUSTOMER_BADGE_URL = "/ifs-app-premium.png";
 const READ_CHANGES_STORAGE_KEY = "intf_read_status_changes_v2";
@@ -184,6 +185,7 @@ function openPdfBlob(url: string) {
 }
 
 export default function CustomerDashboard() {
+  const nativeApp = typeof window !== "undefined" && isNativeAppEnvironment();
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -485,7 +487,7 @@ export default function CustomerDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <NotificationOptIn storageKey="intf_push_prompt_customer" scope={{ type: "auth" }} />
+      {!nativeApp && <NotificationOptIn storageKey="intf_push_prompt_customer" scope={{ type: "auth" }} />}
       {/* Top bar */}
       <div className="bg-secondary text-secondary-foreground shadow-lg sticky top-0 z-40">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-3">
@@ -596,7 +598,7 @@ export default function CustomerDashboard() {
               ))}
             </div>
             <div className="flex flex-wrap gap-3">
-              {showWebAppRefresh && (installed || isStandaloneDisplay()) && (
+              {!nativeApp && showWebAppRefresh && (installed || isStandaloneDisplay()) && (
                 <button
                   type="button"
                   onClick={() => {
@@ -609,7 +611,7 @@ export default function CustomerDashboard() {
                   Update app icon
                 </button>
               )}
-              {canInstall && (
+              {!nativeApp && canInstall && (
                 <button
                   type="button"
                   onClick={() => void promptInstall()}

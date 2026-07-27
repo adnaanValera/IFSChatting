@@ -5,6 +5,21 @@ export type BeforeInstallPromptEvent = Event & {
 
 const SW_UPDATE_INTERVAL_MS = 60_000;
 
+export function isNativeAppEnvironment() {
+  if (typeof window === "undefined") return false;
+  try {
+    const search = new URLSearchParams(window.location.search);
+    if (search.get("nativeApp") === "1") return true;
+  } catch {}
+  try {
+    if ((window as any).__IFS_NATIVE_APP__ === true) return true;
+  } catch {}
+  try {
+    if (window.localStorage?.getItem("ifs_native_app") === "1") return true;
+  } catch {}
+  return false;
+}
+
 export function isStandaloneDisplay() {
   return window.matchMedia?.("(display-mode: standalone)")?.matches || (window.navigator as any).standalone === true;
 }
@@ -18,6 +33,7 @@ export function urlBase64ToUint8Array(base64String: string) {
 }
 
 export async function registerServiceWorker() {
+  if (isNativeAppEnvironment()) return null;
   if (!("serviceWorker" in navigator)) return null;
 
   const registration = await navigator.serviceWorker.register("/sw.js", {
