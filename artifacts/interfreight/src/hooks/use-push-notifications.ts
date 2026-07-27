@@ -140,7 +140,7 @@ export function usePushNotifications(scope?: Scope) {
   const unsupportedReason = useMemo(() => {
     if (!scope) return "";
     if (nativeApp) {
-      return "Notifications are not available inside this app build yet.";
+      return "";
     }
     if (typeof window !== "undefined" && !window.isSecureContext) {
       return "Notifications need a secure HTTPS connection.";

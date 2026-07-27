@@ -184,6 +184,15 @@ function openPdfBlob(url: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Could not read PDF file."));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export default function CustomerDashboard() {
   const nativeApp = typeof window !== "undefined" && isNativeAppEnvironment();
   const [location, setLocation] = useLocation();
@@ -301,10 +310,24 @@ export default function CustomerDashboard() {
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
       const companyName = String((user as any)?.companyName ?? "Company").replace(/[\/\\?%*:|"<>]/g, "-").trim() || "Company";
+      const fileName = `Status Report - ${companyName} (${reportDateStamp()}).pdf`;
+
+      if (nativeApp && typeof window !== "undefined" && (window as any).ReactNativeWebView?.postMessage) {
+        const dataUrl = await blobToDataUrl(blob);
+        (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+          type: "pdf-download",
+          fileName,
+          dataUrl,
+        }));
+        URL.revokeObjectURL(url);
+        toast({ title: "PDF ready", description: "Choose where to open or share your status report." });
+        return;
+      }
+
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `Status Report - ${companyName} (${reportDateStamp()}).pdf`;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
