@@ -4,6 +4,7 @@ import { Bell, Package, X, ArrowRight, Building2, Truck, Ship, Megaphone } from 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGetMe } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { isNativeAppEnvironment } from "@/lib/pwa";
 
 interface Notification {
   id: number;
@@ -108,6 +109,7 @@ export function NotificationBell() {
   const { toast } = useToast();
   const { data: user } = useGetMe();
   const typedUser = user as any;
+  const nativeApp = typeof window !== "undefined" && isNativeAppEnvironment();
   const dashboardHref = typedUser?.role === "staff" || typedUser?.role === "admin" ? "/staff/dashboard" : "/dashboard";
 
   const { data: notifications = [] } = useQuery<Notification[]>({
@@ -135,10 +137,23 @@ export function NotificationBell() {
         title: newest.title,
         description: newest.message,
       });
+      if (nativeApp) {
+        for (const notification of newNotifications.filter((item) => !item.read)) {
+          const target = notificationTarget(notification, typedUser?.role);
+          const bridge = (window as any).ReactNativeWebView;
+          bridge?.postMessage?.(JSON.stringify({
+            type: "app-notification",
+            notificationId: notification.id,
+            title: "InterFreightSolutions",
+            body: notification.referenceText || notification.detailText || notification.message || notification.title,
+            url: target,
+          }));
+        }
+      }
     }
 
     knownIdsRef.current = currentIds;
-  }, [notifications, toast]);
+  }, [nativeApp, notifications, toast, typedUser?.role]);
 
   const unreadNotifications = notifications.filter((n) => !n.read);
   const unread = unreadNotifications.length;

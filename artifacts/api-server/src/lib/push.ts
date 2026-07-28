@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import { db, pushSubscriptionsTable } from "@workspace/db";
+import { db, pool, pushSubscriptionsTable } from "@workspace/db";
 import { and, eq, isNull, or } from "drizzle-orm";
 import { logger } from "./logger";
 
@@ -75,6 +75,59 @@ async function deliver(subscriptions: StoredSubscription[], payload: PushPayload
   }
 }
 
+type ExpoPushTicket = {
+  status?: "ok" | "error";
+  details?: { error?: string };
+};
+
+async function deliverNative(userId: number, payload: PushPayload) {
+  const result = await pool.query<{ token: string }>(
+    "SELECT token FROM native_push_tokens WHERE user_id = $1",
+    [userId],
+  );
+  if (!result.rows.length) return;
+
+  const messages = result.rows.map(({ token }) => ({
+    to: token,
+    title: "InterFreightSolutions",
+    body: payload.body,
+    sound: "default",
+    priority: "high",
+    channelId: "default",
+    data: {
+      url: payload.url || "/dashboard",
+      notificationType: payload.notificationType || "notification",
+      referenceText: payload.referenceText || "",
+      detailText: payload.detailText || "",
+    },
+  }));
+
+  try {
+    const response = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "Accept-Encoding": "gzip, deflate",
+      },
+      body: JSON.stringify(messages),
+    });
+    if (!response.ok) {
+      throw new Error(`Expo push returned ${response.status}`);
+    }
+
+    const json = await response.json() as { data?: ExpoPushTicket | ExpoPushTicket[] };
+    const tickets = Array.isArray(json.data) ? json.data : json.data ? [json.data] : [];
+    for (let index = 0; index < tickets.length; index += 1) {
+      if (tickets[index]?.details?.error === "DeviceNotRegistered") {
+        await pool.query("DELETE FROM native_push_tokens WHERE token = $1", [result.rows[index]?.token]);
+      }
+    }
+  } catch (error) {
+    logger.warn({ err: error, userId, notificationType: payload.notificationType }, "Native push delivery failed");
+  }
+}
+
 export function getPublicVapidKey() {
   return process.env.VAPID_PUBLIC_KEY?.trim() || "";
 }
@@ -89,7 +142,32 @@ export async function sendPushToUser(userId: number, payload: PushPayload) {
     .from(pushSubscriptionsTable)
     .where(eq(pushSubscriptionsTable.userId, userId));
 
-  await deliver(subscriptions, payload);
+  await Promise.all([
+    deliver(subscriptions, payload),
+    deliverNative(userId, payload),
+  ]);
+}
+
+export async function upsertNativePushToken(args: {
+  token: string;
+  userId: number;
+  platform?: string;
+  userAgent?: string;
+}) {
+  await pool.query(
+    `INSERT INTO native_push_tokens (user_id, token, platform, user_agent, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, now(), now())
+     ON CONFLICT (token) DO UPDATE SET
+       user_id = EXCLUDED.user_id,
+       platform = EXCLUDED.platform,
+       user_agent = EXCLUDED.user_agent,
+       updated_at = now()`,
+    [args.userId, args.token, args.platform || "android", args.userAgent?.slice(0, 300) || null],
+  );
+}
+
+export async function deleteNativePushToken(token: string, userId: number) {
+  await pool.query("DELETE FROM native_push_tokens WHERE token = $1 AND user_id = $2", [token, userId]);
 }
 
 export async function sendPushToPendingSignup(approvalToken: string, payload: PushPayload) {

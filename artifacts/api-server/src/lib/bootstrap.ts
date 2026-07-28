@@ -162,6 +162,19 @@ async function createTables() {
       updated_at timestamptz NOT NULL DEFAULT now()
     );
 
+    CREATE TABLE IF NOT EXISTS native_push_tokens (
+      id serial PRIMARY KEY,
+      user_id integer NOT NULL,
+      token text NOT NULL UNIQUE,
+      platform text NOT NULL DEFAULT 'android',
+      user_agent text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS native_push_tokens_user_id_idx
+      ON native_push_tokens(user_id);
+
     CREATE TABLE IF NOT EXISTS report_templates (
       id integer PRIMARY KEY DEFAULT 1,
       content bytea NOT NULL,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useGetMe, useListShipments } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -184,6 +184,14 @@ function openPdfBlob(url: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+function postNativeAppMessage(payload: Record<string, unknown>) {
+  if (typeof window === "undefined") return false;
+  const bridge = (window as any).ReactNativeWebView;
+  if (!bridge?.postMessage) return false;
+  bridge.postMessage(JSON.stringify(payload));
+  return true;
+}
+
 async function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -243,6 +251,7 @@ export default function CustomerDashboard() {
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState<Set<number>>(() => new Set());
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
+  const knownNativeNotificationIdsRef = useRef<number[]>([]);
   const { canInstall, installed, promptInstall } = useInstallPrompt();
   const [showWebAppRefresh, setShowWebAppRefresh] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -296,7 +305,7 @@ export default function CustomerDashboard() {
     });
   };
 
-  const handleDownloadPdf = async () => {
+  const handlePdfReport = async (mode: "download" | "open" = "download") => {
     setIsDownloadingPdf(true);
     try {
       const token = localStorage.getItem("intf_token");
@@ -316,29 +325,70 @@ export default function CustomerDashboard() {
       if (nativeApp && typeof window !== "undefined" && (window as any).ReactNativeWebView?.postMessage) {
         const dataUrl = await blobToDataUrl(blob);
         (window as any).ReactNativeWebView.postMessage(JSON.stringify({
-          type: "pdf-download",
+          type: "file-download",
           fileName,
           dataUrl,
+          mimeType: "application/pdf",
+          dialogTitle: "Open status report",
+          openAfterSave: mode === "open",
         }));
         URL.revokeObjectURL(url);
         toast({ title: "PDF ready", description: "Choose where to open or share your status report." });
         return;
       }
 
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      openPdfBlob(url);
-      toast({ title: "PDF downloaded", description: "Your latest status report has been saved." });
+      if (mode === "open") {
+        openPdfBlob(url);
+        toast({ title: "PDF opened", description: "Your latest status report is open." });
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        openPdfBlob(url);
+        toast({ title: "PDF downloaded", description: "Your latest status report has been saved." });
+      }
     } catch (err: any) {
       toast({ variant: "destructive", title: "Download failed", description: err?.message || "Download failed" });
     } finally {
       setIsDownloadingPdf(false);
     }
   };
+
+  useEffect(() => {
+    if (!nativeApp) return;
+    const currentIds = notifications.map((notification) => notification.id).filter((id): id is number => typeof id === "number");
+    if (knownNativeNotificationIdsRef.current.length === 0) {
+      knownNativeNotificationIdsRef.current = currentIds;
+      return;
+    }
+
+    const newNotifications = notifications.filter((notification) =>
+      typeof notification.id === "number" &&
+      !knownNativeNotificationIdsRef.current.includes(notification.id) &&
+      !notification.read,
+    );
+
+    for (const notification of newNotifications) {
+      const target =
+        notification.ifsRef
+          ? `/dashboard?search=${encodeURIComponent(notification.ifsRef)}&changed=1`
+          : notification.status === "Announcement"
+            ? "/dashboard?focus=announcement"
+            : "/dashboard";
+      postNativeAppMessage({
+        type: "app-notification",
+        notificationId: notification.id,
+        title: "InterFreightSolutions",
+        body: notification.referenceText || notification.message || notification.title || "You have a new shipment update.",
+        url: target,
+      });
+    }
+
+    knownNativeNotificationIdsRef.current = currentIds;
+  }, [nativeApp, notifications]);
 
   const typedUser = user as any;
   const shipments = shipmentsPage?.items ?? [];
@@ -589,12 +639,21 @@ export default function CustomerDashboard() {
               <div className="flex flex-col items-start md:items-end gap-2">
                 <button
                   type="button"
-                  onClick={handleDownloadPdf}
+                  onClick={() => void handlePdfReport("download")}
                   disabled={isDownloadingPdf || shipmentsLoading || shipments.length === 0}
                   className={`inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-3 rounded-xl transition-all disabled:opacity-60 ${hasShipmentChanges ? "report-download-pulse" : ""}`}
                 >
                   {isDownloadingPdf ? <Spinner className="w-4 h-4" /> : <Download size={16} />}
                   Download PDF Report
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handlePdfReport("open")}
+                  disabled={isDownloadingPdf || shipmentsLoading || shipments.length === 0}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-secondary/15 bg-secondary/5 px-4 py-3 text-sm font-semibold text-secondary transition-colors hover:bg-secondary/10 disabled:opacity-60"
+                >
+                  <ArrowRight size={16} />
+                  Open PDF
                 </button>
                 <p className="text-xs text-muted-foreground">Live customer-facing view</p>
               </div>

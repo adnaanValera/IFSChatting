@@ -1,6 +1,13 @@
 import { Router, Request } from "express";
 import { requireAuth, AuthPayload } from "../middlewares/auth";
-import { deletePushSubscription, getPublicVapidKey, sendPushToSubscription, upsertPushSubscription } from "../lib/push";
+import {
+  deleteNativePushToken,
+  deletePushSubscription,
+  getPublicVapidKey,
+  sendPushToSubscription,
+  upsertNativePushToken,
+  upsertPushSubscription,
+} from "../lib/push";
 
 const router = Router();
 
@@ -26,6 +33,32 @@ async function sendWelcomePush(subscription: { endpoint: string; p256dh: string;
 
 router.get("/push/public-key", (_req, res) => {
   res.json({ publicKey: getPublicVapidKey() });
+});
+
+router.post("/push/native-subscribe", requireAuth, async (req, res) => {
+  const token = String(req.body?.token ?? "").trim();
+  if (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken[")) {
+    res.status(400).json({ error: "Invalid native push token" });
+    return;
+  }
+
+  await upsertNativePushToken({
+    token,
+    userId: (req as AuthReq).user.userId,
+    platform: String(req.body?.platform || "android"),
+    userAgent: req.get("user-agent"),
+  });
+  res.status(204).send();
+});
+
+router.delete("/push/native-subscribe", requireAuth, async (req, res) => {
+  const token = String(req.body?.token ?? "").trim();
+  if (!token) {
+    res.status(400).json({ error: "Token is required" });
+    return;
+  }
+  await deleteNativePushToken(token, (req as AuthReq).user.userId);
+  res.status(204).send();
 });
 
 router.post("/push/subscribe", requireAuth, async (req, res) => {

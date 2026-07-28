@@ -24,7 +24,7 @@ import { NotificationOptIn } from "@/components/auth/NotificationOptIn";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { saveAccount } from "@/lib/saved-accounts";
 import { useInstallPrompt } from "@/hooks/use-install-prompt";
-import { isStandaloneDisplay } from "@/lib/pwa";
+import { isNativeAppEnvironment, isStandaloneDisplay } from "@/lib/pwa";
 import { Spinner } from "@/components/ui/spinner";
 
 type Tab = "overview" | "import" | "history" | "messages" | "problems" | "cards" | "authorize" | "asycuda" | "activity";
@@ -156,6 +156,23 @@ function reportDateStamp(): string {
 function openPdfBlob(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Could not read the report file."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function postNativeAppMessage(payload: Record<string, unknown>) {
+  if (typeof window === "undefined") return false;
+  const bridge = (window as any).ReactNativeWebView;
+  if (!bridge?.postMessage) return false;
+  bridge.postMessage(JSON.stringify(payload));
+  return true;
 }
 
 const STATUS_SECTIONS = [
@@ -412,6 +429,7 @@ export default function Dashboard() {
   const [pendingSignupAction, setPendingSignupAction] = useState<string | null>(null);
   const [clearingSignupId, setClearingSignupId] = useState<number | null>(null);
   const [pendingSignupPictures, setPendingSignupPictures] = useState<Record<number, string>>({});
+  const nativeApp = typeof window !== "undefined" && isNativeAppEnvironment();
 
   const { data: user } = useGetMe();
   const logoutMutation = useStaffLogout();
@@ -744,15 +762,34 @@ export default function Dashboard() {
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `Status Report - ${safeReportName(companyName)} - ${safeReportName(consigneeName)} (${reportDateStamp()}).${format === "pdf" ? "pdf" : "xlsx"}`;
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a);
-      if (format === "pdf") {
-        openPdfBlob(url);
-      } else {
+      const fileName = `Status Report - ${safeReportName(companyName)} - ${safeReportName(consigneeName)} (${reportDateStamp()}).${format === "pdf" ? "pdf" : "xlsx"}`;
+
+      if (nativeApp) {
+        const dataUrl = await blobToDataUrl(blob);
+        postNativeAppMessage({
+          type: "file-download",
+          fileName,
+          dataUrl,
+          mimeType: format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          dialogTitle: format === "pdf" ? "Open consignee report" : "Open consignee Excel report",
+          openAfterSave: format === "pdf",
+        });
         URL.revokeObjectURL(url);
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        if (format === "pdf") {
+          openPdfBlob(url);
+        } else {
+          URL.revokeObjectURL(url);
+        }
       }
+
+      toast({ title: "Report ready", description: format === "pdf" ? "Choose where to open or share the PDF report." : "Choose where to open or share the Excel report." });
       void loadSavedReports(true);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Download failed", description: err.message });
@@ -773,15 +810,34 @@ export default function Dashboard() {
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `Status Report - ${safeReportName(name)} (${reportDateStamp()}).${format === "pdf" ? "pdf" : "xlsx"}`;
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a);
-      if (format === "pdf") {
-        openPdfBlob(url);
-      } else {
+      const fileName = `Status Report - ${safeReportName(name)} (${reportDateStamp()}).${format === "pdf" ? "pdf" : "xlsx"}`;
+
+      if (nativeApp) {
+        const dataUrl = await blobToDataUrl(blob);
+        postNativeAppMessage({
+          type: "file-download",
+          fileName,
+          dataUrl,
+          mimeType: format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          dialogTitle: format === "pdf" ? "Open company report" : "Open company Excel report",
+          openAfterSave: format === "pdf",
+        });
         URL.revokeObjectURL(url);
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        if (format === "pdf") {
+          openPdfBlob(url);
+        } else {
+          URL.revokeObjectURL(url);
+        }
       }
+
+      toast({ title: "Report ready", description: format === "pdf" ? "Choose where to open or share the PDF report." : "Choose where to open or share the Excel report." });
       void loadSavedReports(true);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Download failed", description: err.message });
@@ -807,18 +863,36 @@ export default function Dashboard() {
       const disposition = res.headers.get("Content-Disposition") || "";
       const filenameMatch = disposition.match(/filename="([^"]+)"/);
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filenameMatch?.[1] || report.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      const fileName = filenameMatch?.[1] || report.filename;
+      const isPdf = (report.format || "").toLowerCase() === "pdf";
 
-      if ((report.format || "").toLowerCase() === "pdf") {
-        openPdfBlob(url);
-      } else {
+      if (nativeApp) {
+        const dataUrl = await blobToDataUrl(blob);
+        postNativeAppMessage({
+          type: "file-download",
+          fileName,
+          dataUrl,
+          mimeType: isPdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          dialogTitle: isPdf ? "Open saved PDF report" : "Open saved Excel report",
+          openAfterSave: isPdf,
+        });
         URL.revokeObjectURL(url);
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        if (isPdf) {
+          openPdfBlob(url);
+        } else {
+          URL.revokeObjectURL(url);
+        }
       }
+
+      toast({ title: "Saved report ready", description: isPdf ? "Choose where to open or share the PDF report." : "Choose where to open or share the Excel report." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Download failed", description: err.message });
     } finally {
