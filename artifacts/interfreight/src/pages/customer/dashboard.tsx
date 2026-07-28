@@ -323,11 +323,11 @@ export default function CustomerDashboard() {
       const fileName = `Status Report - ${companyName} (${reportDateStamp()}).pdf`;
 
       if (nativeApp && typeof window !== "undefined" && (window as any).ReactNativeWebView?.postMessage) {
-        const dataUrl = await blobToDataUrl(blob);
         (window as any).ReactNativeWebView.postMessage(JSON.stringify({
-          type: "file-download",
+          type: "native-file-request",
+          url: `${base}/api/customer/company-report/pdf`,
+          authToken: token,
           fileName,
-          dataUrl,
           mimeType: "application/pdf",
           dialogTitle: "Open status report",
           openAfterSave: mode === "open",

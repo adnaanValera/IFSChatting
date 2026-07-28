@@ -765,11 +765,11 @@ export default function Dashboard() {
       const fileName = `Status Report - ${safeReportName(companyName)} - ${safeReportName(consigneeName)} (${reportDateStamp()}).${format === "pdf" ? "pdf" : "xlsx"}`;
 
       if (nativeApp) {
-        const dataUrl = await blobToDataUrl(blob);
         postNativeAppMessage({
-          type: "file-download",
+          type: "native-file-request",
+          url: `${base}/api/staff/company-report/${encodeURIComponent(companyName)}/consignee/${encodeURIComponent(consigneeKey)}/${format}`,
+          authToken: token,
           fileName,
-          dataUrl,
           mimeType: format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           dialogTitle: format === "pdf" ? "Open consignee report" : "Open consignee Excel report",
           openAfterSave: format === "pdf",
@@ -813,11 +813,11 @@ export default function Dashboard() {
       const fileName = `Status Report - ${safeReportName(name)} (${reportDateStamp()}).${format === "pdf" ? "pdf" : "xlsx"}`;
 
       if (nativeApp) {
-        const dataUrl = await blobToDataUrl(blob);
         postNativeAppMessage({
-          type: "file-download",
+          type: "native-file-request",
+          url: `${base}/api/staff/company-report/${encodeURIComponent(name)}/${format}`,
+          authToken: token,
           fileName,
-          dataUrl,
           mimeType: format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           dialogTitle: format === "pdf" ? "Open company report" : "Open company Excel report",
           openAfterSave: format === "pdf",
@@ -867,11 +867,11 @@ export default function Dashboard() {
       const isPdf = (report.format || "").toLowerCase() === "pdf";
 
       if (nativeApp) {
-        const dataUrl = await blobToDataUrl(blob);
         postNativeAppMessage({
-          type: "file-download",
+          type: "native-file-request",
+          url: `${base}/api/staff/saved-reports/${report.id}/download`,
+          authToken: token,
           fileName,
-          dataUrl,
           mimeType: isPdf ? "application/pdf" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           dialogTitle: isPdf ? "Open saved PDF report" : "Open saved Excel report",
           openAfterSave: isPdf,
