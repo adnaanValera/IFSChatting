@@ -457,24 +457,25 @@ async function processAsycudaWorkbook(
   const summary = { charges: 0, freight: 0, sheets: 0, remaining: 0, missing: 0, mismatch: 0, ambiguous: 0 };
   for (const sheet of asycudaWb.worksheets) {
     const rows = sheet.getSheetValues().slice(1) as unknown[][];
-    const headerRow = asycudaFindHeaderRow(rows, ["Shipper", "Consignee", "IFS Inv L/Chgs", "IFS Inv Freight"]);
+    const headerRow = asycudaFindHeaderRow(rows, ["Shipper", "Consignee", "IFS Inv L/Chgs"]);
     if (headerRow < 0) continue;
     const header = (rows[headerRow] ?? []).map(asycudaValueString);
     const shipCol = header.indexOf("Shipper");
     const consCol = header.indexOf("Consignee");
     const chargeCol = header.indexOf("IFS Inv L/Chgs");
     const freightCol = header.indexOf("IFS Inv Freight");
-    const typeCol = shipCol - 6;
-    const numberCol = typeCol + 1;
+    const typeCol = header.indexOf("C");
+    const numberCol = header.indexOf("Ref");
+    if (shipCol < 0 || consCol < 0 || chargeCol < 0 || typeCol < 0 || numberCol < 0) continue;
     summary.sheets++;
 
     for (let r = headerRow + 1; r < rows.length; r++) {
       const row = rows[r] ?? [];
       const excelRow = sheet.getRow(r + 1);
       const chargeCell = excelRow.getCell(chargeCol);
-      const freightCell = excelRow.getCell(freightCol);
+      const freightCell = freightCol >= 0 ? excelRow.getCell(freightCol) : null;
       const chargeBlank = asycudaValueString(chargeCell.value) === "";
-      const freightBlank = asycudaValueString(freightCell.value) === "";
+      const freightBlank = freightCell ? asycudaValueString(freightCell.value) === "" : true;
       if (!chargeBlank && !freightBlank) continue;
       const type = asycudaValueString(row[typeCol]).toUpperCase();
       const number = asycudaValueString(row[numberCol]);
@@ -506,14 +507,16 @@ async function processAsycudaWorkbook(
           asycudaSetGreenCell(chargeCell, primaryInvoice);
           summary.charges++;
         }
-        asycudaClearCell(freightCell);
+        if (freightCell) asycudaClearCell(freightCell);
       } else {
         if (primaryInvoice) {
           asycudaSetGreenCell(chargeCell, primaryInvoice);
           summary.charges++;
         }
-        asycudaSetGreenCell(freightCell, secondaryInvoice);
-        summary.freight++;
+        if (freightCell) {
+          asycudaSetGreenCell(freightCell, secondaryInvoice);
+          summary.freight++;
+        }
       }
     }
 
