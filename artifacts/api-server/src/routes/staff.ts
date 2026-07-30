@@ -503,13 +503,13 @@ async function processAsycudaWorkbook(
       const secondaryInvoice = distinctInvoices[1];
 
       if (!secondaryInvoice) {
-        if (primaryInvoice) {
+        if (chargeBlank && primaryInvoice) {
           asycudaSetGreenCell(chargeCell, primaryInvoice);
           summary.charges++;
         }
         if (freightCell) asycudaClearCell(freightCell);
       } else {
-        if (primaryInvoice) {
+        if (chargeBlank && primaryInvoice) {
           asycudaSetGreenCell(chargeCell, primaryInvoice);
           summary.charges++;
         }
