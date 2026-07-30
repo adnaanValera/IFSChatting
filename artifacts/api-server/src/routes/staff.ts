@@ -345,6 +345,8 @@ function asycudaFindHeaderRow(rows: unknown[][], required: string[]): number {
 }
 
 type AsycudaMasterEntry = { client: string; invoice: unknown; order: number };
+const ASYCUDA_MASTER_YEAR = 2026;
+const ASYCUDA_MIN_IFS_INV_NO = 4707;
 
 function asycudaSetGreenCell(cell: ExcelJS.Cell, value: unknown) {
   const normalizedValue = typeof value === "number" ? value : asycudaValueString(value);
@@ -431,9 +433,12 @@ async function buildAsycudaMasterIndex(workbook: ExcelJS.Workbook): Promise<Map<
   const index = new Map<string, AsycudaMasterEntry[]>();
   rows.slice(headerRow + 1).forEach((row, offset) => {
     const masterYear = asycudaExtractYearFromMasterDate(row?.[2]);
-    if (masterYear !== 2023) return;
+    if (masterYear !== ASYCUDA_MASTER_YEAR) return;
     const rawRefs = asycudaValueString(row?.[refCol]);
     const invoice = asycudaValueString(row?.[invoiceCol]);
+    const invoiceNumberMatch = invoice.match(/\d+/);
+    const invoiceNumber = invoiceNumberMatch ? Number(invoiceNumberMatch[0]) : NaN;
+    if (!Number.isFinite(invoiceNumber) || invoiceNumber <= ASYCUDA_MIN_IFS_INV_NO) return;
     if (!rawRefs || invoice === "") return;
     const entry = { client: asycudaValueString(row?.[clientCol]), invoice, order: headerRow + 1 + offset };
     [...new Set(rawRefs.split(/[,;\r\n]+/).map(asycudaNormalizeKey).filter(Boolean))].forEach((key) => {
