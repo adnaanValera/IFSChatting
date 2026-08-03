@@ -27,7 +27,7 @@ import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { isNativeAppEnvironment, isStandaloneDisplay } from "@/lib/pwa";
 import { Spinner } from "@/components/ui/spinner";
 
-type Tab = "overview" | "import" | "history" | "messages" | "problems" | "cards" | "authorize" | "asycuda" | "activity";
+type Tab = "overview" | "import" | "history" | "messages" | "problems" | "cards" | "authorize" | "activity";
 
 type Announcement = {
   id: number;
@@ -1050,7 +1050,7 @@ export default function Dashboard() {
     const params = new URLSearchParams(window.location.search);
     const requestedTab = params.get("tab");
     const focus = params.get("focus");
-    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "problems", "cards", "authorize", "asycuda", "activity"];
+    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "problems", "cards", "authorize", "activity"];
     if (requestedTab && allowedTabs.includes(requestedTab as Tab)) {
       const nextTab = requestedTab as Tab;
       setActiveTab(nextTab);
@@ -1537,7 +1537,6 @@ export default function Dashboard() {
     { id: "problems", label: "Problems", icon: <AlertTriangle size={18} />, badge: unreadProblemCount || undefined },
     { id: "history", label: "File Download", icon: <History size={18} />, badge: uploads?.length },
     { id: "import", label: "Tracking Uploads", icon: <UploadCloud size={18} /> },
-    ...(isAdmin ? [{ id: "asycuda" as Tab, label: "ASYCUDA", icon: <ReceiptText size={18} /> }] : []),
   ];
 
   const renderFeedbackCards = (items: FeedbackItem[], emptyTitle: string, emptyDescription: string, kind: "message" | "problem") => (
