@@ -7,3 +7,4 @@ export * from "./notifications";
 export * from "./announcements";
 export * from "./sessions";
 export * from "./push-subscriptions";
+export * from "./border-entries";

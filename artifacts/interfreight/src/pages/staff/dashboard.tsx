@@ -27,7 +27,7 @@ import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { isNativeAppEnvironment, isStandaloneDisplay } from "@/lib/pwa";
 import { Spinner } from "@/components/ui/spinner";
 
-type Tab = "overview" | "import" | "history" | "messages" | "problems" | "cards" | "authorize" | "activity";
+type Tab = "overview" | "import" | "history" | "messages" | "problems" | "cards" | "authorize" | "activity" | "border" | "asycuda";
 
 type Announcement = {
   id: number;
@@ -117,6 +117,21 @@ type OperationalAlert = {
   eta?: string;
   status?: string;
   mraRef?: string;
+};
+
+type BorderEntryRow = {
+  shipmentId: number;
+  ifsRef: string;
+  mraRef: string;
+  shipper: string;
+  consignee: string;
+  invoiceNo: string;
+  shipmentType: string;
+  arrivedAtBorder: string;
+  sdoDate: string | null;
+  releaseOrderDate: string | null;
+  updatedAt: string | null;
+  updatedBy: string | null;
 };
 
 const CARD_COLS = [
@@ -447,6 +462,10 @@ export default function Dashboard() {
   const [feedbackLoaded, setFeedbackLoaded] = useState(false);
   const [activityRows, setActivityRows] = useState<ActivityItem[]>([]);
   const [accountActivityLoading, setAccountActivityLoading] = useState(false);
+  const [borderEntries, setBorderEntries] = useState<BorderEntryRow[]>([]);
+  const [borderEntriesLoading, setBorderEntriesLoading] = useState(false);
+  const [borderSavingByShipment, setBorderSavingByShipment] = useState<Record<number, boolean>>({});
+  const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [operationalAlerts, setOperationalAlerts] = useState<{
     nearbyConsignments: OperationalAlert[];
     needsChecking: OperationalAlert[];
@@ -939,6 +958,73 @@ export default function Dashboard() {
     }
   };
 
+  const loadBorderEntries = async (silent = false) => {
+    setBorderEntriesLoading(true);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/border-entries`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to load border entry rows");
+      setBorderEntries(await res.json());
+    } catch (err: any) {
+      if (!silent) {
+        toast({ variant: "destructive", title: "Could not load border entry", description: err.message });
+      }
+    } finally {
+      setBorderEntriesLoading(false);
+    }
+  };
+
+  const saveBorderEntry = async (row: BorderEntryRow) => {
+    setBorderSavingByShipment((current) => ({ ...current, [row.shipmentId]: true }));
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/border-entries/${row.shipmentId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          arrivedAtBorder: row.arrivedAtBorder ?? "",
+          sdoDate: row.sdoDate ?? "",
+          releaseOrderDate: row.releaseOrderDate ?? "",
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Failed to save border entry");
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Auto-save failed", description: err.message });
+    } finally {
+      setBorderSavingByShipment((current) => ({ ...current, [row.shipmentId]: false }));
+    }
+  };
+
+  const updateBorderEntryField = (shipmentId: number, field: "arrivedAtBorder" | "sdoDate" | "releaseOrderDate", value: string) => {
+    setBorderEntries((current) => {
+      const next = current.map((row) => (
+        row.shipmentId === shipmentId
+          ? { ...row, [field]: value || null }
+          : row
+      ));
+      const target = next.find((row) => row.shipmentId === shipmentId);
+      if (target) {
+        if (borderSaveTimersRef.current[shipmentId]) {
+          window.clearTimeout(borderSaveTimersRef.current[shipmentId]);
+        }
+        borderSaveTimersRef.current[shipmentId] = window.setTimeout(() => {
+          void saveBorderEntry(target);
+        }, 650);
+      }
+      return next;
+    });
+  };
+
   useEffect(() => {
     const currentIds = feedback.map((item) => Number(item.id)).filter((id) => Number.isFinite(id));
     if (currentIds.length === 0) {
@@ -994,6 +1080,12 @@ export default function Dashboard() {
     return () => window.clearInterval(timer);
   }, [isStaffOrAdmin]);
 
+  useEffect(() => {
+    return () => {
+      Object.values(borderSaveTimersRef.current).forEach((timer) => window.clearTimeout(timer));
+    };
+  }, []);
+
   const checkTemplateStatus = async () => {
     try {
       const token = localStorage.getItem("intf_token");
@@ -1039,6 +1131,7 @@ export default function Dashboard() {
     if (tab === "cards") loadCompanies();
     if (tab === "import") checkTemplateStatus();
     if (tab === "activity") loadActivity();
+    if (tab === "border") loadBorderEntries();
   };
 
   const openHomepageTracking = () => {
@@ -1050,13 +1143,14 @@ export default function Dashboard() {
     const params = new URLSearchParams(window.location.search);
     const requestedTab = params.get("tab");
     const focus = params.get("focus");
-    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "problems", "cards", "authorize", "activity"];
+    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "problems", "cards", "authorize", "activity", "border"];
     if (requestedTab && allowedTabs.includes(requestedTab as Tab)) {
       const nextTab = requestedTab as Tab;
       setActiveTab(nextTab);
       if (nextTab === "messages" || nextTab === "problems") void loadFeedback(true);
       if (nextTab === "cards") void loadCompanies();
       if (nextTab === "activity") void loadActivity(true);
+      if (nextTab === "border") void loadBorderEntries(true);
     }
     if (focus === "announcement") {
       window.requestAnimationFrame(() => {
@@ -1532,6 +1626,7 @@ export default function Dashboard() {
 
   const secondaryNavItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     ...(isAdmin ? [{ id: "activity" as Tab, label: "Activity", icon: <Clock size={18} /> }] : []),
+    { id: "border", label: "Border Entry", icon: <Truck size={18} />, badge: borderEntries.length || undefined },
     { id: "authorize", label: "Authorize Sign Up", icon: <UserCheck size={18} />, badge: pendingSignups.length || undefined },
     { id: "messages", label: "Messages", icon: <Bell size={18} />, badge: unreadCount || undefined },
     { id: "problems", label: "Problems", icon: <AlertTriangle size={18} />, badge: unreadProblemCount || undefined },
@@ -2508,6 +2603,97 @@ export default function Dashboard() {
           )}
 
           {/* ── UPLOAD HISTORY ────────────────────────────── */}
+          {activeTab === "border" && (
+            <div className="space-y-6 max-w-7xl">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-secondary mb-1">Border Entry</h2>
+                  <p className="text-sm text-muted-foreground">
+                    FTL and LCL shipments from the tracking master. Shipment details are read-only, and border fields save automatically while you type.
+                  </p>
+                </div>
+                <button
+                  onClick={() => loadBorderEntries()}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-4 py-2 text-sm font-medium text-secondary transition-all hover:border-primary/50 hover:bg-primary/5"
+                >
+                  <Clock size={14} />
+                  Refresh
+                </button>
+              </div>
+
+              <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+                {borderEntriesLoading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Spinner className="w-8 h-8" />
+                  </div>
+                ) : borderEntries.length === 0 ? (
+                  <div className="py-20 text-center">
+                    <Truck className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
+                    <p className="text-lg font-semibold text-secondary mb-2">No FTL or LCL rows found</p>
+                    <p className="text-sm text-muted-foreground">Upload the latest tracking master and this section will populate automatically.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[1240px] w-full text-sm">
+                      <thead className="bg-muted/30 border-b border-border">
+                        <tr>
+                          {["IFS Ref", "MRA Ref", "Shipper", "Consignee", "Invoice No.", "Arrived at Border", "SDO (Date)", "Release Order (Date)", ""].map((label) => (
+                            <th key={label} className="px-4 py-3 text-left font-semibold text-secondary whitespace-nowrap">
+                              {label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {borderEntries.map((row) => (
+                          <tr key={row.shipmentId} className="border-b border-border/70 hover:bg-muted/10 transition-colors align-top">
+                            <td className="px-4 py-3 font-semibold text-secondary whitespace-nowrap">{row.ifsRef}</td>
+                            <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{row.mraRef}</td>
+                            <td className="px-4 py-3 text-muted-foreground min-w-[220px]">{row.shipper}</td>
+                            <td className="px-4 py-3 text-muted-foreground min-w-[220px]">{row.consignee}</td>
+                            <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{row.invoiceNo}</td>
+                            <td className="px-4 py-3 min-w-[180px]">
+                              <input
+                                type="text"
+                                value={row.arrivedAtBorder ?? ""}
+                                onChange={(e) => updateBorderEntryField(row.shipmentId, "arrivedAtBorder", e.target.value)}
+                                placeholder="Type border note"
+                                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                              />
+                            </td>
+                            <td className="px-4 py-3 min-w-[150px]">
+                              <input
+                                type="date"
+                                value={row.sdoDate ?? ""}
+                                onChange={(e) => updateBorderEntryField(row.shipmentId, "sdoDate", e.target.value)}
+                                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                              />
+                            </td>
+                            <td className="px-4 py-3 min-w-[170px]">
+                              <input
+                                type="date"
+                                value={row.releaseOrderDate ?? ""}
+                                onChange={(e) => updateBorderEntryField(row.shipmentId, "releaseOrderDate", e.target.value)}
+                                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                              />
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
+                              {borderSavingByShipment[row.shipmentId]
+                                ? <span className="inline-flex items-center gap-2 text-primary"><Spinner className="h-[13px] w-[13px]" /> Saving...</span>
+                                : row.updatedAt
+                                ? `Saved ${formatDate(row.updatedAt)}`
+                                : "Auto-save"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === "asycuda" && isAdmin && (
             <div className="space-y-6 max-w-5xl">
               <div>

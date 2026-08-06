@@ -194,6 +194,20 @@ async function createTables() {
       generated_by text,
       created_at timestamptz NOT NULL DEFAULT now()
     );
+
+    CREATE TABLE IF NOT EXISTS border_entries (
+      id serial PRIMARY KEY,
+      shipment_id integer NOT NULL,
+      arrived_at_border text,
+      sdo_date date,
+      release_order_date date,
+      updated_by text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS border_entries_shipment_id_idx
+      ON border_entries(shipment_id);
   `);
 
   await pool.query(`

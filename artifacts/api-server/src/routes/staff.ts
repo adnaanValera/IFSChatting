@@ -85,6 +85,21 @@ function appendDateToFilename(filename: string, date: Date | string): string {
   return `${safe.slice(0, dot)}-${stamp}${safe.slice(dot)}`;
 }
 
+type BorderEntryRow = {
+  shipmentId: number;
+  ifsRef: string;
+  mraRef: string;
+  shipper: string;
+  consignee: string;
+  invoiceNo: string;
+  shipmentType: string;
+  arrivedAtBorder: string;
+  sdoDate: string | null;
+  releaseOrderDate: string | null;
+  updatedAt: string | null;
+  updatedBy: string | null;
+};
+
 function normalizeSavedReportName(filename: string): string {
   return safeDownloadName(filename)
     .replace(/\s+/g, " ")
@@ -1639,6 +1654,87 @@ router.post("/staff/upload-master", requireAuth, requireStaff, upload.single("fi
 router.get("/staff/uploads", requireAuth, requireStaff, async (_req, res) => {
   const uploads = await db.select().from(uploadsTable).orderBy(desc(uploadsTable.uploadedAt));
   res.json(uploads);
+});
+
+router.get("/staff/border-entries", requireAuth, requireStaff, async (_req, res) => {
+  try {
+    const result = await pool.query<BorderEntryRow>(`
+      SELECT
+        s.id AS "shipmentId",
+        s.ifs_ref AS "ifsRef",
+        coalesce(nullif(s.mra_ref, ''), 'N/A') AS "mraRef",
+        coalesce(nullif(s.shipper, ''), 'N/A') AS "shipper",
+        coalesce(nullif(s.consignee, ''), 'N/A') AS "consignee",
+        coalesce(nullif(s.invoice_no, ''), 'N/A') AS "invoiceNo",
+        upper(coalesce(s.extra_fields->>'Type', s.extra_fields->>'type', '')) AS "shipmentType",
+        coalesce(be.arrived_at_border, '') AS "arrivedAtBorder",
+        CASE WHEN be.sdo_date IS NULL THEN NULL ELSE to_char(be.sdo_date, 'YYYY-MM-DD') END AS "sdoDate",
+        CASE WHEN be.release_order_date IS NULL THEN NULL ELSE to_char(be.release_order_date, 'YYYY-MM-DD') END AS "releaseOrderDate",
+        CASE WHEN be.updated_at IS NULL THEN NULL ELSE to_char(be.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') END AS "updatedAt",
+        be.updated_by AS "updatedBy"
+      FROM shipments s
+      LEFT JOIN border_entries be ON be.shipment_id = s.id
+      WHERE upper(coalesce(s.extra_fields->>'Type', s.extra_fields->>'type', '')) IN ('FTL', 'LCL')
+      ORDER BY lower(coalesce(s.consignee, s.company_name, '')), lower(coalesce(s.shipper, '')), lower(coalesce(s.ifs_ref, ''))
+    `);
+
+    res.json(result.rows);
+  } catch (error: any) {
+    logger.error({ err: error }, "Failed to load border entries");
+    res.status(500).json({ error: error?.message || "Failed to load border entries" });
+  }
+});
+
+router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, async (req, res) => {
+  try {
+    const shipmentId = parseInt(req.params["shipmentId"] as string, 10);
+    if (Number.isNaN(shipmentId) || shipmentId <= 0) {
+      res.status(400).json({ error: "Invalid shipment id" });
+      return;
+    }
+
+    const authReq = req as typeof req & { user: { email: string } };
+    const arrivedAtBorder = typeof req.body?.arrivedAtBorder === "string" ? req.body.arrivedAtBorder.trim() : "";
+    const sdoDate = typeof req.body?.sdoDate === "string" && req.body.sdoDate.trim() ? req.body.sdoDate.trim() : null;
+    const releaseOrderDate = typeof req.body?.releaseOrderDate === "string" && req.body.releaseOrderDate.trim()
+      ? req.body.releaseOrderDate.trim()
+      : null;
+
+    const [shipment] = await db
+      .select({ id: shipmentsTable.id })
+      .from(shipmentsTable)
+      .where(eq(shipmentsTable.id, shipmentId))
+      .limit(1);
+
+    if (!shipment) {
+      res.status(404).json({ error: "Shipment not found" });
+      return;
+    }
+
+    if (!arrivedAtBorder && !sdoDate && !releaseOrderDate) {
+      await pool.query("DELETE FROM border_entries WHERE shipment_id = $1", [shipmentId]);
+      res.json({ ok: true, shipmentId, cleared: true });
+      return;
+    }
+
+    await pool.query(
+      `INSERT INTO border_entries (shipment_id, arrived_at_border, sdo_date, release_order_date, updated_by, updated_at)
+       VALUES ($1, $2, $3, $4, $5, now())
+       ON CONFLICT (shipment_id)
+       DO UPDATE SET
+         arrived_at_border = EXCLUDED.arrived_at_border,
+         sdo_date = EXCLUDED.sdo_date,
+         release_order_date = EXCLUDED.release_order_date,
+         updated_by = EXCLUDED.updated_by,
+         updated_at = now()`,
+      [shipmentId, arrivedAtBorder || null, sdoDate, releaseOrderDate, authReq.user.email],
+    );
+
+    res.json({ ok: true, shipmentId, arrivedAtBorder, sdoDate, releaseOrderDate });
+  } catch (error: any) {
+    logger.error({ err: error }, "Failed to save border entry");
+    res.status(500).json({ error: error?.message || "Failed to save border entry" });
+  }
 });
 
 router.get("/staff/uploads/:id/download", requireAuth, requireStaff, async (req, res) => {
