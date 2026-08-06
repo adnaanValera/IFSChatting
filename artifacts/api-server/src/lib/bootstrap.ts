@@ -9,6 +9,7 @@ async function createTables() {
       id serial PRIMARY KEY,
       full_name text NOT NULL,
       company_name text NOT NULL DEFAULT '',
+      station text,
       email text NOT NULL UNIQUE,
       phone_number text,
       profile_picture_url text,
@@ -19,6 +20,7 @@ async function createTables() {
 
     ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number text;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture_url text;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS station text;
 
     CREATE TABLE IF NOT EXISTS pending_signups (
       id serial PRIMARY KEY,

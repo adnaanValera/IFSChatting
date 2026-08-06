@@ -208,6 +208,7 @@ router.post("/auth/register", async (req, res) => {
       id: user.id,
       fullName: user.fullName,
       companyName: user.companyName,
+      station: user.station,
       email: user.email,
       role: user.role,
       profilePictureUrl: user.profilePictureUrl,
@@ -262,6 +263,7 @@ router.post("/auth/login", async (req, res) => {
       id: user.id,
       fullName: user.fullName,
       companyName: user.companyName,
+      station: user.station,
       email: user.email,
       role: user.role,
       profilePictureUrl: user.profilePictureUrl,
@@ -350,6 +352,7 @@ router.post("/auth/pending-signup/status", async (req, res) => {
       id: user.id,
       fullName: user.fullName,
       companyName: user.companyName,
+      station: user.station,
       email: user.email,
       phoneNumber: user.phoneNumber,
       role: user.role,
@@ -375,10 +378,60 @@ router.get("/auth/me", requireAuth, async (req, res) => {
     id: user.id,
     fullName: user.fullName,
     companyName: user.companyName,
+    station: user.station,
     email: user.email,
     phoneNumber: user.phoneNumber,
     role: user.role,
     profilePictureUrl: user.profilePictureUrl,
+  });
+});
+
+router.patch("/auth/station", requireAuth, async (req, res) => {
+  const authReq = req as typeof req & { user: { userId: number } };
+  const { station } = req.body as { station?: string };
+  const allowedStations = new Set(["Blantyre", "Mwanza", "Dedza", "Songwe", "Liwonde"]);
+
+  if (!station || !allowedStations.has(station)) {
+    res.status(400).json({ error: "Choose a valid station." });
+    return;
+  }
+
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, authReq.user.userId))
+    .limit(1);
+
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  if (user.role !== "staff") {
+    res.status(403).json({ error: "Station selection is only required for staff accounts." });
+    return;
+  }
+
+  if (user.station?.trim()) {
+    res.status(409).json({ error: "Station has already been chosen for this account." });
+    return;
+  }
+
+  const [updated] = await db
+    .update(usersTable)
+    .set({ station })
+    .where(eq(usersTable.id, user.id))
+    .returning();
+
+  res.json({
+    id: updated.id,
+    fullName: updated.fullName,
+    companyName: updated.companyName,
+    station: updated.station,
+    email: updated.email,
+    phoneNumber: updated.phoneNumber,
+    role: updated.role,
+    profilePictureUrl: updated.profilePictureUrl,
   });
 });
 

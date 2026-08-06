@@ -134,6 +134,8 @@ type BorderEntryRow = {
   updatedBy: string | null;
 };
 
+const STAFF_STATIONS = ["Blantyre", "Mwanza", "Dedza", "Songwe", "Liwonde"] as const;
+
 const CARD_COLS = [
   { key: "ifsRef",              label: "IFS Ref" },
   { key: "type",                label: "Type",             extra: true },
@@ -466,6 +468,7 @@ export default function Dashboard() {
   const [borderEntriesLoading, setBorderEntriesLoading] = useState(false);
   const [borderSavingByShipment, setBorderSavingByShipment] = useState<Record<number, boolean>>({});
   const borderSaveTimersRef = useRef<Record<number, number>>({});
+  const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
     nearbyConsignments: OperationalAlert[];
     needsChecking: OperationalAlert[];
@@ -612,7 +615,11 @@ export default function Dashboard() {
 
   const typedUser = user as any;
   const isAdmin = typedUser?.role === "admin";
+  const isStaff = typedUser?.role === "staff";
   const isStaffOrAdmin = typedUser?.role === "admin" || typedUser?.role === "staff";
+  const staffStation = typeof typedUser?.station === "string" ? typedUser.station.trim() : "";
+  const staffNeedsStation = isStaff && !staffStation;
+  const stationRestrictedStaff = isStaff && !!staffStation && staffStation !== "Blantyre";
 
 
   useEffect(() => {
@@ -977,6 +984,37 @@ export default function Dashboard() {
     }
   };
 
+  const handleChooseStation = async (station: typeof STAFF_STATIONS[number]) => {
+    setStationSaving(true);
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/auth/station`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ station }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Could not save station");
+      }
+      await queryClient.invalidateQueries({ queryKey: ["/auth/me"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({ title: "Station saved", description: `${station} is now linked to this staff account.` });
+      if (station !== "Blantyre") {
+        setActiveTab("border");
+        void loadBorderEntries(true);
+      }
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Could not save station", description: err.message });
+    } finally {
+      setStationSaving(false);
+    }
+  };
+
   const saveBorderEntry = async (row: BorderEntryRow) => {
     setBorderSavingByShipment((current) => ({ ...current, [row.shipmentId]: true }));
     try {
@@ -1086,6 +1124,13 @@ export default function Dashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    if (stationRestrictedStaff && activeTab !== "border") {
+      setActiveTab("border");
+      void loadBorderEntries(true);
+    }
+  }, [stationRestrictedStaff, activeTab]);
+
   const checkTemplateStatus = async () => {
     try {
       const token = localStorage.getItem("intf_token");
@@ -1125,6 +1170,12 @@ export default function Dashboard() {
   };
 
   const handleTabChange = (tab: Tab) => {
+    if (stationRestrictedStaff && tab !== "border") {
+      setActiveTab("border");
+      void loadBorderEntries(true);
+      setIsMobileNavOpen(false);
+      return;
+    }
     setActiveTab(tab);
     setIsMobileNavOpen(false);
     if (tab === "messages" || tab === "problems") loadFeedback();
@@ -1146,7 +1197,7 @@ export default function Dashboard() {
     const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "problems", "cards", "authorize", "activity", "border"];
     if (requestedTab && allowedTabs.includes(requestedTab as Tab)) {
       const nextTab = requestedTab as Tab;
-      setActiveTab(nextTab);
+      setActiveTab(stationRestrictedStaff && nextTab !== "border" ? "border" : nextTab);
       if (nextTab === "messages" || nextTab === "problems") void loadFeedback(true);
       if (nextTab === "cards") void loadCompanies();
       if (nextTab === "activity") void loadActivity(true);
@@ -1157,7 +1208,7 @@ export default function Dashboard() {
         document.getElementById("staff-announcement")?.scrollIntoView({ behavior: "smooth", block: "center" });
       });
     }
-  }, [location]);
+  }, [location, stationRestrictedStaff]);
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -1619,12 +1670,12 @@ export default function Dashboard() {
     .slice(0, 4)
     .join("  |  ");
 
-  const primaryNavItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
+  const defaultPrimaryNavItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: "overview", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
     { id: "cards", label: "Status Reports", icon: <Building2 size={18} />, badge: companiesLoaded ? companiesList.length : undefined },
   ];
 
-  const secondaryNavItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
+  const defaultSecondaryNavItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     ...(isAdmin ? [{ id: "activity" as Tab, label: "Activity", icon: <Clock size={18} /> }] : []),
     { id: "border", label: "Border Entry", icon: <Truck size={18} />, badge: borderEntries.length || undefined },
     { id: "authorize", label: "Authorize Sign Up", icon: <UserCheck size={18} />, badge: pendingSignups.length || undefined },
@@ -1633,6 +1684,11 @@ export default function Dashboard() {
     { id: "history", label: "File Download", icon: <History size={18} />, badge: uploads?.length },
     { id: "import", label: "Tracking Uploads", icon: <UploadCloud size={18} /> },
   ];
+
+  const primaryNavItems = stationRestrictedStaff ? [] : defaultPrimaryNavItems;
+  const secondaryNavItems = stationRestrictedStaff
+    ? defaultSecondaryNavItems.filter((item) => item.id === "border")
+    : defaultSecondaryNavItems;
 
   const renderFeedbackCards = (items: FeedbackItem[], emptyTitle: string, emptyDescription: string, kind: "message" | "problem") => (
     feedbackLoading ? (
@@ -1800,6 +1856,42 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {staffNeedsStation ? (
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="w-full max-w-2xl rounded-2xl border border-border bg-white shadow-sm p-8">
+            <div className="text-center mb-8">
+              <Truck className="w-12 h-12 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-extrabold text-secondary mb-2">Choose Your Station</h2>
+              <p className="text-sm text-muted-foreground">
+                This is a one-time setup for staff. Once you choose your station, the dashboard will show the right working section for that location.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {STAFF_STATIONS.map((station) => (
+                <button
+                  key={station}
+                  onClick={() => handleChooseStation(station)}
+                  disabled={stationSaving}
+                  className="rounded-xl border border-border bg-white px-4 py-4 text-left transition-all hover:border-primary hover:bg-primary/5 disabled:opacity-60"
+                >
+                  <div className="font-bold text-secondary">{station}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {station === "Blantyre" ? "Full staff dashboard" : "Border entry only for now"}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {stationSaving && (
+              <div className="mt-6 flex items-center justify-center gap-2 text-sm text-primary font-medium">
+                <Spinner className="h-4 w-4" />
+                Saving station...
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
       <div className="flex flex-1 min-h-0">
         {isMobileNavOpen && (
           <div
@@ -2658,6 +2750,9 @@ export default function Dashboard() {
                                 value={row.arrivedAtBorder ?? ""}
                                 onChange={(e) => updateBorderEntryField(row.shipmentId, "arrivedAtBorder", e.target.value)}
                                 placeholder="YYYY-MM-DD"
+                                inputMode="numeric"
+                                pattern="[0-9-]*"
+                                maxLength={10}
                                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                               />
                             </td>
@@ -2667,6 +2762,9 @@ export default function Dashboard() {
                                 value={row.sdoDate ?? ""}
                                 onChange={(e) => updateBorderEntryField(row.shipmentId, "sdoDate", e.target.value)}
                                 placeholder="YYYY-MM-DD"
+                                inputMode="numeric"
+                                pattern="[0-9-]*"
+                                maxLength={10}
                                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                               />
                             </td>
@@ -2676,6 +2774,9 @@ export default function Dashboard() {
                                 value={row.releaseOrderDate ?? ""}
                                 onChange={(e) => updateBorderEntryField(row.shipmentId, "releaseOrderDate", e.target.value)}
                                 placeholder="YYYY-MM-DD"
+                                inputMode="numeric"
+                                pattern="[0-9-]*"
+                                maxLength={10}
                                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                               />
                             </td>
@@ -3447,6 +3548,7 @@ export default function Dashboard() {
 
         </main>
       </div>
+      )}
     </div>
   );
 }
