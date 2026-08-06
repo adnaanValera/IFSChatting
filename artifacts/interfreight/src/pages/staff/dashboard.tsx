@@ -2637,7 +2637,7 @@ export default function Dashboard() {
                     <table className="min-w-[1240px] w-full text-sm">
                       <thead className="bg-muted/30 border-b border-border">
                         <tr>
-                          {["IFS Ref", "MRA Ref", "Shipper", "Consignee", "Invoice No.", "Arrived at Border", "SDO (Date)", "Release Order (Date)", ""].map((label) => (
+                          {["IFS Ref", "MRA Ref", "Shipper", "Consignee", "Invoice No.", "Arrived at Border", "SDO", "Release Order", ""].map((label) => (
                             <th key={label} className="px-4 py-3 text-left font-semibold text-secondary whitespace-nowrap">
                               {label}
                             </th>
@@ -2657,23 +2657,25 @@ export default function Dashboard() {
                                 type="text"
                                 value={row.arrivedAtBorder ?? ""}
                                 onChange={(e) => updateBorderEntryField(row.shipmentId, "arrivedAtBorder", e.target.value)}
-                                placeholder="Type border note"
+                                placeholder="YYYY-MM-DD"
                                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                               />
                             </td>
                             <td className="px-4 py-3 min-w-[150px]">
                               <input
-                                type="date"
+                                type="text"
                                 value={row.sdoDate ?? ""}
                                 onChange={(e) => updateBorderEntryField(row.shipmentId, "sdoDate", e.target.value)}
+                                placeholder="YYYY-MM-DD"
                                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                               />
                             </td>
                             <td className="px-4 py-3 min-w-[170px]">
                               <input
-                                type="date"
+                                type="text"
                                 value={row.releaseOrderDate ?? ""}
                                 onChange={(e) => updateBorderEntryField(row.shipmentId, "releaseOrderDate", e.target.value)}
+                                placeholder="YYYY-MM-DD"
                                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                               />
                             </td>
