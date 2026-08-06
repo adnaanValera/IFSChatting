@@ -170,6 +170,13 @@ function reportDateStamp(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function normalizeDateLikeInput(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+}
+
 function openPdfBlob(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
@@ -1053,10 +1060,11 @@ export default function Dashboard() {
     if (blantyreReadOnlyStaff) {
       return;
     }
+    const normalizedValue = normalizeDateLikeInput(value);
     setBorderEntries((current) => {
       const next = current.map((row) => (
         row.shipmentId === shipmentId
-          ? { ...row, [field]: value || null }
+          ? { ...row, [field]: normalizedValue || null }
           : row
       ));
       const target = next.find((row) => row.shipmentId === shipmentId);
@@ -1076,9 +1084,10 @@ export default function Dashboard() {
     if (blantyreReadOnlyStaff) {
       return;
     }
+    const normalizedValue = normalizeDateLikeInput(value);
     setBorderEntries((current) => current.map((row) => (
       row.shipmentId === shipmentId
-        ? { ...row, [field]: value || null }
+        ? { ...row, [field]: normalizedValue || null }
         : row
     )));
   };
