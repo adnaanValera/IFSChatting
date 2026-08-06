@@ -467,6 +467,8 @@ export default function Dashboard() {
   const [borderEntries, setBorderEntries] = useState<BorderEntryRow[]>([]);
   const [borderEntriesLoading, setBorderEntriesLoading] = useState(false);
   const [borderSavingByShipment, setBorderSavingByShipment] = useState<Record<number, boolean>>({});
+  const [borderSearch, setBorderSearch] = useState("");
+  const [expandedBorderCard, setExpandedBorderCard] = useState<number | null>(null);
   const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
@@ -1069,6 +1071,23 @@ export default function Dashboard() {
       return next;
     });
   };
+
+  const updateBorderEntryDraftField = (shipmentId: number, field: "arrivedAtBorder" | "sdoDate" | "releaseOrderDate", value: string) => {
+    if (blantyreReadOnlyStaff) {
+      return;
+    }
+    setBorderEntries((current) => current.map((row) => (
+      row.shipmentId === shipmentId
+        ? { ...row, [field]: value || null }
+        : row
+    )));
+  };
+
+  const filteredBorderEntries = borderEntries.filter((row) => {
+    const query = borderSearch.trim().toLowerCase();
+    if (!query) return true;
+    return row.mraRef.toLowerCase().includes(query) || row.consignee.toLowerCase().includes(query);
+  });
 
   useEffect(() => {
     const currentIds = feedback.map((item) => Number(item.id)).filter((id) => Number.isFinite(id));
@@ -2732,6 +2751,134 @@ export default function Dashboard() {
                     <Truck className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
                     <p className="text-lg font-semibold text-secondary mb-2">No FTL or LCL rows found</p>
                     <p className="text-sm text-muted-foreground">Upload the latest tracking master and this section will populate automatically.</p>
+                  </div>
+                ) : stationRestrictedStaff ? (
+                  <div className="p-5 space-y-5">
+                    <div className="relative max-w-xl">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="text"
+                        value={borderSearch}
+                        onChange={(e) => setBorderSearch(e.target.value)}
+                        placeholder="Search by MRA Ref or Consignee"
+                        className="w-full rounded-xl border border-border bg-background pl-10 pr-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
+
+                    {filteredBorderEntries.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+                        <Search className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+                        <p className="text-lg font-semibold text-secondary">No matching border entries</p>
+                        <p className="mt-2 text-sm text-muted-foreground">Try a different MRA Ref or consignee name.</p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {filteredBorderEntries.map((row) => {
+                          const isExpanded = expandedBorderCard === row.shipmentId;
+                          const isSaving = !!borderSavingByShipment[row.shipmentId];
+                          return (
+                            <div key={row.shipmentId} className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedBorderCard(isExpanded ? null : row.shipmentId)}
+                                className="w-full text-left p-5"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="space-y-3 min-w-0">
+                                    <div>
+                                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">{row.shipmentType || "Border Entry"}</p>
+                                      <h3 className="text-lg font-extrabold text-secondary break-words">{row.consignee || "N/A"}</h3>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                                      <div>
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">MRA Ref</p>
+                                        <p className="font-semibold text-secondary break-words">{row.mraRef || "N/A"}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">IFS Ref</p>
+                                        <p className="font-semibold text-secondary break-words">{row.ifsRef || "N/A"}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Invoice No.</p>
+                                        <p className="text-secondary break-words">{row.invoiceNo || "N/A"}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Shipper</p>
+                                        <p className="text-secondary break-words">{row.shipper || "N/A"}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="mt-1 shrink-0">
+                                    {isExpanded ? <ChevronUp size={18} className="text-muted-foreground" /> : <ChevronDown size={18} className="text-muted-foreground" />}
+                                  </div>
+                                </div>
+                              </button>
+
+                              {isExpanded && (
+                                <div className="border-t border-border bg-muted/10 px-5 py-5">
+                                  <div className="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Arrived at Border</p>
+                                      <input
+                                        type="text"
+                                        value={row.arrivedAtBorder ?? ""}
+                                        onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "arrivedAtBorder", e.target.value)}
+                                        placeholder="YYYY-MM-DD"
+                                        inputMode="numeric"
+                                        pattern="[0-9-]*"
+                                        maxLength={10}
+                                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                      />
+                                    </div>
+                                    <div>
+                                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">SDO</p>
+                                      <input
+                                        type="text"
+                                        value={row.sdoDate ?? ""}
+                                        onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "sdoDate", e.target.value)}
+                                        placeholder="YYYY-MM-DD"
+                                        inputMode="numeric"
+                                        pattern="[0-9-]*"
+                                        maxLength={10}
+                                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                      />
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Release Order</p>
+                                      <input
+                                        type="text"
+                                        value={row.releaseOrderDate ?? ""}
+                                        onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "releaseOrderDate", e.target.value)}
+                                        placeholder="YYYY-MM-DD"
+                                        inputMode="numeric"
+                                        pattern="[0-9-]*"
+                                        maxLength={10}
+                                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                                    <p className="text-xs text-muted-foreground">
+                                      {row.updatedAt ? `Last saved ${formatDate(row.updatedAt)}` : "Not saved yet"}
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={() => void saveBorderEntry(row)}
+                                      disabled={isSaving}
+                                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-secondary/90 disabled:opacity-60"
+                                    >
+                                      {isSaving ? <Spinner className="h-4 w-4" /> : <CheckCircle2 size={16} />}
+                                      Confirm
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
