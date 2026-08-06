@@ -1693,7 +1693,18 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
       return;
     }
 
-    const authReq = req as typeof req & { user: { email: string } };
+    const authReq = req as typeof req & { user: { email: string; userId: number } };
+    const [requestUser] = await db
+      .select({ role: usersTable.role, station: usersTable.station })
+      .from(usersTable)
+      .where(eq(usersTable.id, authReq.user.userId))
+      .limit(1);
+
+    if (requestUser?.role === "staff" && (requestUser.station || "").trim() === "Blantyre") {
+      res.status(403).json({ error: "Blantyre staff can only view border entry in read-only mode." });
+      return;
+    }
+
     const arrivedAtBorder = typeof req.body?.arrivedAtBorder === "string" ? req.body.arrivedAtBorder.trim() : "";
     const sdoDate = typeof req.body?.sdoDate === "string" && req.body.sdoDate.trim() ? req.body.sdoDate.trim() : null;
     const releaseOrderDate = typeof req.body?.releaseOrderDate === "string" && req.body.releaseOrderDate.trim()
