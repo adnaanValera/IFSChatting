@@ -1741,6 +1741,59 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
       [shipmentId, arrivedAtBorder || null, sdoDate, releaseOrderDate, authReq.user.email],
     );
 
+    const notifyingStation = (requestUser?.station || "").trim();
+    if (notifyingStation && notifyingStation !== "Blantyre") {
+      const [shipmentDetails] = await db
+        .select({
+          ifsRef: shipmentsTable.ifsRef,
+          mraRef: shipmentsTable.mraRef,
+          consignee: shipmentsTable.consignee,
+        })
+        .from(shipmentsTable)
+        .where(eq(shipmentsTable.id, shipmentId))
+        .limit(1);
+
+      const blantyreRecipients = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(and(eq(usersTable.role, "staff"), eq(usersTable.station, "Blantyre")));
+
+      if (blantyreRecipients.length > 0) {
+        const identifier = (shipmentDetails?.mraRef || shipmentDetails?.ifsRef || "Border entry").trim() || "Border entry";
+        const consigneeName = (shipmentDetails?.consignee || "N/A").trim() || "N/A";
+        const detailText = `${identifier} - ${consigneeName}`;
+        const message = `${notifyingStation} updated ${detailText}.`;
+
+        await db.insert(notificationsTable).values(
+          blantyreRecipients.map(({ id: userId }) => ({
+            userId,
+            title: "InterFreightSolutions",
+            message,
+            companyName: "InterFreight Solutions",
+            status: "Border Entry",
+            notificationType: "border_entry",
+            iconType: "truck",
+            referenceText: identifier,
+            detailText,
+            actionUrl: "/staff/dashboard?tab=border",
+          })),
+        );
+
+        await Promise.all(blantyreRecipients.map(({ id: userId }) =>
+          sendPushToUser(userId, {
+            title: "InterFreightSolutions",
+            body: message,
+            url: "/staff/dashboard?tab=border",
+            tag: `border-entry-${shipmentId}-${Date.now()}-${userId}`,
+            iconType: "truck",
+            referenceText: identifier,
+            detailText,
+            notificationType: "border_entry",
+          }),
+        ));
+      }
+    }
+
     res.json({ ok: true, shipmentId, arrivedAtBorder, sdoDate, releaseOrderDate });
   } catch (error: any) {
     logger.error({ err: error }, "Failed to save border entry");
