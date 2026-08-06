@@ -630,6 +630,7 @@ export default function Dashboard() {
   const staffNeedsStation = isStaff && !staffStation;
   const stationRestrictedStaff = isStaff && !!staffStation && staffStation !== "Blantyre";
   const blantyreReadOnlyStaff = isStaff && staffStation === "Blantyre";
+  const borderReadOnlyViewer = isAdmin || blantyreReadOnlyStaff;
 
 
   useEffect(() => {
@@ -1026,7 +1027,7 @@ export default function Dashboard() {
   };
 
   const saveBorderEntry = async (row: BorderEntryRow) => {
-    if (blantyreReadOnlyStaff) {
+    if (borderReadOnlyViewer) {
       return;
     }
     setBorderSavingByShipment((current) => ({ ...current, [row.shipmentId]: true }));
@@ -1057,7 +1058,7 @@ export default function Dashboard() {
   };
 
   const updateBorderEntryField = (shipmentId: number, field: "arrivedAtBorder" | "sdoDate" | "releaseOrderDate", value: string) => {
-    if (blantyreReadOnlyStaff) {
+    if (borderReadOnlyViewer) {
       return;
     }
     const normalizedValue = normalizeDateLikeInput(value);
@@ -1081,7 +1082,7 @@ export default function Dashboard() {
   };
 
   const updateBorderEntryDraftField = (shipmentId: number, field: "arrivedAtBorder" | "sdoDate" | "releaseOrderDate", value: string) => {
-    if (blantyreReadOnlyStaff) {
+    if (borderReadOnlyViewer) {
       return;
     }
     const normalizedValue = normalizeDateLikeInput(value);
@@ -2736,8 +2737,8 @@ export default function Dashboard() {
                 <div>
                   <h2 className="text-2xl font-extrabold text-secondary mb-1">Border Entry</h2>
                   <p className="text-sm text-muted-foreground">
-                    {blantyreReadOnlyStaff
-                      ? "FTL and LCL shipments from the tracking master. Shipment details and border fields are read-only for Blantyre staff."
+                    {borderReadOnlyViewer
+                      ? "FTL and LCL shipments from the tracking master. Shipment details and border fields are read-only for Blantyre staff and admin."
                       : "FTL and LCL shipments from the tracking master. Shipment details are read-only, and border fields save automatically while you type."}
                   </p>
                 </div>
@@ -2918,9 +2919,9 @@ export default function Dashboard() {
                                 inputMode="numeric"
                                 pattern="[0-9-]*"
                                 maxLength={10}
-                                readOnly={blantyreReadOnlyStaff}
-                                disabled={blantyreReadOnlyStaff}
-                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${blantyreReadOnlyStaff ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
+                                readOnly={borderReadOnlyViewer}
+                                disabled={borderReadOnlyViewer}
+                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
                               />
                             </td>
                             <td className="px-4 py-3 min-w-[150px]">
@@ -2932,9 +2933,9 @@ export default function Dashboard() {
                                 inputMode="numeric"
                                 pattern="[0-9-]*"
                                 maxLength={10}
-                                readOnly={blantyreReadOnlyStaff}
-                                disabled={blantyreReadOnlyStaff}
-                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${blantyreReadOnlyStaff ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
+                                readOnly={borderReadOnlyViewer}
+                                disabled={borderReadOnlyViewer}
+                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
                               />
                             </td>
                             <td className="px-4 py-3 min-w-[170px]">
@@ -2946,13 +2947,13 @@ export default function Dashboard() {
                                 inputMode="numeric"
                                 pattern="[0-9-]*"
                                 maxLength={10}
-                                readOnly={blantyreReadOnlyStaff}
-                                disabled={blantyreReadOnlyStaff}
-                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${blantyreReadOnlyStaff ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
+                                readOnly={borderReadOnlyViewer}
+                                disabled={borderReadOnlyViewer}
+                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
                               />
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
-                              {blantyreReadOnlyStaff
+                              {borderReadOnlyViewer
                                 ? "Read only"
                                 : borderSavingByShipment[row.shipmentId]
                                 ? <span className="inline-flex items-center gap-2 text-primary"><Spinner className="h-[13px] w-[13px]" /> Saving...</span>

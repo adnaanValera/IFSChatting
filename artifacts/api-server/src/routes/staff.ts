@@ -1700,8 +1700,8 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
       .where(eq(usersTable.id, authReq.user.userId))
       .limit(1);
 
-    if (requestUser?.role === "staff" && (requestUser.station || "").trim() === "Blantyre") {
-      res.status(403).json({ error: "Blantyre staff can only view border entry in read-only mode." });
+    if (requestUser?.role === "admin" || (requestUser?.role === "staff" && (requestUser.station || "").trim() === "Blantyre")) {
+      res.status(403).json({ error: "Blantyre staff and admin can only view border entry in read-only mode." });
       return;
     }
 
@@ -1756,7 +1756,12 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
       const blantyreRecipients = await db
         .select({ id: usersTable.id })
         .from(usersTable)
-        .where(and(eq(usersTable.role, "staff"), eq(usersTable.station, "Blantyre")));
+        .where(
+          or(
+            eq(usersTable.role, "admin"),
+            and(eq(usersTable.role, "staff"), eq(usersTable.station, "Blantyre")),
+          ),
+        );
 
       if (blantyreRecipients.length > 0) {
         const identifier = (shipmentDetails?.mraRef || shipmentDetails?.ifsRef || "Border entry").trim() || "Border entry";
