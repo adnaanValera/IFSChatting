@@ -100,6 +100,15 @@ type BorderEntryRow = {
   updatedBy: string | null;
 };
 
+function parseDayMonthYearToIso(value: string | null): string | null {
+  if (!value) return null;
+  const clean = value.trim();
+  const match = clean.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return clean || null;
+  const [, day, month, year] = match;
+  return `${year}-${month}-${day}`;
+}
+
 function normalizeSavedReportName(filename: string): string {
   return safeDownloadName(filename)
     .replace(/\s+/g, " ")
@@ -1668,8 +1677,8 @@ router.get("/staff/border-entries", requireAuth, requireStaff, async (_req, res)
         coalesce(nullif(s.invoice_no, ''), 'N/A') AS "invoiceNo",
         upper(coalesce(s.extra_fields->>'Type', s.extra_fields->>'type', '')) AS "shipmentType",
         coalesce(be.arrived_at_border, '') AS "arrivedAtBorder",
-        CASE WHEN be.sdo_date IS NULL THEN NULL ELSE to_char(be.sdo_date, 'YYYY-MM-DD') END AS "sdoDate",
-        CASE WHEN be.release_order_date IS NULL THEN NULL ELSE to_char(be.release_order_date, 'YYYY-MM-DD') END AS "releaseOrderDate",
+        CASE WHEN be.sdo_date IS NULL THEN NULL ELSE to_char(be.sdo_date, 'DD/MM/YYYY') END AS "sdoDate",
+        CASE WHEN be.release_order_date IS NULL THEN NULL ELSE to_char(be.release_order_date, 'DD/MM/YYYY') END AS "releaseOrderDate",
         CASE WHEN be.updated_at IS NULL THEN NULL ELSE to_char(be.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') END AS "updatedAt",
         be.updated_by AS "updatedBy"
       FROM shipments s
@@ -1706,9 +1715,9 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
     }
 
     const arrivedAtBorder = typeof req.body?.arrivedAtBorder === "string" ? req.body.arrivedAtBorder.trim() : "";
-    const sdoDate = typeof req.body?.sdoDate === "string" && req.body.sdoDate.trim() ? req.body.sdoDate.trim() : null;
+    const sdoDate = typeof req.body?.sdoDate === "string" && req.body.sdoDate.trim() ? parseDayMonthYearToIso(req.body.sdoDate.trim()) : null;
     const releaseOrderDate = typeof req.body?.releaseOrderDate === "string" && req.body.releaseOrderDate.trim()
-      ? req.body.releaseOrderDate.trim()
+      ? parseDayMonthYearToIso(req.body.releaseOrderDate.trim())
       : null;
 
     const [shipment] = await db

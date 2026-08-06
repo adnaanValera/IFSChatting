@@ -172,9 +172,9 @@ function reportDateStamp(): string {
 
 function normalizeDateLikeInput(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 8);
-  if (digits.length <= 4) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
-  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
 function openPdfBlob(url: string) {
@@ -2833,7 +2833,7 @@ export default function Dashboard() {
                                         type="text"
                                         value={row.arrivedAtBorder ?? ""}
                                         onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "arrivedAtBorder", e.target.value)}
-                                        placeholder="YYYY-MM-DD"
+                                        placeholder="DD/MM/YYYY"
                                         inputMode="numeric"
                                         pattern="[0-9-]*"
                                         maxLength={10}
@@ -2846,7 +2846,7 @@ export default function Dashboard() {
                                         type="text"
                                         value={row.sdoDate ?? ""}
                                         onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "sdoDate", e.target.value)}
-                                        placeholder="YYYY-MM-DD"
+                                        placeholder="DD/MM/YYYY"
                                         inputMode="numeric"
                                         pattern="[0-9-]*"
                                         maxLength={10}
@@ -2859,7 +2859,7 @@ export default function Dashboard() {
                                         type="text"
                                         value={row.releaseOrderDate ?? ""}
                                         onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "releaseOrderDate", e.target.value)}
-                                        placeholder="YYYY-MM-DD"
+                                        placeholder="DD/MM/YYYY"
                                         inputMode="numeric"
                                         pattern="[0-9-]*"
                                         maxLength={10}
@@ -2915,7 +2915,7 @@ export default function Dashboard() {
                                 type="text"
                                 value={row.arrivedAtBorder ?? ""}
                                 onChange={(e) => updateBorderEntryField(row.shipmentId, "arrivedAtBorder", e.target.value)}
-                                placeholder="YYYY-MM-DD"
+                                placeholder="DD/MM/YYYY"
                                 inputMode="numeric"
                                 pattern="[0-9-]*"
                                 maxLength={10}
@@ -2929,7 +2929,7 @@ export default function Dashboard() {
                                 type="text"
                                 value={row.sdoDate ?? ""}
                                 onChange={(e) => updateBorderEntryField(row.shipmentId, "sdoDate", e.target.value)}
-                                placeholder="YYYY-MM-DD"
+                                placeholder="DD/MM/YYYY"
                                 inputMode="numeric"
                                 pattern="[0-9-]*"
                                 maxLength={10}
@@ -2943,7 +2943,7 @@ export default function Dashboard() {
                                 type="text"
                                 value={row.releaseOrderDate ?? ""}
                                 onChange={(e) => updateBorderEntryField(row.shipmentId, "releaseOrderDate", e.target.value)}
-                                placeholder="YYYY-MM-DD"
+                                placeholder="DD/MM/YYYY"
                                 inputMode="numeric"
                                 pattern="[0-9-]*"
                                 maxLength={10}
