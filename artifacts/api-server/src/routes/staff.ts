@@ -94,8 +94,12 @@ type BorderEntryRow = {
   invoiceNo: string;
   shipmentType: string;
   arrivedAtBorder: string;
-  sdoDate: string | null;
-  releaseOrderDate: string | null;
+  sdoChecked: boolean;
+  releaseOrderChecked: boolean;
+  releasedFromBorder: string;
+  driverPhone: string;
+  arrivalConfirmed: boolean;
+  finalConfirmed: boolean;
   updatedAt: string | null;
   updatedBy: string | null;
 };
@@ -1677,8 +1681,12 @@ router.get("/staff/border-entries", requireAuth, requireStaff, async (_req, res)
         coalesce(nullif(s.invoice_no, ''), 'N/A') AS "invoiceNo",
         upper(coalesce(s.extra_fields->>'Type', s.extra_fields->>'type', '')) AS "shipmentType",
         coalesce(be.arrived_at_border, '') AS "arrivedAtBorder",
-        CASE WHEN be.sdo_date IS NULL THEN NULL ELSE to_char(be.sdo_date, 'DD/MM/YYYY') END AS "sdoDate",
-        CASE WHEN be.release_order_date IS NULL THEN NULL ELSE to_char(be.release_order_date, 'DD/MM/YYYY') END AS "releaseOrderDate",
+        coalesce(be.sdo_checked, false) AS "sdoChecked",
+        coalesce(be.release_order_checked, false) AS "releaseOrderChecked",
+        coalesce(be.released_from_border, '') AS "releasedFromBorder",
+        coalesce(be.driver_phone, '') AS "driverPhone",
+        coalesce(be.arrival_confirmed, CASE WHEN coalesce(be.arrived_at_border, '') <> '' THEN true ELSE false END) AS "arrivalConfirmed",
+        coalesce(be.final_confirmed, false) AS "finalConfirmed",
         CASE WHEN be.updated_at IS NULL THEN NULL ELSE to_char(be.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') END AS "updatedAt",
         be.updated_by AS "updatedBy"
       FROM shipments s
@@ -1714,11 +1722,12 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
       return;
     }
 
+    const mode = typeof req.body?.mode === "string" ? req.body.mode.trim().toLowerCase() : "arrival";
     const arrivedAtBorder = typeof req.body?.arrivedAtBorder === "string" ? req.body.arrivedAtBorder.trim() : "";
-    const sdoDate = typeof req.body?.sdoDate === "string" && req.body.sdoDate.trim() ? parseDayMonthYearToIso(req.body.sdoDate.trim()) : null;
-    const releaseOrderDate = typeof req.body?.releaseOrderDate === "string" && req.body.releaseOrderDate.trim()
-      ? parseDayMonthYearToIso(req.body.releaseOrderDate.trim())
-      : null;
+    const sdoChecked = req.body?.sdoChecked === true;
+    const releaseOrderChecked = req.body?.releaseOrderChecked === true;
+    const releasedFromBorder = typeof req.body?.releasedFromBorder === "string" ? req.body.releasedFromBorder.trim() : "";
+    const driverPhone = typeof req.body?.driverPhone === "string" ? req.body.driverPhone.replace(/\D/g, "").slice(0, 15) : "";
 
     const [shipment] = await db
       .select({ id: shipmentsTable.id })
@@ -1731,24 +1740,77 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
       return;
     }
 
-    if (!arrivedAtBorder && !sdoDate && !releaseOrderDate) {
-      await pool.query("DELETE FROM border_entries WHERE shipment_id = $1", [shipmentId]);
-      res.json({ ok: true, shipmentId, cleared: true });
+    const existingEntryResult = await pool.query<{
+      arrived_at_border: string | null;
+      arrival_confirmed: boolean | null;
+      final_confirmed: boolean | null;
+    }>(
+      `SELECT arrived_at_border, arrival_confirmed, final_confirmed FROM border_entries WHERE shipment_id = $1 LIMIT 1`,
+      [shipmentId],
+    );
+    const existingEntry = existingEntryResult.rows[0];
+
+    if (existingEntry?.final_confirmed) {
+      res.status(400).json({ error: "This border entry has already been completed." });
       return;
     }
 
-    await pool.query(
-      `INSERT INTO border_entries (shipment_id, arrived_at_border, sdo_date, release_order_date, updated_by, updated_at)
-       VALUES ($1, $2, $3, $4, $5, now())
-       ON CONFLICT (shipment_id)
-       DO UPDATE SET
-         arrived_at_border = EXCLUDED.arrived_at_border,
-         sdo_date = EXCLUDED.sdo_date,
-         release_order_date = EXCLUDED.release_order_date,
-         updated_by = EXCLUDED.updated_by,
-         updated_at = now()`,
-      [shipmentId, arrivedAtBorder || null, sdoDate, releaseOrderDate, authReq.user.email],
-    );
+    if (mode === "arrival") {
+      if (!arrivedAtBorder) {
+        res.status(400).json({ error: "Enter the arrived at border date first." });
+        return;
+      }
+      if (existingEntry?.arrival_confirmed) {
+        res.status(400).json({ error: "Arrival has already been confirmed and cannot be edited." });
+        return;
+      }
+
+      await pool.query(
+        `INSERT INTO border_entries (shipment_id, arrived_at_border, arrival_confirmed, updated_by, updated_at)
+         VALUES ($1, $2, true, $3, now())
+         ON CONFLICT (shipment_id)
+         DO UPDATE SET
+           arrived_at_border = CASE
+             WHEN coalesce(border_entries.arrival_confirmed, false) THEN border_entries.arrived_at_border
+             ELSE EXCLUDED.arrived_at_border
+           END,
+           arrival_confirmed = true,
+           updated_by = EXCLUDED.updated_by,
+           updated_at = now()`,
+        [shipmentId, arrivedAtBorder, authReq.user.email],
+      );
+    } else if (mode === "final") {
+      const arrivalLocked = !!existingEntry?.arrival_confirmed || !!existingEntry?.arrived_at_border;
+      if (!arrivalLocked) {
+        res.status(400).json({ error: "Confirm the arrival date first." });
+        return;
+      }
+      if (!releasedFromBorder || !driverPhone || (!sdoChecked && !releaseOrderChecked)) {
+        res.status(400).json({ error: "Tick SDO or Release Order, then enter released from border and driver's phone number." });
+        return;
+      }
+
+      await pool.query(
+        `INSERT INTO border_entries (
+           shipment_id, arrived_at_border, arrival_confirmed, sdo_checked, release_order_checked,
+           released_from_border, driver_phone, final_confirmed, updated_by, updated_at
+         )
+         VALUES ($1, $2, true, $3, $4, $5, $6, true, $7, now())
+         ON CONFLICT (shipment_id)
+         DO UPDATE SET
+           sdo_checked = EXCLUDED.sdo_checked,
+           release_order_checked = EXCLUDED.release_order_checked,
+           released_from_border = EXCLUDED.released_from_border,
+           driver_phone = EXCLUDED.driver_phone,
+           final_confirmed = true,
+           updated_by = EXCLUDED.updated_by,
+           updated_at = now()`,
+        [shipmentId, existingEntry?.arrived_at_border || arrivedAtBorder || null, sdoChecked, releaseOrderChecked, releasedFromBorder, driverPhone, authReq.user.email],
+      );
+    } else {
+      res.status(400).json({ error: "Invalid save mode." });
+      return;
+    }
 
     const notifyingStation = (requestUser?.station || "").trim();
     if (notifyingStation && notifyingStation !== "Blantyre") {
@@ -1776,7 +1838,8 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
         const identifier = (shipmentDetails?.mraRef || shipmentDetails?.ifsRef || "Border entry").trim() || "Border entry";
         const consigneeName = (shipmentDetails?.consignee || "N/A").trim() || "N/A";
         const detailText = `${identifier} - ${consigneeName}`;
-        const message = `${notifyingStation} updated ${detailText}.`;
+        const stageLabel = mode === "final" ? "completed border release for" : "confirmed arrival for";
+        const message = `${notifyingStation} ${stageLabel} ${detailText}.`;
 
         await db.insert(notificationsTable).values(
           blantyreRecipients.map(({ id: userId }) => ({
@@ -1808,7 +1871,7 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
       }
     }
 
-    res.json({ ok: true, shipmentId, arrivedAtBorder, sdoDate, releaseOrderDate });
+    res.json({ ok: true, shipmentId, mode, arrivedAtBorder, sdoChecked, releaseOrderChecked, releasedFromBorder, driverPhone });
   } catch (error: any) {
     logger.error({ err: error }, "Failed to save border entry");
     res.status(500).json({ error: error?.message || "Failed to save border entry" });

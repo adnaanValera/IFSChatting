@@ -203,6 +203,12 @@ async function createTables() {
       arrived_at_border text,
       sdo_date date,
       release_order_date date,
+      sdo_checked boolean NOT NULL DEFAULT false,
+      release_order_checked boolean NOT NULL DEFAULT false,
+      released_from_border text,
+      driver_phone text,
+      arrival_confirmed boolean NOT NULL DEFAULT false,
+      final_confirmed boolean NOT NULL DEFAULT false,
       updated_by text,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
@@ -225,6 +231,12 @@ async function createTables() {
     ALTER TABLE announcements ADD COLUMN IF NOT EXISTS audience text NOT NULL DEFAULT 'all';
     ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target_user_ids text;
     ALTER TABLE announcements ADD COLUMN IF NOT EXISTS expires_at timestamptz;
+    ALTER TABLE border_entries ADD COLUMN IF NOT EXISTS sdo_checked boolean NOT NULL DEFAULT false;
+    ALTER TABLE border_entries ADD COLUMN IF NOT EXISTS release_order_checked boolean NOT NULL DEFAULT false;
+    ALTER TABLE border_entries ADD COLUMN IF NOT EXISTS released_from_border text;
+    ALTER TABLE border_entries ADD COLUMN IF NOT EXISTS driver_phone text;
+    ALTER TABLE border_entries ADD COLUMN IF NOT EXISTS arrival_confirmed boolean NOT NULL DEFAULT false;
+    ALTER TABLE border_entries ADD COLUMN IF NOT EXISTS final_confirmed boolean NOT NULL DEFAULT false;
     ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS user_id integer;
     ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS approval_token text;
     ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS endpoint text;

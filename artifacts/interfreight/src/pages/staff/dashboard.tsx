@@ -126,10 +126,13 @@ type BorderEntryRow = {
   shipper: string;
   consignee: string;
   invoiceNo: string;
-  shipmentType: string;
   arrivedAtBorder: string;
-  sdoDate: string | null;
-  releaseOrderDate: string | null;
+  sdoChecked: boolean;
+  releaseOrderChecked: boolean;
+  releasedFromBorder: string;
+  driverPhone: string;
+  arrivalConfirmed: boolean;
+  finalConfirmed: boolean;
   updatedAt: string | null;
   updatedBy: string | null;
 };
@@ -175,6 +178,10 @@ function normalizeDateLikeInput(value: string): string {
   if (digits.length <= 2) return digits;
   if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function normalizePhoneLikeInput(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 15);
 }
 
 function openPdfBlob(url: string) {
@@ -1027,7 +1034,7 @@ export default function Dashboard() {
     }
   };
 
-  const saveBorderEntry = async (row: BorderEntryRow) => {
+  const saveBorderEntry = async (row: BorderEntryRow, mode: "arrival" | "final") => {
     if (borderReadOnlyViewer) {
       return;
     }
@@ -1042,60 +1049,78 @@ export default function Dashboard() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          mode,
           arrivedAtBorder: row.arrivedAtBorder ?? "",
-          sdoDate: row.sdoDate ?? "",
-          releaseOrderDate: row.releaseOrderDate ?? "",
+          sdoChecked: !!row.sdoChecked,
+          releaseOrderChecked: !!row.releaseOrderChecked,
+          releasedFromBorder: row.releasedFromBorder ?? "",
+          driverPhone: row.driverPhone ?? "",
         }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         throw new Error(json.error || "Failed to save border entry");
       }
+      setBorderEntries((current) => current.map((item) => (
+        item.shipmentId === row.shipmentId
+          ? {
+              ...item,
+              arrivalConfirmed: mode === "arrival" ? true : item.arrivalConfirmed,
+              finalConfirmed: mode === "final" ? true : item.finalConfirmed,
+            }
+          : item
+      )));
+      if (mode === "final" && expandedBorderCard === row.shipmentId) {
+        setExpandedBorderCard(null);
+      }
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Auto-save failed", description: err.message });
+      toast({ variant: "destructive", title: "Save failed", description: err.message });
     } finally {
       setBorderSavingByShipment((current) => ({ ...current, [row.shipmentId]: false }));
     }
   };
 
-  const updateBorderEntryField = (shipmentId: number, field: "arrivedAtBorder" | "sdoDate" | "releaseOrderDate", value: string) => {
+  const updateBorderEntryField = (shipmentId: number, field: "arrivedAtBorder" | "releasedFromBorder" | "driverPhone", value: string) => {
     if (borderReadOnlyViewer) {
       return;
     }
-    const normalizedValue = normalizeDateLikeInput(value);
+    const normalizedValue = field === "driverPhone" ? normalizePhoneLikeInput(value) : normalizeDateLikeInput(value);
     setBorderEntries((current) => {
       const next = current.map((row) => (
         row.shipmentId === shipmentId
           ? { ...row, [field]: normalizedValue || null }
           : row
       ));
-      const target = next.find((row) => row.shipmentId === shipmentId);
-      if (target) {
-        if (borderSaveTimersRef.current[shipmentId]) {
-          window.clearTimeout(borderSaveTimersRef.current[shipmentId]);
-        }
-        borderSaveTimersRef.current[shipmentId] = window.setTimeout(() => {
-          void saveBorderEntry(target);
-        }, 650);
-      }
       return next;
     });
   };
 
-  const updateBorderEntryDraftField = (shipmentId: number, field: "arrivedAtBorder" | "sdoDate" | "releaseOrderDate", value: string) => {
+  const updateBorderEntryDraftField = (
+    shipmentId: number,
+    field: "arrivedAtBorder" | "releasedFromBorder" | "driverPhone" | "sdoChecked" | "releaseOrderChecked",
+    value: string | boolean,
+  ) => {
     if (borderReadOnlyViewer) {
       return;
     }
-    const normalizedValue = normalizeDateLikeInput(value);
     setBorderEntries((current) => current.map((row) => (
       row.shipmentId === shipmentId
-        ? { ...row, [field]: normalizedValue || null }
+        ? {
+            ...row,
+            [field]:
+              typeof value === "boolean"
+                ? value
+                : field === "driverPhone"
+                ? normalizePhoneLikeInput(value)
+                : normalizeDateLikeInput(value) || "",
+          }
         : row
     )));
   };
 
   const filteredBorderEntries = borderEntries.filter((row) => {
     const query = borderSearch.trim().toLowerCase();
+    if (stationRestrictedStaff && row.finalConfirmed) return false;
     if (!query) return true;
     return row.mraRef.toLowerCase().includes(query) || row.consignee.toLowerCase().includes(query);
   });
@@ -2783,40 +2808,27 @@ export default function Dashboard() {
                         <p className="mt-2 text-sm text-muted-foreground">Try a different MRA Ref or consignee name.</p>
                       </div>
                     ) : (
-                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         {filteredBorderEntries.map((row) => {
                           const isExpanded = expandedBorderCard === row.shipmentId;
                           const isSaving = !!borderSavingByShipment[row.shipmentId];
+                          const canConfirmFinal = row.arrivalConfirmed && (row.sdoChecked || row.releaseOrderChecked) && !!row.releasedFromBorder && !!row.driverPhone;
                           return (
                             <div key={row.shipmentId} className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
                               <button
                                 type="button"
                                 onClick={() => setExpandedBorderCard(isExpanded ? null : row.shipmentId)}
-                                className="w-full text-left p-5"
+                                className="w-full text-left px-4 py-3"
                               >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="space-y-3 min-w-0">
-                                    <div>
-                                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">{row.shipmentType || "Border Entry"}</p>
-                                      <h3 className="text-lg font-extrabold text-secondary break-words">{row.consignee || "N/A"}</h3>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                                      <div>
-                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">MRA Ref</p>
-                                        <p className="font-semibold text-secondary break-words">{row.mraRef || "N/A"}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">IFS Ref</p>
-                                        <p className="font-semibold text-secondary break-words">{row.ifsRef || "N/A"}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Invoice No.</p>
-                                        <p className="text-secondary break-words">{row.invoiceNo || "N/A"}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Shipper</p>
-                                        <p className="text-secondary break-words">{row.shipper || "N/A"}</p>
-                                      </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                                      <span className="truncate font-extrabold text-secondary max-w-[180px]">{row.consignee || "N/A"}</span>
+                                      <span className="truncate text-muted-foreground max-w-[160px]">MRA: {row.mraRef || "N/A"}</span>
+                                      <span className="truncate text-muted-foreground max-w-[160px]">IFS: {row.ifsRef || "N/A"}</span>
+                                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${row.arrivalConfirmed ? "bg-amber-100 text-amber-800" : "bg-primary/10 text-primary"}`}>
+                                        {row.arrivalConfirmed ? "Awaiting final" : "Arrival pending"}
+                                      </span>
                                     </div>
                                   </div>
                                   <div className="mt-1 shrink-0">
@@ -2828,59 +2840,100 @@ export default function Dashboard() {
                               {isExpanded && (
                                 <div className="border-t border-border bg-muted/10 px-5 py-5">
                                   <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
+                                      <div>
+                                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Arrived at Border</p>
+                                        <input
+                                          type="text"
+                                          value={row.arrivedAtBorder ?? ""}
+                                          onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "arrivedAtBorder", e.target.value)}
+                                          placeholder="DD/MM/YYYY"
+                                          inputMode="numeric"
+                                          pattern="[0-9/]*"
+                                          maxLength={10}
+                                          readOnly={row.arrivalConfirmed}
+                                          disabled={row.arrivalConfirmed}
+                                          className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${row.arrivalConfirmed ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
+                                        />
+                                      </div>
+                                      <div className="flex items-end">
+                                        <button
+                                          type="button"
+                                          onClick={() => void saveBorderEntry(row, "arrival")}
+                                          disabled={isSaving || row.arrivalConfirmed || !row.arrivedAtBorder}
+                                          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-secondary/90 disabled:opacity-60"
+                                        >
+                                          {isSaving ? <Spinner className="h-4 w-4" /> : <CheckCircle2 size={16} />}
+                                          Confirm Arrival
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
+                                      <label className={`flex items-center justify-between rounded-xl border px-3 py-3 ${row.arrivalConfirmed ? "border-border bg-white" : "border-border/60 bg-muted/30 opacity-60"}`}>
+                                        <span className="text-sm font-semibold text-secondary">SDO</span>
+                                        <input
+                                          type="checkbox"
+                                          checked={!!row.sdoChecked}
+                                          onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "sdoChecked", e.target.checked)}
+                                          disabled={!row.arrivalConfirmed}
+                                          className="h-4 w-4 accent-primary"
+                                        />
+                                      </label>
+                                      <label className={`flex items-center justify-between rounded-xl border px-3 py-3 ${row.arrivalConfirmed ? "border-border bg-white" : "border-border/60 bg-muted/30 opacity-60"}`}>
+                                        <span className="text-sm font-semibold text-secondary">Release Order</span>
+                                        <input
+                                          type="checkbox"
+                                          checked={!!row.releaseOrderChecked}
+                                          onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "releaseOrderChecked", e.target.checked)}
+                                          disabled={!row.arrivalConfirmed}
+                                          className="h-4 w-4 accent-primary"
+                                        />
+                                      </label>
+                                    </div>
+
                                     <div>
-                                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Arrived at Border</p>
+                                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Released from Border</p>
                                       <input
                                         type="text"
-                                        value={row.arrivedAtBorder ?? ""}
-                                        onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "arrivedAtBorder", e.target.value)}
+                                        value={row.releasedFromBorder ?? ""}
+                                        onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "releasedFromBorder", e.target.value)}
                                         placeholder="DD/MM/YYYY"
                                         inputMode="numeric"
-                                        pattern="[0-9-]*"
+                                        pattern="[0-9/]*"
                                         maxLength={10}
-                                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                        disabled={!row.arrivalConfirmed}
+                                        className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${row.arrivalConfirmed ? "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20" : "bg-muted/30 cursor-not-allowed"}`}
                                       />
                                     </div>
                                     <div>
-                                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">SDO</p>
+                                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Driver's Phone Number</p>
                                       <input
                                         type="text"
-                                        value={row.sdoDate ?? ""}
-                                        onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "sdoDate", e.target.value)}
-                                        placeholder="DD/MM/YYYY"
+                                        value={row.driverPhone ?? ""}
+                                        onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "driverPhone", e.target.value)}
+                                        placeholder="265..."
                                         inputMode="numeric"
-                                        pattern="[0-9-]*"
-                                        maxLength={10}
-                                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                                      />
-                                    </div>
-                                    <div className="sm:col-span-2">
-                                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Release Order</p>
-                                      <input
-                                        type="text"
-                                        value={row.releaseOrderDate ?? ""}
-                                        onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "releaseOrderDate", e.target.value)}
-                                        placeholder="DD/MM/YYYY"
-                                        inputMode="numeric"
-                                        pattern="[0-9-]*"
-                                        maxLength={10}
-                                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                        pattern="[0-9]*"
+                                        maxLength={15}
+                                        disabled={!row.arrivalConfirmed}
+                                        className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${row.arrivalConfirmed ? "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20" : "bg-muted/30 cursor-not-allowed"}`}
                                       />
                                     </div>
                                   </div>
 
                                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                                     <p className="text-xs text-muted-foreground">
-                                      {row.updatedAt ? `Last saved ${formatDate(row.updatedAt)}` : "Not saved yet"}
+                                      {row.updatedAt ? `Last saved ${formatDate(row.updatedAt)}` : row.arrivalConfirmed ? "Arrival confirmed" : "Waiting for arrival confirmation"}
                                     </p>
                                     <button
                                       type="button"
-                                      onClick={() => void saveBorderEntry(row)}
-                                      disabled={isSaving}
-                                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-secondary/90 disabled:opacity-60"
+                                      onClick={() => void saveBorderEntry(row, "final")}
+                                      disabled={isSaving || !canConfirmFinal}
+                                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-primary/90 disabled:opacity-60"
                                     >
                                       {isSaving ? <Spinner className="h-4 w-4" /> : <CheckCircle2 size={16} />}
-                                      Confirm
+                                      Confirm Final
                                     </button>
                                   </div>
                                 </div>
@@ -2893,10 +2946,10 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="min-w-[1240px] w-full text-sm">
+                    <table className="min-w-[1380px] w-full text-sm">
                       <thead className="bg-muted/30 border-b border-border">
                         <tr>
-                          {["IFS Ref", "MRA Ref", "Shipper", "Consignee", "Invoice No.", "Arrived at Border", "SDO", "Release Order", ""].map((label) => (
+                          {["IFS Ref", "MRA Ref", "Shipper", "Consignee", "Invoice No.", "Arrived at Border", "SDO", "Release Order", "Released from Border", "Driver Phone", ""].map((label) => (
                             <th key={label} className="px-4 py-3 text-left font-semibold text-secondary whitespace-nowrap">
                               {label}
                             </th>
@@ -2925,14 +2978,24 @@ export default function Dashboard() {
                                 className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
                               />
                             </td>
-                            <td className="px-4 py-3 min-w-[150px]">
+                            <td className="px-4 py-3 text-center">
+                              <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${row.sdoChecked ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                                {row.sdoChecked ? "Y" : "-"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${row.releaseOrderChecked ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                                {row.releaseOrderChecked ? "Y" : "-"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 min-w-[180px]">
                               <input
                                 type="text"
-                                value={row.sdoDate ?? ""}
-                                onChange={(e) => updateBorderEntryField(row.shipmentId, "sdoDate", e.target.value)}
+                                value={row.releasedFromBorder ?? ""}
+                                onChange={(e) => updateBorderEntryField(row.shipmentId, "releasedFromBorder", e.target.value)}
                                 placeholder="DD/MM/YYYY"
                                 inputMode="numeric"
-                                pattern="[0-9-]*"
+                                pattern="[0-9/]*"
                                 maxLength={10}
                                 readOnly={borderReadOnlyViewer}
                                 disabled={borderReadOnlyViewer}
@@ -2942,12 +3005,12 @@ export default function Dashboard() {
                             <td className="px-4 py-3 min-w-[170px]">
                               <input
                                 type="text"
-                                value={row.releaseOrderDate ?? ""}
-                                onChange={(e) => updateBorderEntryField(row.shipmentId, "releaseOrderDate", e.target.value)}
-                                placeholder="DD/MM/YYYY"
+                                value={row.driverPhone ?? ""}
+                                onChange={(e) => updateBorderEntryField(row.shipmentId, "driverPhone", e.target.value)}
+                                placeholder="265..."
                                 inputMode="numeric"
-                                pattern="[0-9-]*"
-                                maxLength={10}
+                                pattern="[0-9]*"
+                                maxLength={15}
                                 readOnly={borderReadOnlyViewer}
                                 disabled={borderReadOnlyViewer}
                                 className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
