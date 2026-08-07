@@ -623,9 +623,10 @@ export default function Dashboard() {
   const [downloadingConsignee, setDownloadingConsignee] = useState<string | null>(null);
 
   const typedUser = user as any;
-  const isAdmin = typedUser?.role === "admin";
-  const isStaff = typedUser?.role === "staff";
-  const isStaffOrAdmin = typedUser?.role === "admin" || typedUser?.role === "staff";
+  const normalizedUserRole = typeof typedUser?.role === "string" ? typedUser.role.trim().toLowerCase() : "";
+  const isAdmin = normalizedUserRole === "admin";
+  const isStaff = normalizedUserRole === "staff";
+  const isStaffOrAdmin = isAdmin || isStaff;
   const staffStation = typeof typedUser?.station === "string" ? typedUser.station.trim() : "";
   const staffNeedsStation = isStaff && !staffStation;
   const stationRestrictedStaff = isStaff && !!staffStation && staffStation !== "Blantyre";
