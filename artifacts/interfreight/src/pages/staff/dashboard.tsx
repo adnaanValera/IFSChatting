@@ -2764,8 +2764,8 @@ export default function Dashboard() {
                   <h2 className="text-2xl font-extrabold text-secondary mb-1">Border Entry</h2>
                   <p className="text-sm text-muted-foreground">
                     {borderReadOnlyViewer
-                      ? "FTL and LCL shipments from the tracking master. Shipment details and border fields are read-only for Blantyre staff and admin."
-                      : "FTL and LCL shipments from the tracking master. Shipment details are read-only, and border fields save automatically while you type."}
+                      ? "Shipment details and border fields are read-only for Blantyre staff and admin."
+                      : "Search for the shipment, confirm arrival first, then complete the final border release details."}
                   </p>
                 </div>
                 <button
