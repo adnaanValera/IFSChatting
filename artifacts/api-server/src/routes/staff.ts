@@ -650,6 +650,57 @@ async function pruneCompletedShipments(): Promise<number> {
 
 async function pruneShipmentsNotInUpload(uploadBatchId: number): Promise<number> {
   await pool.query(
+    `
+      UPDATE border_entries be
+      SET shipment_id = replacement.new_id
+      FROM (
+        SELECT
+          old_shipments.id AS old_id,
+          new_shipments.id AS new_id,
+          row_number() OVER (
+            PARTITION BY old_shipments.id
+            ORDER BY
+              CASE
+                WHEN nullif(old_shipments.mra_ref, '') IS NOT NULL
+                 AND lower(coalesce(old_shipments.mra_ref, '')) = lower(coalesce(new_shipments.mra_ref, '')) THEN 1
+                WHEN lower(coalesce(old_shipments.ifs_ref, '')) = lower(coalesce(new_shipments.ifs_ref, '')) THEN 2
+                WHEN lower(coalesce(old_shipments.invoice_no, '')) = lower(coalesce(new_shipments.invoice_no, ''))
+                 AND lower(coalesce(old_shipments.consignee, '')) = lower(coalesce(new_shipments.consignee, '')) THEN 3
+                WHEN lower(coalesce(old_shipments.consignee, '')) = lower(coalesce(new_shipments.consignee, ''))
+                 AND lower(coalesce(old_shipments.shipper, '')) = lower(coalesce(new_shipments.shipper, '')) THEN 4
+                ELSE 100
+              END,
+              new_shipments.id DESC
+          ) AS rn
+        FROM shipments old_shipments
+        INNER JOIN border_entries old_border ON old_border.shipment_id = old_shipments.id
+        INNER JOIN shipments new_shipments
+          ON new_shipments.upload_batch_id = $1
+         AND (
+           lower(coalesce(old_shipments.mra_ref, '')) = lower(coalesce(new_shipments.mra_ref, ''))
+           OR lower(coalesce(old_shipments.ifs_ref, '')) = lower(coalesce(new_shipments.ifs_ref, ''))
+           OR (
+             lower(coalesce(old_shipments.invoice_no, '')) = lower(coalesce(new_shipments.invoice_no, ''))
+             AND lower(coalesce(old_shipments.consignee, '')) = lower(coalesce(new_shipments.consignee, ''))
+           )
+           OR (
+             lower(coalesce(old_shipments.consignee, '')) = lower(coalesce(new_shipments.consignee, ''))
+             AND lower(coalesce(old_shipments.shipper, '')) = lower(coalesce(new_shipments.shipper, ''))
+           )
+         )
+        WHERE old_shipments.upload_batch_id IS DISTINCT FROM $1
+      ) AS replacement
+      WHERE be.shipment_id = replacement.old_id
+        AND replacement.rn = 1
+        AND replacement.new_id IS DISTINCT FROM replacement.old_id
+        AND NOT EXISTS (
+          SELECT 1 FROM border_entries already_used WHERE already_used.shipment_id = replacement.new_id
+        )
+    `,
+    [uploadBatchId],
+  );
+
+  await pool.query(
     `DELETE FROM shipment_change_logs
      WHERE shipment_id IN (
       SELECT id FROM shipments
@@ -1879,9 +1930,6 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
             companyName: "InterFreight Solutions",
             status: "Border Entry",
             notificationType: "border_entry",
-            iconType: "truck",
-            referenceText: identifier,
-            detailText,
             actionUrl: "/staff/dashboard?tab=border",
           })),
         );
@@ -1892,9 +1940,6 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
             body: message,
             url: "/staff/dashboard?tab=border",
             tag: `border-entry-${shipmentId}-${Date.now()}-${userId}`,
-            iconType: "truck",
-            referenceText: identifier,
-            detailText,
             notificationType: "border_entry",
           }),
         ));
