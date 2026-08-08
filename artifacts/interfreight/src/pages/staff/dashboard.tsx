@@ -168,6 +168,18 @@ type SpreadsheetCellStyle = {
 };
 
 type SpreadsheetSelectionMode = "cell" | "row" | "column";
+type SpreadsheetRangeSelection = {
+  startRowId: string;
+  endRowId: string;
+  startColumnId: string;
+  endColumnId: string;
+};
+type SpreadsheetContextMenuState = {
+  x: number;
+  y: number;
+  rowId: string;
+  columnId: string;
+} | null;
 
 const STAFF_STATIONS = ["Blantyre", "Lilongwe", "Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"] as const;
 const READ_ONLY_BORDER_STATIONS = new Set(["Blantyre", "Lilongwe"]);
@@ -567,10 +579,12 @@ export default function Dashboard() {
     { rowId: "row-1", columnId: "A" },
   );
   const [spreadsheetSelectionMode, setSpreadsheetSelectionMode] = useState<SpreadsheetSelectionMode>("cell");
+  const [spreadsheetRangeSelection, setSpreadsheetRangeSelection] = useState<SpreadsheetRangeSelection | null>(null);
   const [spreadsheetMerges, setSpreadsheetMerges] = useState<SpreadsheetMerge[]>([]);
   const [draggedSpreadsheetCell, setDraggedSpreadsheetCell] = useState<SpreadsheetSelection | null>(null);
   const [spreadsheetCellStyles, setSpreadsheetCellStyles] = useState<Record<string, SpreadsheetCellStyle>>({});
   const [spreadsheetRowHeights, setSpreadsheetRowHeights] = useState<Record<string, number>>({});
+  const [spreadsheetContextMenu, setSpreadsheetContextMenu] = useState<SpreadsheetContextMenuState>(null);
   const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
@@ -845,6 +859,80 @@ export default function Dashboard() {
     setSpreadsheetColumns((current) => current.map((column) => (
       column.id === columnId ? { ...column, label: value } : column
     )));
+  };
+
+  const getSpreadsheetRowIndex = (rowId: string) => spreadsheetRows.findIndex((row) => row.id === rowId);
+  const getSpreadsheetColumnIndex = (columnId: string) => spreadsheetColumns.findIndex((column) => column.id === columnId);
+
+  const getRangeBounds = (range: SpreadsheetRangeSelection) => {
+    const startRow = getSpreadsheetRowIndex(range.startRowId);
+    const endRow = getSpreadsheetRowIndex(range.endRowId);
+    const startColumn = getSpreadsheetColumnIndex(range.startColumnId);
+    const endColumn = getSpreadsheetColumnIndex(range.endColumnId);
+    return {
+      top: Math.min(startRow, endRow),
+      bottom: Math.max(startRow, endRow),
+      left: Math.min(startColumn, endColumn),
+      right: Math.max(startColumn, endColumn),
+    };
+  };
+
+  const isCellInRangeSelection = (rowId: string, columnId: string) => {
+    if (!spreadsheetRangeSelection) return false;
+    const bounds = getRangeBounds(spreadsheetRangeSelection);
+    const rowIndex = getSpreadsheetRowIndex(rowId);
+    const columnIndex = getSpreadsheetColumnIndex(columnId);
+    return rowIndex >= bounds.top && rowIndex <= bounds.bottom && columnIndex >= bounds.left && columnIndex <= bounds.right;
+  };
+
+  const mergeSelectedRange = () => {
+    if (!spreadsheetRangeSelection) {
+      mergeSpreadsheetCellRight();
+      return;
+    }
+    const bounds = getRangeBounds(spreadsheetRangeSelection);
+    if (bounds.left < 0 || bounds.right < 0 || bounds.top < 0 || bounds.bottom < 0) return;
+    if (bounds.top !== bounds.bottom) return;
+    const rowId = spreadsheetRows[bounds.top]?.id;
+    const columnId = spreadsheetColumns[bounds.left]?.id;
+    if (!rowId || !columnId) return;
+    const span = bounds.right - bounds.left + 1;
+    if (span <= 1) return;
+    setSpreadsheetMerges((current) => {
+      const filtered = current.filter((merge) => !(merge.rowId === rowId && merge.columnId === columnId));
+      return [...filtered, { rowId, columnId, span }];
+    });
+  };
+
+  const insertSpreadsheetColumnAt = (targetIndex: number) => {
+    if (targetIndex < 0 || targetIndex > spreadsheetColumns.length) return;
+    const nextLetter = spreadsheetColumns[targetIndex]?.id ?? `X${targetIndex + 1}`;
+    const nextId = `col-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const newColumn: SpreadsheetColumn = { id: nextId, label: nextLetter, width: "120px" };
+    setSpreadsheetColumns((current) => {
+      const next = [...current];
+      next.splice(targetIndex, 0, newColumn);
+      return next;
+    });
+    setSpreadsheetRows((current) => current.map((row) => {
+      const nextCells: Record<string, string> = {};
+      spreadsheetColumns.forEach((column, index) => {
+        if (index === targetIndex) nextCells[nextId] = "";
+        nextCells[column.id] = row.cells[column.id] ?? "";
+      });
+      if (targetIndex >= spreadsheetColumns.length) nextCells[nextId] = "";
+      return { ...row, cells: nextCells };
+    }));
+  };
+
+  const insertSelectedColumnLeft = () => {
+    if (!selectedSpreadsheetCell) return;
+    insertSpreadsheetColumnAt(getSpreadsheetColumnIndex(selectedSpreadsheetCell.columnId));
+  };
+
+  const insertSelectedColumnRight = () => {
+    if (!selectedSpreadsheetCell) return;
+    insertSpreadsheetColumnAt(getSpreadsheetColumnIndex(selectedSpreadsheetCell.columnId) + 1);
   };
 
   const mergeSpreadsheetCellRight = () => {
@@ -3508,11 +3596,11 @@ export default function Dashboard() {
                       </button>
                       <button
                         type="button"
-                        onClick={mergeSpreadsheetCellRight}
+                        onClick={mergeSelectedRange}
                         disabled={!selectedSpreadsheetCell}
                         className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
                       >
-                        Merge Right
+                        Merge
                       </button>
                       <button
                         type="button"
@@ -3552,6 +3640,22 @@ export default function Dashboard() {
                         className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
                       >
                         Fit Row
+                      </button>
+                      <button
+                        type="button"
+                        onClick={insertSelectedColumnLeft}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Insert Left
+                      </button>
+                      <button
+                        type="button"
+                        onClick={insertSelectedColumnRight}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Insert Right
                       </button>
                       <button
                         type="button"
@@ -3631,7 +3735,10 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="max-h-[72vh] overflow-auto border-t border-border">
+                <div
+                  className="relative max-h-[72vh] overflow-auto border-t border-border"
+                  onClick={() => setSpreadsheetContextMenu(null)}
+                >
                   <table className="min-w-[2400px] w-full border-collapse text-sm">
                     <thead>
                       <tr className="bg-white">
@@ -3642,6 +3749,13 @@ export default function Dashboard() {
                             onClick={() => {
                               setSelectedSpreadsheetCell({ rowId: selectedSpreadsheetCell?.rowId ?? "row-1", columnId: column.id });
                               setSpreadsheetSelectionMode("column");
+                              setSpreadsheetRangeSelection(null);
+                            }}
+                            onContextMenu={(event) => {
+                              event.preventDefault();
+                              setSelectedSpreadsheetCell({ rowId: selectedSpreadsheetCell?.rowId ?? "row-1", columnId: column.id });
+                              setSpreadsheetSelectionMode("column");
+                              setSpreadsheetContextMenu({ x: event.clientX, y: event.clientY, rowId: selectedSpreadsheetCell?.rowId ?? "row-1", columnId: column.id });
                             }}
                             className={`cursor-pointer border border-border px-3 py-2 text-center text-[11px] font-bold text-muted-foreground ${spreadsheetSelectionMode === "column" && selectedSpreadsheetCell?.columnId === column.id ? "bg-primary/10 text-primary" : ""}`}
                           >
@@ -3663,6 +3777,7 @@ export default function Dashboard() {
                               onClick={() => {
                                 setSelectedSpreadsheetCell({ rowId: selectedSpreadsheetCell?.rowId ?? "row-1", columnId: column.id });
                                 setSpreadsheetSelectionMode("column");
+                                setSpreadsheetRangeSelection(null);
                               }}
                               onChange={(e) => updateSpreadsheetHeader(column.id, e.target.value)}
                               className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground outline-none focus:border-primary focus:bg-white"
@@ -3678,6 +3793,13 @@ export default function Dashboard() {
                             onClick={() => {
                               setSelectedSpreadsheetCell({ rowId: row.id, columnId: selectedSpreadsheetCell?.columnId ?? "A" });
                               setSpreadsheetSelectionMode("row");
+                              setSpreadsheetRangeSelection(null);
+                            }}
+                            onContextMenu={(event) => {
+                              event.preventDefault();
+                              setSelectedSpreadsheetCell({ rowId: row.id, columnId: selectedSpreadsheetCell?.columnId ?? "A" });
+                              setSpreadsheetSelectionMode("row");
+                              setSpreadsheetContextMenu({ x: event.clientX, y: event.clientY, rowId: row.id, columnId: selectedSpreadsheetCell?.columnId ?? "A" });
                             }}
                             className={`cursor-pointer border border-border px-2 py-2 text-center text-xs font-semibold text-muted-foreground ${spreadsheetSelectionMode === "row" && selectedSpreadsheetCell?.rowId === row.id ? "bg-primary/10 text-primary" : ""}`}
                             draggable
@@ -3722,7 +3844,13 @@ export default function Dashboard() {
                                 key={`${row.id}-${column.id}`}
                                 colSpan={colSpan}
                                 style={{ width: column.width, minWidth: column.width }}
-                                className={`border border-border px-1.5 py-1.5 ${fillClass} ${(isSelected || selectedByHeader) ? "outline outline-2 outline-primary/60" : ""}`}
+                                onContextMenu={(event) => {
+                                  event.preventDefault();
+                                  setSelectedSpreadsheetCell({ rowId: row.id, columnId: column.id });
+                                  setSpreadsheetSelectionMode("cell");
+                                  setSpreadsheetContextMenu({ x: event.clientX, y: event.clientY, rowId: row.id, columnId: column.id });
+                                }}
+                                className={`border border-border px-1.5 py-1.5 ${fillClass} ${(isSelected || selectedByHeader || isCellInRangeSelection(row.id, column.id)) ? "outline outline-2 outline-primary/60" : ""}`}
                                 draggable
                                 onDragStart={() => setDraggedSpreadsheetCell({ rowId: row.id, columnId: column.id })}
                                 onDragOver={(e) => e.preventDefault()}
@@ -3736,7 +3864,17 @@ export default function Dashboard() {
                                 <input
                                   type="text"
                                   value={row.cells[column.id] ?? ""}
-                                  onClick={() => {
+                                  onClick={(event) => {
+                                    if (event.shiftKey && selectedSpreadsheetCell) {
+                                      setSpreadsheetRangeSelection({
+                                        startRowId: selectedSpreadsheetCell.rowId,
+                                        endRowId: row.id,
+                                        startColumnId: selectedSpreadsheetCell.columnId,
+                                        endColumnId: column.id,
+                                      });
+                                    } else {
+                                      setSpreadsheetRangeSelection(null);
+                                    }
                                     setSelectedSpreadsheetCell({ rowId: row.id, columnId: column.id });
                                     setSpreadsheetSelectionMode("cell");
                                   }}
@@ -3750,6 +3888,57 @@ export default function Dashboard() {
                       ))}
                     </tbody>
                   </table>
+                  {spreadsheetContextMenu && (
+                    <div
+                      className="fixed z-50 min-w-[180px] overflow-hidden rounded-xl border border-border bg-white shadow-xl"
+                      style={{ left: spreadsheetContextMenu.x, top: spreadsheetContextMenu.y }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSpreadsheetCell({ rowId: spreadsheetContextMenu.rowId, columnId: spreadsheetContextMenu.columnId });
+                          insertSelectedColumnLeft();
+                          setSpreadsheetContextMenu(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        Insert Column Left
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSpreadsheetCell({ rowId: spreadsheetContextMenu.rowId, columnId: spreadsheetContextMenu.columnId });
+                          insertSelectedColumnRight();
+                          setSpreadsheetContextMenu(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        Insert Column Right
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSpreadsheetCell({ rowId: spreadsheetContextMenu.rowId, columnId: spreadsheetContextMenu.columnId });
+                          mergeSelectedRange();
+                          setSpreadsheetContextMenu(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        Merge Selection
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSpreadsheetCell({ rowId: spreadsheetContextMenu.rowId, columnId: spreadsheetContextMenu.columnId });
+                          unmergeSpreadsheetCell();
+                          setSpreadsheetContextMenu(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        Unmerge
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
