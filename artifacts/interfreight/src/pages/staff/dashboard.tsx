@@ -27,7 +27,7 @@ import { useInstallPrompt } from "@/hooks/use-install-prompt";
 import { isNativeAppEnvironment, isStandaloneDisplay } from "@/lib/pwa";
 import { Spinner } from "@/components/ui/spinner";
 
-type Tab = "overview" | "import" | "history" | "messages" | "problems" | "cards" | "authorize" | "activity" | "border" | "asycuda";
+type Tab = "overview" | "import" | "history" | "messages" | "problems" | "cards" | "authorize" | "activity" | "border" | "spreadsheet" | "asycuda";
 
 type Announcement = {
   id: number;
@@ -137,9 +137,59 @@ type BorderEntryRow = {
   updatedBy: string | null;
 };
 
+type SpreadsheetRow = {
+  id: string;
+  rowColor: "none" | "yellow" | "green" | "blue" | "red";
+  section: string;
+  ifsRef: string;
+  mraRef: string;
+  shipper: string;
+  consignee: string;
+  invoiceNo: string;
+  status: string;
+  notes: string;
+};
+
 const STAFF_STATIONS = ["Blantyre", "Lilongwe", "Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"] as const;
 const READ_ONLY_BORDER_STATIONS = new Set(["Blantyre", "Lilongwe"]);
 const BORDER_ONLY_STATIONS = new Set(["Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"]);
+const SAMPLE_SPREADSHEET_COLUMNS: Array<{ key: keyof Omit<SpreadsheetRow, "id" | "rowColor">; label: string; width: string }> = [
+  { key: "section", label: "Section", width: "minmax(140px, 1.1fr)" },
+  { key: "ifsRef", label: "IFS Ref", width: "minmax(140px, 1fr)" },
+  { key: "mraRef", label: "MRA Ref", width: "minmax(140px, 1fr)" },
+  { key: "shipper", label: "Shipper", width: "minmax(180px, 1.2fr)" },
+  { key: "consignee", label: "Consignee", width: "minmax(180px, 1.2fr)" },
+  { key: "invoiceNo", label: "Invoice No.", width: "minmax(130px, 0.9fr)" },
+  { key: "status", label: "Status", width: "minmax(180px, 1.2fr)" },
+  { key: "notes", label: "Notes", width: "minmax(220px, 1.4fr)" },
+];
+
+const SAMPLE_SPREADSHEET_ROWS: SpreadsheetRow[] = [
+  {
+    id: "sample-1",
+    rowColor: "yellow",
+    section: "Shipments on Sea",
+    ifsRef: "IFS120/08/2026",
+    mraRef: "MRA902144",
+    shipper: "Atlas Exporters",
+    consignee: "Natpack",
+    invoiceNo: "INV-1022",
+    status: "ETA 12-Aug",
+    notes: "Sample row for testing movement and color.",
+  },
+  {
+    id: "sample-2",
+    rowColor: "green",
+    section: "Shipments Enroute",
+    ifsRef: "IFS121/08/2026",
+    mraRef: "MRA902145",
+    shipper: "SV Industries",
+    consignee: "Kris Offset",
+    invoiceNo: "INV-1023",
+    status: "Enroute Blantyre",
+    notes: "",
+  },
+];
 
 const CARD_COLS = [
   { key: "ifsRef",              label: "IFS Ref" },
@@ -488,6 +538,7 @@ export default function Dashboard() {
   const [borderMode, setBorderMode] = useState<"entry" | "exit">("entry");
   const [editingBorderShipmentId, setEditingBorderShipmentId] = useState<number | null>(null);
   const [borderEditSnapshot, setBorderEditSnapshot] = useState<BorderEntryRow | null>(null);
+  const [spreadsheetRows, setSpreadsheetRows] = useState<SpreadsheetRow[]>(SAMPLE_SPREADSHEET_ROWS);
   const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
@@ -644,6 +695,65 @@ export default function Dashboard() {
   const stationRestrictedStaff = isStaff && BORDER_ONLY_STATIONS.has(staffStation);
   const borderReadOnlyStaff = isStaff && READ_ONLY_BORDER_STATIONS.has(staffStation);
   const borderReadOnlyViewer = isAdmin || borderReadOnlyStaff;
+  const canUseSpreadsheetSample = isAdmin || (isStaff && staffStation === "Blantyre");
+
+  const spreadsheetGridColumns = [
+    "64px",
+    "110px",
+    ...SAMPLE_SPREADSHEET_COLUMNS.map((column) => column.width),
+  ].join(" ");
+
+  const createBlankSpreadsheetRow = (): SpreadsheetRow => ({
+    id: `sheet-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    rowColor: "none",
+    section: "",
+    ifsRef: "",
+    mraRef: "",
+    shipper: "",
+    consignee: "",
+    invoiceNo: "",
+    status: "",
+    notes: "",
+  });
+
+  const updateSpreadsheetCell = (rowId: string, key: keyof SpreadsheetRow, value: string) => {
+    setSpreadsheetRows((current) => current.map((row) => (
+      row.id === rowId ? { ...row, [key]: value } : row
+    )));
+  };
+
+  const insertSpreadsheetRow = (index: number) => {
+    setSpreadsheetRows((current) => {
+      const next = [...current];
+      next.splice(index, 0, createBlankSpreadsheetRow());
+      return next;
+    });
+  };
+
+  const deleteSpreadsheetRow = (rowId: string) => {
+    setSpreadsheetRows((current) => current.filter((row) => row.id !== rowId));
+  };
+
+  const moveSpreadsheetRow = (index: number, direction: -1 | 1) => {
+    setSpreadsheetRows((current) => {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= current.length) return current;
+      const next = [...current];
+      const [row] = next.splice(index, 1);
+      next.splice(targetIndex, 0, row);
+      return next;
+    });
+  };
+
+  const rowColorClass = (rowColor: SpreadsheetRow["rowColor"]) => {
+    switch (rowColor) {
+      case "yellow": return "bg-amber-50";
+      case "green": return "bg-emerald-50";
+      case "blue": return "bg-sky-50";
+      case "red": return "bg-red-50";
+      default: return "bg-white";
+    }
+  };
 
 
   useEffect(() => {
@@ -1283,7 +1393,7 @@ export default function Dashboard() {
     const params = new URLSearchParams(window.location.search);
     const requestedTab = params.get("tab");
     const focus = params.get("focus");
-    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "problems", "cards", "authorize", "activity", "border"];
+    const allowedTabs: Tab[] = ["overview", "import", "history", "messages", "problems", "cards", "authorize", "activity", "border", "spreadsheet"];
     if (requestedTab && allowedTabs.includes(requestedTab as Tab)) {
       const nextTab = requestedTab as Tab;
       setActiveTab(stationRestrictedStaff && nextTab !== "border" ? "border" : nextTab);
@@ -1768,6 +1878,7 @@ export default function Dashboard() {
   const defaultSecondaryNavItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     ...(isAdmin ? [{ id: "activity" as Tab, label: "Activity", icon: <Clock size={18} /> }] : []),
     { id: "border", label: "Border", icon: <Truck size={18} />, badge: borderEntries.length || undefined },
+    ...(canUseSpreadsheetSample ? [{ id: "spreadsheet" as Tab, label: "Spreadsheet", icon: <FileSpreadsheet size={18} /> }] : []),
     { id: "authorize", label: "Authorize Sign Up", icon: <UserCheck size={18} />, badge: pendingSignups.length || undefined },
     { id: "messages", label: "Messages", icon: <Bell size={18} />, badge: unreadCount || undefined },
     { id: "problems", label: "Problems", icon: <AlertTriangle size={18} />, badge: unreadProblemCount || undefined },
@@ -3160,6 +3271,122 @@ export default function Dashboard() {
                     </table>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "spreadsheet" && canUseSpreadsheetSample && (
+            <div className="space-y-6 max-w-[96rem]">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-secondary mb-1">Spreadsheet</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Sample editable sheet for Blantyre staff and admin. We can shape this into the real system after you test the layout.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSpreadsheetRows((current) => [...current, createBlankSpreadsheetRow()])}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-primary/90"
+                >
+                  <FileSpreadsheet size={16} />
+                  Add Row
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
+                <div className="border-b border-border bg-muted/20 px-5 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Sample Sheet</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Try editing cells, inserting rows, moving rows, deleting rows, and changing row colors.
+                  </p>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <div className="min-w-[1180px]">
+                    <div
+                      className="grid gap-px border-b border-border bg-border/70"
+                      style={{ gridTemplateColumns: spreadsheetGridColumns }}
+                    >
+                      <div className="bg-muted/40 px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Actions</div>
+                      <div className="bg-muted/40 px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Color</div>
+                      {SAMPLE_SPREADSHEET_COLUMNS.map((column) => (
+                        <div key={column.key} className="bg-muted/40 px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                          {column.label}
+                        </div>
+                      ))}
+                    </div>
+
+                    {spreadsheetRows.map((row, index) => (
+                      <div
+                        key={row.id}
+                        className={`grid gap-px border-b border-border/70 bg-border/40 ${rowColorClass(row.rowColor)}`}
+                        style={{ gridTemplateColumns: spreadsheetGridColumns }}
+                      >
+                        <div className="flex flex-col gap-2 bg-white/80 px-2 py-2">
+                          <button
+                            type="button"
+                            onClick={() => insertSpreadsheetRow(index)}
+                            className="rounded-md border border-border bg-white px-2 py-1 text-[11px] font-semibold text-secondary hover:border-primary/40 hover:bg-primary/5"
+                          >
+                            Insert
+                          </button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => moveSpreadsheetRow(index, -1)}
+                              disabled={index === 0}
+                              className="rounded-md border border-border bg-white px-2 py-1 text-[11px] font-semibold text-secondary disabled:opacity-40"
+                            >
+                              Up
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveSpreadsheetRow(index, 1)}
+                              disabled={index === spreadsheetRows.length - 1}
+                              className="rounded-md border border-border bg-white px-2 py-1 text-[11px] font-semibold text-secondary disabled:opacity-40"
+                            >
+                              Down
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => deleteSpreadsheetRow(row.id)}
+                            disabled={spreadsheetRows.length === 1}
+                            className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-40"
+                          >
+                            Delete
+                          </button>
+                        </div>
+
+                        <div className="bg-white/80 px-2 py-2">
+                          <select
+                            value={row.rowColor}
+                            onChange={(e) => updateSpreadsheetCell(row.id, "rowColor", e.target.value)}
+                            className="w-full rounded-md border border-border bg-white px-2 py-2 text-xs font-semibold text-secondary outline-none focus:border-primary"
+                          >
+                            <option value="none">None</option>
+                            <option value="yellow">Yellow</option>
+                            <option value="green">Green</option>
+                            <option value="blue">Blue</option>
+                            <option value="red">Red</option>
+                          </select>
+                        </div>
+
+                        {SAMPLE_SPREADSHEET_COLUMNS.map((column) => (
+                          <div key={`${row.id}-${column.key}`} className="bg-white/80 px-2 py-2">
+                            <input
+                              type="text"
+                              value={row[column.key]}
+                              onChange={(e) => updateSpreadsheetCell(row.id, column.key as keyof SpreadsheetRow, e.target.value)}
+                              className="w-full rounded-md border border-transparent bg-transparent px-2 py-2 text-sm text-secondary outline-none focus:border-primary focus:bg-white"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}

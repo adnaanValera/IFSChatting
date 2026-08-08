@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, Image, StyleSheet, View } from "react-native";
 
-const fullLogo = require("../assets/interfreight-full-logo.png");
+const fullLogo = require("../../assets/interfreight-full-logo.png");
 
 export function LogoSpinner({ size = 40 }: { size?: number }) {
   const spin = useRef(new Animated.Value(0)).current;

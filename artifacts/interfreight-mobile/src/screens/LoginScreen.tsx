@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { LogoSpinner } from "../components/LogoSpinner";
 import { appPalette } from "../theme";
 
-const fullLogo = require("../assets/interfreight-full-logo.png");
+const fullLogo = require("../../assets/interfreight-full-logo.png");
 
 export function LoginScreen() {
   const { signIn, loading } = useAuth();

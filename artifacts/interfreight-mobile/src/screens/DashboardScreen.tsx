@@ -9,7 +9,7 @@ import type { Shipment } from "../types";
 import { ShipmentCard } from "../components/ShipmentCard";
 import { appPalette } from "../theme";
 
-const topLogo = require("../assets/ifs-app-premium.png");
+const topLogo = require("../../assets/ifs-app-premium.png");
 
 async function fetchShipments(token: string): Promise<Shipment[]> {
   const res = await fetch(`${API_BASE_URL}/api/shipments`, {

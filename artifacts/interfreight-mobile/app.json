@@ -8,10 +8,10 @@
       "policy": "appVersion"
     },
     "orientation": "portrait",
-    "icon": "./assets/ifs-app-premium.png",
+    "icon": "./assets/app-icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/ifs-app-premium.png",
+      "image": "./assets/app-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -26,7 +26,7 @@
     "android": {
       "package": "com.interfreightsolutions.customer",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/ifs-app-premium.png",
+        "foregroundImage": "./assets/app-icon.png",
         "backgroundColor": "#ffffff"
       }
     }
