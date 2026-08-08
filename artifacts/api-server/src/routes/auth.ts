@@ -18,6 +18,15 @@ function roleFromCompanyName(companyName: string): "admin" | "staff" | "customer
 const SESSION_DAYS = 30;
 const ADMIN_SESSION_DAYS = 3650;
 const ALLOWED_SESSION_DAYS = new Set([1, 7, 30, 90, 180]);
+const TEAM_SESSION_DAYS = 1;
+
+function slugifyFullName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "ifs-team";
+}
 
 function sessionDaysFromInput(value: unknown): number {
   if (value === "browser") return 1;
@@ -271,6 +280,130 @@ router.post("/auth/login", async (req, res) => {
   });
 });
 
+router.post("/auth/team-login", async (req, res) => {
+  const { fullName, password, sessionDays } = req.body as { fullName?: string; password?: string; sessionDays?: number | string };
+  if (!fullName?.trim() || !password) {
+    res.status(400).json({ error: "Full name and password are required" });
+    return;
+  }
+
+  const normalizedName = fullName.trim();
+  const [existingUser] = await db
+    .select()
+    .from(usersTable)
+    .where(ilike(usersTable.fullName, normalizedName))
+    .limit(1);
+
+  if (existingUser) {
+    if (existingUser.role !== "staff" && existingUser.role !== "admin") {
+      res.status(403).json({ error: "This account is not part of the IFS Team login." });
+      return;
+    }
+
+    const valid = await bcrypt.compare(password, existingUser.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+
+    const token = await createDeviceSession(existingUser, req.get("user-agent"), sessionDaysFromInput(sessionDays || TEAM_SESSION_DAYS));
+    res.json({
+      token,
+      user: {
+        id: existingUser.id,
+        fullName: existingUser.fullName,
+        companyName: existingUser.companyName,
+        station: existingUser.station,
+        email: existingUser.email,
+        role: existingUser.role,
+        profilePictureUrl: existingUser.profilePictureUrl,
+      },
+      created: false,
+    });
+    return;
+  }
+
+  const syntheticEmail = `${slugifyFullName(normalizedName)}@ifs-team.local`;
+  const [pendingTeamSignup] = await db
+    .select()
+    .from(pendingSignupsTable)
+    .where(ilike(pendingSignupsTable.email, syntheticEmail))
+    .limit(1);
+
+  if (pendingTeamSignup?.status === "pending") {
+    const valid = await bcrypt.compare(password, pendingTeamSignup.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+    res.status(202).json({
+      status: "pending",
+      approvalToken: pendingTeamSignup.approvalToken,
+      email: pendingTeamSignup.email,
+      message: "Your IFS Team access is waiting for approval.",
+    });
+    return;
+  }
+
+  if (pendingTeamSignup?.status === "rejected") {
+    const valid = await bcrypt.compare(password, pendingTeamSignup.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+    res.status(403).json({ status: "rejected", error: "Your IFS Team request was rejected. Please contact InterFreight Solutions." });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const approvalToken = randomUUID();
+
+  if (pendingTeamSignup) {
+    await db
+      .update(pendingSignupsTable)
+      .set({
+        fullName: normalizedName,
+        companyName: "!nterFre1g#t",
+        phoneNumber: "",
+        approvalToken,
+        passwordHash,
+        role: "staff",
+        status: "pending",
+        reviewedBy: null,
+        reviewedAt: null,
+      })
+      .where(eq(pendingSignupsTable.id, pendingTeamSignup.id));
+  } else {
+    await db
+      .insert(pendingSignupsTable)
+      .values({
+        fullName: normalizedName,
+        companyName: "!nterFre1g#t",
+        email: syntheticEmail,
+        phoneNumber: "",
+        profilePictureUrl: null,
+        approvalToken,
+        passwordHash,
+        role: "staff",
+        status: "pending",
+      });
+  }
+
+  await notifyStaffAndAdminsOfPendingSignup({
+    fullName: normalizedName,
+    companyName: "!nterFre1g#t",
+    email: syntheticEmail,
+    role: "staff",
+  });
+
+  res.status(202).json({
+    status: "pending",
+    approvalToken,
+    email: syntheticEmail,
+    message: "Your IFS Team access is waiting for approval.",
+  });
+});
+
 // ── Logout ────────────────────────────────────────────────────────────────────
 
 router.post("/auth/logout", requireAuth, async (req, res) => {
@@ -389,7 +522,7 @@ router.get("/auth/me", requireAuth, async (req, res) => {
 router.patch("/auth/station", requireAuth, async (req, res) => {
   const authReq = req as typeof req & { user: { userId: number } };
   const { station } = req.body as { station?: string };
-  const allowedStations = new Set(["Blantyre", "Mwanza", "Dedza", "Songwe", "Liwonde"]);
+  const allowedStations = new Set(["Blantyre", "Lilongwe", "Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"]);
 
   if (!station || !allowedStations.has(station)) {
     res.status(400).json({ error: "Choose a valid station." });

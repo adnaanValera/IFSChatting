@@ -2816,18 +2816,18 @@ export default function Dashboard() {
                   </div>
                 ) : stationRestrictedStaff ? (
                   <div className="p-5 space-y-5">
-                    <div className="inline-flex rounded-xl border border-border overflow-hidden bg-white shadow-sm">
+                    <div className="grid w-full grid-cols-2 overflow-hidden rounded-2xl border border-border shadow-sm">
                       <button
                         type="button"
                         onClick={() => setBorderMode("entry")}
-                        className={`px-4 py-2 text-sm font-semibold transition-colors ${borderMode === "entry" ? "bg-amber-400 text-secondary" : "bg-white text-muted-foreground hover:bg-amber-50"}`}
+                        className={`min-h-[52px] px-4 py-3 text-base font-bold transition-colors ${borderMode === "entry" ? "bg-amber-400 text-secondary" : "bg-amber-300 text-secondary/90 hover:bg-amber-400"}`}
                       >
                         Border entry
                       </button>
                       <button
                         type="button"
                         onClick={() => setBorderMode("exit")}
-                        className={`border-l px-4 py-2 text-sm font-semibold transition-colors ${borderMode === "exit" ? "bg-blue-600 text-white" : "bg-white text-muted-foreground hover:bg-blue-50"}`}
+                        className={`min-h-[52px] border-l border-white/30 px-4 py-3 text-base font-bold transition-colors ${borderMode === "exit" ? "bg-blue-600 text-white" : "bg-blue-500 text-white/95 hover:bg-blue-600"}`}
                       >
                         Border exit
                       </button>
@@ -2941,12 +2941,12 @@ export default function Dashboard() {
 
                                     <div className="sm:col-span-2">
                                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Documents</p>
-                                      <div className={`grid grid-cols-2 overflow-hidden rounded-xl border ${row.arrivalConfirmed ? "border-border" : "border-border/60 opacity-60"}`}>
+                                      <div className={`grid grid-cols-2 overflow-hidden rounded-xl border ${row.arrivalConfirmed ? "border-border" : "border-border/60 opacity-80"}`}>
                                         <button
                                           type="button"
                                           onClick={() => row.arrivalConfirmed && updateBorderEntryDraftField(row.shipmentId, "sdoChecked", !row.sdoChecked)}
                                           disabled={!row.arrivalConfirmed}
-                                          className={`flex items-center justify-between gap-3 px-3 py-2 text-sm font-semibold transition-all ${row.sdoChecked ? "bg-red-600 text-white" : "bg-red-50 text-red-700"} ${row.arrivalConfirmed ? "hover:bg-red-500/90" : "cursor-not-allowed"}`}
+                                          className={`flex items-center justify-between gap-3 px-3 py-2 text-sm font-semibold transition-all ${row.sdoChecked ? "bg-red-600 text-white" : "bg-red-500 text-white"} ${row.arrivalConfirmed ? "hover:bg-red-500/90" : "cursor-not-allowed"}`}
                                         >
                                           <span>SDO</span>
                                           <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${row.sdoChecked ? "bg-white/20 text-white" : "bg-white text-red-700"}`}>
@@ -2957,7 +2957,7 @@ export default function Dashboard() {
                                           type="button"
                                           onClick={() => row.arrivalConfirmed && updateBorderEntryDraftField(row.shipmentId, "releaseOrderChecked", !row.releaseOrderChecked)}
                                           disabled={!row.arrivalConfirmed}
-                                          className={`flex items-center justify-between gap-3 border-l px-3 py-2 text-sm font-semibold transition-all ${row.releaseOrderChecked ? "bg-green-600 text-white" : "bg-green-50 text-green-700"} ${row.arrivalConfirmed ? "hover:bg-green-500/90" : "cursor-not-allowed border-border/60"}`}
+                                          className={`flex items-center justify-between gap-3 border-l px-3 py-2 text-sm font-semibold transition-all ${row.releaseOrderChecked ? "bg-green-600 text-white" : "bg-green-500 text-white"} ${row.arrivalConfirmed ? "hover:bg-green-500/90" : "cursor-not-allowed border-border/60"}`}
                                         >
                                           <span>Release Order</span>
                                           <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${row.releaseOrderChecked ? "bg-white/20 text-white" : "bg-white text-green-700"}`}>

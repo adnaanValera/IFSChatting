@@ -245,6 +245,7 @@ function TeamForm({ onSuccess }: { onSuccess: (user: any) => void }) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const form = useForm<TeamValues>({ resolver: zodResolver(teamSchema) });
+  const [, setLocation] = useLocation();
 
   const onSubmit = async (data: TeamValues) => {
     setIsLoading(true);
@@ -257,6 +258,15 @@ function TeamForm({ onSuccess }: { onSuccess: (user: any) => void }) {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "IFS Team login failed");
+      if (res.status === 202 || json.status === "pending") {
+        if (json.approvalToken) {
+          localStorage.setItem("intf_pending_signup_token", json.approvalToken);
+          localStorage.setItem("intf_pending_signup_email", json.email || `${data.fullName}@ifs-team.local`);
+          setLocation("/auth/waiting");
+          return;
+        }
+        throw new Error(json.message || "Your IFS Team access is waiting for approval.");
+      }
       localStorage.setItem("intf_token", json.token);
       localStorage.setItem("intf_session_duration_confirmed", "1");
       saveLoggedInAccount(json.token, json.user);
