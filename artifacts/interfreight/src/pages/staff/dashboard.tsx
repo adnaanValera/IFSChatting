@@ -161,50 +161,56 @@ type SpreadsheetMerge = {
   span: number;
 };
 
+type SpreadsheetCellStyle = {
+  fill: "none" | "yellow" | "green" | "blue";
+  bold: boolean;
+  align: "left" | "center" | "right";
+};
+
 const STAFF_STATIONS = ["Blantyre", "Lilongwe", "Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"] as const;
 const READ_ONLY_BORDER_STATIONS = new Set(["Blantyre", "Lilongwe"]);
 const BORDER_ONLY_STATIONS = new Set(["Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"]);
 const normalizeBorderStation = (value: string) =>
   value.toLowerCase().replace(/\bborder\b/g, " ").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-const SAMPLE_SPREADSHEET_COLUMNS: SpreadsheetColumn[] = [
-  { id: "section", label: "Section", width: "minmax(140px, 1.1fr)" },
-  { id: "ifsRef", label: "IFS Ref", width: "minmax(140px, 1fr)" },
-  { id: "mraRef", label: "MRA Ref", width: "minmax(140px, 1fr)" },
-  { id: "shipper", label: "Shipper", width: "minmax(180px, 1.2fr)" },
-  { id: "consignee", label: "Consignee", width: "minmax(180px, 1.2fr)" },
-  { id: "invoiceNo", label: "Invoice No.", width: "minmax(130px, 0.9fr)" },
-  { id: "status", label: "Status", width: "minmax(180px, 1.2fr)" },
-  { id: "notes", label: "Notes", width: "minmax(220px, 1.4fr)" },
-];
+const SPREADSHEET_COLUMN_LETTERS = Array.from({ length: 26 }, (_, index) => String.fromCharCode(65 + index));
+const DEFAULT_SPREADSHEET_CELL_STYLE: SpreadsheetCellStyle = { fill: "none", bold: false, align: "left" };
 
-const SAMPLE_SPREADSHEET_ROWS: SpreadsheetRow[] = [
-  {
-    id: "sample-1",
-    cells: {
-      section: "Shipments on Sea",
-      ifsRef: "IFS120/08/2026",
-      mraRef: "MRA902144",
-      shipper: "Atlas Exporters",
-      consignee: "Natpack",
-      invoiceNo: "INV-1022",
-      status: "ETA 12-Aug",
-      notes: "Sample row for testing movement and merge.",
-    },
-  },
-  {
-    id: "sample-2",
-    cells: {
-      section: "Shipments Enroute",
-      ifsRef: "IFS121/08/2026",
-      mraRef: "MRA902145",
-      shipper: "SV Industries",
-      consignee: "Kris Offset",
-      invoiceNo: "INV-1023",
-      status: "Enroute Blantyre",
-      notes: "",
-    },
-  },
-];
+const createSpreadsheetColumns = (): SpreadsheetColumn[] =>
+  SPREADSHEET_COLUMN_LETTERS.map((letter) => ({ id: letter, label: letter, width: "120px" }));
+
+const createSpreadsheetRows = (): SpreadsheetRow[] => {
+  const columns = createSpreadsheetColumns();
+  const rows = Array.from({ length: 300 }, (_, index) => ({
+    id: `row-${index + 1}`,
+    cells: Object.fromEntries(columns.map((column) => [column.id, ""])),
+  }));
+
+  rows[0]!.cells["A"] = "Section";
+  rows[0]!.cells["B"] = "IFS Ref";
+  rows[0]!.cells["C"] = "MRA Ref";
+  rows[0]!.cells["D"] = "Shipper";
+  rows[0]!.cells["E"] = "Consignee";
+  rows[0]!.cells["F"] = "Invoice No.";
+  rows[0]!.cells["G"] = "Status";
+  rows[0]!.cells["H"] = "Notes";
+  rows[1]!.cells["A"] = "Shipments on Sea";
+  rows[1]!.cells["B"] = "IFS120/08/2026";
+  rows[1]!.cells["C"] = "MRA902144";
+  rows[1]!.cells["D"] = "Atlas Exporters";
+  rows[1]!.cells["E"] = "Natpack";
+  rows[1]!.cells["F"] = "INV-1022";
+  rows[1]!.cells["G"] = "ETA 12-Aug";
+  rows[1]!.cells["H"] = "Example row";
+  rows[2]!.cells["A"] = "Shipments Enroute";
+  rows[2]!.cells["B"] = "IFS121/08/2026";
+  rows[2]!.cells["C"] = "MRA902145";
+  rows[2]!.cells["D"] = "SV Industries";
+  rows[2]!.cells["E"] = "Kris Offset";
+  rows[2]!.cells["F"] = "INV-1023";
+  rows[2]!.cells["G"] = "Enroute Blantyre";
+
+  return rows;
+};
 
 const CARD_COLS = [
   { key: "ifsRef",              label: "IFS Ref" },
@@ -553,13 +559,14 @@ export default function Dashboard() {
   const [borderMode, setBorderMode] = useState<"entry" | "exit">("entry");
   const [editingBorderShipmentId, setEditingBorderShipmentId] = useState<number | null>(null);
   const [borderEditSnapshot, setBorderEditSnapshot] = useState<BorderEntryRow | null>(null);
-  const [spreadsheetColumns, setSpreadsheetColumns] = useState<SpreadsheetColumn[]>(SAMPLE_SPREADSHEET_COLUMNS);
-  const [spreadsheetRows, setSpreadsheetRows] = useState<SpreadsheetRow[]>(SAMPLE_SPREADSHEET_ROWS);
+  const [spreadsheetColumns, setSpreadsheetColumns] = useState<SpreadsheetColumn[]>(() => createSpreadsheetColumns());
+  const [spreadsheetRows, setSpreadsheetRows] = useState<SpreadsheetRow[]>(() => createSpreadsheetRows());
   const [selectedSpreadsheetCell, setSelectedSpreadsheetCell] = useState<SpreadsheetSelection | null>(
-    SAMPLE_SPREADSHEET_ROWS[0] ? { rowId: SAMPLE_SPREADSHEET_ROWS[0].id, columnId: SAMPLE_SPREADSHEET_COLUMNS[0].id } : null,
+    { rowId: "row-1", columnId: "A" },
   );
   const [spreadsheetMerges, setSpreadsheetMerges] = useState<SpreadsheetMerge[]>([]);
   const [draggedSpreadsheetCell, setDraggedSpreadsheetCell] = useState<SpreadsheetSelection | null>(null);
+  const [spreadsheetCellStyles, setSpreadsheetCellStyles] = useState<Record<string, SpreadsheetCellStyle>>({});
   const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
@@ -721,7 +728,7 @@ export default function Dashboard() {
   const spreadsheetGridColumns = ["64px", ...spreadsheetColumns.map((column) => column.width)].join(" ");
 
   const createBlankSpreadsheetRow = (): SpreadsheetRow => ({
-    id: `sheet-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     cells: Object.fromEntries(spreadsheetColumns.map((column) => [column.id, ""])),
   });
 
@@ -775,11 +782,27 @@ export default function Dashboard() {
   const selectedSpreadsheetIndex = spreadsheetRows.findIndex((row) => row.id === selectedSpreadsheetCell?.rowId);
   const selectedSpreadsheetRow = selectedSpreadsheetIndex >= 0 ? spreadsheetRows[selectedSpreadsheetIndex] : null;
   const selectedSpreadsheetColumn = spreadsheetColumns.find((column) => column.id === selectedSpreadsheetCell?.columnId) ?? null;
+  const selectedSpreadsheetStyle = selectedSpreadsheetCell ? spreadsheetCellStyles[`${selectedSpreadsheetCell.rowId}:${selectedSpreadsheetCell.columnId}`] ?? DEFAULT_SPREADSHEET_CELL_STYLE : DEFAULT_SPREADSHEET_CELL_STYLE;
 
-  const addSpreadsheetColumn = () => {
-    const nextId = `col-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    setSpreadsheetColumns((current) => [...current, { id: nextId, label: "", width: "minmax(160px, 1fr)" }]);
-    setSpreadsheetRows((current) => current.map((row) => ({ ...row, cells: { ...row.cells, [nextId]: "" } })));
+  const setSpreadsheetCellStyle = (updater: (current: SpreadsheetCellStyle) => SpreadsheetCellStyle) => {
+    if (!selectedSpreadsheetCell) return;
+    const key = `${selectedSpreadsheetCell.rowId}:${selectedSpreadsheetCell.columnId}`;
+    setSpreadsheetCellStyles((current) => ({
+      ...current,
+      [key]: updater(current[key] ?? DEFAULT_SPREADSHEET_CELL_STYLE),
+    }));
+  };
+
+  const autoFitColumns = (targetColumnId?: string) => {
+    setSpreadsheetColumns((current) => current.map((column) => {
+      if (targetColumnId && column.id !== targetColumnId) return column;
+      const maxLength = Math.max(
+        column.label.length,
+        ...spreadsheetRows.map((row) => (row.cells[column.id] ?? "").length),
+      );
+      const width = Math.min(260, Math.max(80, maxLength * 9 + 24));
+      return { ...column, width: `${width}px` };
+    }));
   };
 
   const mergeSpreadsheetCellRight = () => {
@@ -3250,7 +3273,7 @@ export default function Dashboard() {
                         {borderEntries.filter((row) => (borderMode === "entry" ? !row.finalConfirmed : row.finalConfirmed)).map((row) => {
                           const isEditing = editingBorderShipmentId === row.shipmentId;
                           return (
-                          <tr key={row.shipmentId} className="border-b border-border/70 hover:bg-muted/10 transition-colors align-top">
+                          <tr key={row.shipmentId} className={`border-b border-border/70 hover:bg-muted/10 transition-colors align-top ${row.arrivalConfirmed ? "bg-amber-50/80" : ""}`}>
                             <td className="px-3 py-3 font-semibold text-secondary whitespace-nowrap">{row.ifsRef}</td>
                             <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{row.mraRef}</td>
                             <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{row.shipper}</td>
@@ -3398,7 +3421,7 @@ export default function Dashboard() {
                 <div className="border-b border-border bg-muted/20 px-5 py-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Sample Sheet</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Try editing directly in the table, adding rows and columns, dragging cell values, and merging cells like a simple sheet.
+                    A simple Excel-like sheet with rows 1 to 300, columns A to Z, basic formatting, merge, drag, and autofit tools.
                   </p>
                 </div>
 
@@ -3416,13 +3439,6 @@ export default function Dashboard() {
                         className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-primary/90"
                       >
                         Add Row
-                      </button>
-                      <button
-                        type="button"
-                        onClick={addSpreadsheetColumn}
-                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary"
-                      >
-                        Add Column
                       </button>
                       <button
                         type="button"
@@ -3472,12 +3488,69 @@ export default function Dashboard() {
                       >
                         Delete Row
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => autoFitColumns(selectedSpreadsheetCell?.columnId)}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Fit Selected
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => autoFitColumns()}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary"
+                      >
+                        Fit All
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-2">
+                      <button
+                        type="button"
+                        onClick={() => setSpreadsheetCellStyle((current) => ({ ...current, bold: !current.bold }))}
+                        disabled={!selectedSpreadsheetCell}
+                        className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${selectedSpreadsheetStyle.bold ? "border-primary bg-primary/10 text-primary" : "border-border bg-white text-secondary"}`}
+                      >
+                        Bold
+                      </button>
+                      {([
+                        { key: "left", label: "Left" },
+                        { key: "center", label: "Center" },
+                        { key: "right", label: "Right" },
+                      ] as const).map((alignOption) => (
+                        <button
+                          key={alignOption.key}
+                          type="button"
+                          onClick={() => setSpreadsheetCellStyle((current) => ({ ...current, align: alignOption.key }))}
+                          disabled={!selectedSpreadsheetCell}
+                          className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${selectedSpreadsheetStyle.align === alignOption.key ? "border-primary bg-primary/10 text-primary" : "border-border bg-white text-secondary"}`}
+                        >
+                          {alignOption.label}
+                        </button>
+                      ))}
+                      {([
+                        { key: "none", label: "No Fill", className: "bg-white" },
+                        { key: "yellow", label: "Yellow", className: "bg-amber-200" },
+                        { key: "green", label: "Green", className: "bg-emerald-200" },
+                        { key: "blue", label: "Blue", className: "bg-sky-200" },
+                      ] as const).map((fillOption) => (
+                        <button
+                          key={fillOption.key}
+                          type="button"
+                          onClick={() => setSpreadsheetCellStyle((current) => ({ ...current, fill: fillOption.key }))}
+                          disabled={!selectedSpreadsheetCell}
+                          className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${selectedSpreadsheetStyle.fill === fillOption.key ? "border-primary shadow-sm" : "border-border bg-white text-secondary"}`}
+                        >
+                          <span className={`h-3.5 w-3.5 rounded-full border border-black/10 ${fillOption.className}`} />
+                          {fillOption.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-[1400px] w-full border-collapse text-sm">
+                  <table className="min-w-[2400px] w-full border-collapse text-sm">
                     <thead>
                       <tr className="bg-white">
                         <th className="border border-border px-3 py-2 text-center text-[11px] font-bold text-muted-foreground">#</th>
@@ -3492,17 +3565,10 @@ export default function Dashboard() {
                         {spreadsheetColumns.map((column) => (
                           <th
                             key={column.id}
-                            className={`border border-border px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide whitespace-nowrap ${
-                              column.id === "status"
-                                ? "bg-red-50 text-red-700"
-                                : column.id === "mraRef"
-                                ? "bg-amber-50 text-amber-700"
-                                : column.id === "invoiceNo"
-                                ? "bg-blue-50 text-blue-700"
-                                : "text-muted-foreground"
-                            }`}
+                            style={{ width: column.width, minWidth: column.width }}
+                            className="border border-border px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide whitespace-nowrap text-muted-foreground"
                           >
-                            {column.label || spreadsheetColumnLabel(spreadsheetColumns.findIndex((item) => item.id === column.id))}
+                            {column.label || column.id}
                           </th>
                         ))}
                       </tr>
@@ -3536,11 +3602,23 @@ export default function Dashboard() {
                             if (isMergedAwayCell(row.id, columnIndex)) return null;
                             const colSpan = getMergeSpan(row.id, column.id);
                             const isSelected = selectedSpreadsheetCell?.rowId === row.id && selectedSpreadsheetCell?.columnId === column.id;
+                            const styleKey = `${row.id}:${column.id}`;
+                            const cellStyle = spreadsheetCellStyles[styleKey] ?? DEFAULT_SPREADSHEET_CELL_STYLE;
+                            const fillClass =
+                              cellStyle.fill === "yellow" ? "bg-amber-100" :
+                              cellStyle.fill === "green" ? "bg-emerald-100" :
+                              cellStyle.fill === "blue" ? "bg-sky-100" :
+                              "bg-white";
+                            const textAlignClass =
+                              cellStyle.align === "center" ? "text-center" :
+                              cellStyle.align === "right" ? "text-right" :
+                              "text-left";
                             return (
                               <td
                                 key={`${row.id}-${column.id}`}
                                 colSpan={colSpan}
-                                className={`border border-border px-1.5 py-1.5 ${isSelected ? "outline outline-2 outline-primary/60" : ""}`}
+                                style={{ width: column.width, minWidth: column.width }}
+                                className={`border border-border px-1.5 py-1.5 ${fillClass} ${isSelected ? "outline outline-2 outline-primary/60" : ""}`}
                                 draggable
                                 onDragStart={() => setDraggedSpreadsheetCell({ rowId: row.id, columnId: column.id })}
                                 onDragOver={(e) => e.preventDefault()}
@@ -3556,7 +3634,7 @@ export default function Dashboard() {
                                   value={row.cells[column.id] ?? ""}
                                   onClick={() => setSelectedSpreadsheetCell({ rowId: row.id, columnId: column.id })}
                                   onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
-                                  className="w-full min-w-[120px] rounded-md border border-transparent bg-transparent px-2 py-2 text-sm text-secondary outline-none focus:border-primary focus:bg-white"
+                                  className={`w-full rounded-md border border-transparent bg-transparent px-2 py-2 text-sm text-secondary outline-none focus:border-primary focus:bg-white ${textAlignClass} ${cellStyle.bold ? "font-bold" : ""}`}
                                 />
                               </td>
                             );
