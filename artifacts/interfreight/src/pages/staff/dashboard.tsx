@@ -139,17 +139,26 @@ type BorderEntryRow = {
   updatedBy: string | null;
 };
 
+type SpreadsheetColumn = {
+  id: string;
+  label: string;
+  width: string;
+};
+
 type SpreadsheetRow = {
   id: string;
-  rowColor: "none" | "yellow" | "green" | "blue" | "red";
-  section: string;
-  ifsRef: string;
-  mraRef: string;
-  shipper: string;
-  consignee: string;
-  invoiceNo: string;
-  status: string;
-  notes: string;
+  cells: Record<string, string>;
+};
+
+type SpreadsheetSelection = {
+  rowId: string;
+  columnId: string;
+};
+
+type SpreadsheetMerge = {
+  rowId: string;
+  columnId: string;
+  span: number;
 };
 
 const STAFF_STATIONS = ["Blantyre", "Lilongwe", "Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"] as const;
@@ -157,41 +166,43 @@ const READ_ONLY_BORDER_STATIONS = new Set(["Blantyre", "Lilongwe"]);
 const BORDER_ONLY_STATIONS = new Set(["Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"]);
 const normalizeBorderStation = (value: string) =>
   value.toLowerCase().replace(/\bborder\b/g, " ").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-const SAMPLE_SPREADSHEET_COLUMNS: Array<{ key: keyof Omit<SpreadsheetRow, "id" | "rowColor">; label: string; width: string }> = [
-  { key: "section", label: "Section", width: "minmax(140px, 1.1fr)" },
-  { key: "ifsRef", label: "IFS Ref", width: "minmax(140px, 1fr)" },
-  { key: "mraRef", label: "MRA Ref", width: "minmax(140px, 1fr)" },
-  { key: "shipper", label: "Shipper", width: "minmax(180px, 1.2fr)" },
-  { key: "consignee", label: "Consignee", width: "minmax(180px, 1.2fr)" },
-  { key: "invoiceNo", label: "Invoice No.", width: "minmax(130px, 0.9fr)" },
-  { key: "status", label: "Status", width: "minmax(180px, 1.2fr)" },
-  { key: "notes", label: "Notes", width: "minmax(220px, 1.4fr)" },
+const SAMPLE_SPREADSHEET_COLUMNS: SpreadsheetColumn[] = [
+  { id: "section", label: "Section", width: "minmax(140px, 1.1fr)" },
+  { id: "ifsRef", label: "IFS Ref", width: "minmax(140px, 1fr)" },
+  { id: "mraRef", label: "MRA Ref", width: "minmax(140px, 1fr)" },
+  { id: "shipper", label: "Shipper", width: "minmax(180px, 1.2fr)" },
+  { id: "consignee", label: "Consignee", width: "minmax(180px, 1.2fr)" },
+  { id: "invoiceNo", label: "Invoice No.", width: "minmax(130px, 0.9fr)" },
+  { id: "status", label: "Status", width: "minmax(180px, 1.2fr)" },
+  { id: "notes", label: "Notes", width: "minmax(220px, 1.4fr)" },
 ];
 
 const SAMPLE_SPREADSHEET_ROWS: SpreadsheetRow[] = [
   {
     id: "sample-1",
-    rowColor: "yellow",
-    section: "Shipments on Sea",
-    ifsRef: "IFS120/08/2026",
-    mraRef: "MRA902144",
-    shipper: "Atlas Exporters",
-    consignee: "Natpack",
-    invoiceNo: "INV-1022",
-    status: "ETA 12-Aug",
-    notes: "Sample row for testing movement and color.",
+    cells: {
+      section: "Shipments on Sea",
+      ifsRef: "IFS120/08/2026",
+      mraRef: "MRA902144",
+      shipper: "Atlas Exporters",
+      consignee: "Natpack",
+      invoiceNo: "INV-1022",
+      status: "ETA 12-Aug",
+      notes: "Sample row for testing movement and merge.",
+    },
   },
   {
     id: "sample-2",
-    rowColor: "green",
-    section: "Shipments Enroute",
-    ifsRef: "IFS121/08/2026",
-    mraRef: "MRA902145",
-    shipper: "SV Industries",
-    consignee: "Kris Offset",
-    invoiceNo: "INV-1023",
-    status: "Enroute Blantyre",
-    notes: "",
+    cells: {
+      section: "Shipments Enroute",
+      ifsRef: "IFS121/08/2026",
+      mraRef: "MRA902145",
+      shipper: "SV Industries",
+      consignee: "Kris Offset",
+      invoiceNo: "INV-1023",
+      status: "Enroute Blantyre",
+      notes: "",
+    },
   },
 ];
 
@@ -542,8 +553,13 @@ export default function Dashboard() {
   const [borderMode, setBorderMode] = useState<"entry" | "exit">("entry");
   const [editingBorderShipmentId, setEditingBorderShipmentId] = useState<number | null>(null);
   const [borderEditSnapshot, setBorderEditSnapshot] = useState<BorderEntryRow | null>(null);
+  const [spreadsheetColumns, setSpreadsheetColumns] = useState<SpreadsheetColumn[]>(SAMPLE_SPREADSHEET_COLUMNS);
   const [spreadsheetRows, setSpreadsheetRows] = useState<SpreadsheetRow[]>(SAMPLE_SPREADSHEET_ROWS);
-  const [selectedSpreadsheetRowId, setSelectedSpreadsheetRowId] = useState<string | null>(SAMPLE_SPREADSHEET_ROWS[0]?.id ?? null);
+  const [selectedSpreadsheetCell, setSelectedSpreadsheetCell] = useState<SpreadsheetSelection | null>(
+    SAMPLE_SPREADSHEET_ROWS[0] ? { rowId: SAMPLE_SPREADSHEET_ROWS[0].id, columnId: SAMPLE_SPREADSHEET_COLUMNS[0].id } : null,
+  );
+  const [spreadsheetMerges, setSpreadsheetMerges] = useState<SpreadsheetMerge[]>([]);
+  const [draggedSpreadsheetCell, setDraggedSpreadsheetCell] = useState<SpreadsheetSelection | null>(null);
   const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
@@ -702,28 +718,27 @@ export default function Dashboard() {
   const borderReadOnlyViewer = isAdmin || borderReadOnlyStaff;
   const canUseSpreadsheetSample = isAdmin || (isStaff && staffStation === "Blantyre");
 
-  const spreadsheetGridColumns = [
-    "64px",
-    "110px",
-    ...SAMPLE_SPREADSHEET_COLUMNS.map((column) => column.width),
-  ].join(" ");
+  const spreadsheetGridColumns = ["64px", ...spreadsheetColumns.map((column) => column.width)].join(" ");
 
   const createBlankSpreadsheetRow = (): SpreadsheetRow => ({
     id: `sheet-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    rowColor: "none",
-    section: "",
-    ifsRef: "",
-    mraRef: "",
-    shipper: "",
-    consignee: "",
-    invoiceNo: "",
-    status: "",
-    notes: "",
+    cells: Object.fromEntries(spreadsheetColumns.map((column) => [column.id, ""])),
   });
 
-  const updateSpreadsheetCell = (rowId: string, key: keyof SpreadsheetRow, value: string) => {
+  const spreadsheetColumnLabel = (index: number) => {
+    let value = index + 1;
+    let label = "";
+    while (value > 0) {
+      const remainder = (value - 1) % 26;
+      label = String.fromCharCode(65 + remainder) + label;
+      value = Math.floor((value - 1) / 26);
+    }
+    return label;
+  };
+
+  const updateSpreadsheetCell = (rowId: string, columnId: string, value: string) => {
     setSpreadsheetRows((current) => current.map((row) => (
-      row.id === rowId ? { ...row, [key]: value } : row
+      row.id === rowId ? { ...row, cells: { ...row.cells, [columnId]: value } } : row
     )));
   };
 
@@ -738,8 +753,9 @@ export default function Dashboard() {
   const deleteSpreadsheetRow = (rowId: string) => {
     setSpreadsheetRows((current) => {
       const next = current.filter((row) => row.id !== rowId);
-      if (selectedSpreadsheetRowId === rowId) {
-        setSelectedSpreadsheetRowId(next[0]?.id ?? null);
+      setSpreadsheetMerges((existing) => existing.filter((merge) => merge.rowId !== rowId));
+      if (selectedSpreadsheetCell?.rowId === rowId) {
+        setSelectedSpreadsheetCell(next[0] ? { rowId: next[0].id, columnId: spreadsheetColumns[0]?.id ?? "" } : null);
       }
       return next;
     });
@@ -756,22 +772,63 @@ export default function Dashboard() {
     });
   };
 
-  const rowColorClass = (rowColor: SpreadsheetRow["rowColor"]) => {
-    switch (rowColor) {
-      case "yellow": return "bg-amber-50";
-      case "green": return "bg-emerald-50";
-      case "blue": return "bg-sky-50";
-      case "red": return "bg-red-50";
-      default: return "bg-white";
-    }
+  const selectedSpreadsheetIndex = spreadsheetRows.findIndex((row) => row.id === selectedSpreadsheetCell?.rowId);
+  const selectedSpreadsheetRow = selectedSpreadsheetIndex >= 0 ? spreadsheetRows[selectedSpreadsheetIndex] : null;
+  const selectedSpreadsheetColumn = spreadsheetColumns.find((column) => column.id === selectedSpreadsheetCell?.columnId) ?? null;
+
+  const addSpreadsheetColumn = () => {
+    const nextId = `col-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setSpreadsheetColumns((current) => [...current, { id: nextId, label: "", width: "minmax(160px, 1fr)" }]);
+    setSpreadsheetRows((current) => current.map((row) => ({ ...row, cells: { ...row.cells, [nextId]: "" } })));
   };
 
-  const selectedSpreadsheetIndex = spreadsheetRows.findIndex((row) => row.id === selectedSpreadsheetRowId);
-  const selectedSpreadsheetRow = selectedSpreadsheetIndex >= 0 ? spreadsheetRows[selectedSpreadsheetIndex] : null;
+  const mergeSpreadsheetCellRight = () => {
+    if (!selectedSpreadsheetCell) return;
+    const columnIndex = spreadsheetColumns.findIndex((column) => column.id === selectedSpreadsheetCell.columnId);
+    if (columnIndex < 0 || columnIndex >= spreadsheetColumns.length - 1) return;
+    setSpreadsheetMerges((current) => {
+      const filtered = current.filter((merge) => !(merge.rowId === selectedSpreadsheetCell.rowId && merge.columnId === selectedSpreadsheetCell.columnId));
+      return [...filtered, { rowId: selectedSpreadsheetCell.rowId, columnId: selectedSpreadsheetCell.columnId, span: 2 }];
+    });
+  };
 
-  const applySpreadsheetRowColor = (rowColor: SpreadsheetRow["rowColor"]) => {
-    if (!selectedSpreadsheetRowId) return;
-    updateSpreadsheetCell(selectedSpreadsheetRowId, "rowColor", rowColor);
+  const unmergeSpreadsheetCell = () => {
+    if (!selectedSpreadsheetCell) return;
+    setSpreadsheetMerges((current) => current.filter((merge) => !(merge.rowId === selectedSpreadsheetCell.rowId && merge.columnId === selectedSpreadsheetCell.columnId)));
+  };
+
+  const isMergedAwayCell = (rowId: string, columnIndex: number) => {
+    return spreadsheetMerges.some((merge) => {
+      if (merge.rowId !== rowId) return false;
+      const startIndex = spreadsheetColumns.findIndex((column) => column.id === merge.columnId);
+      return startIndex >= 0 && columnIndex > startIndex && columnIndex < startIndex + merge.span;
+    });
+  };
+
+  const getMergeSpan = (rowId: string, columnId: string) => {
+    return spreadsheetMerges.find((merge) => merge.rowId === rowId && merge.columnId === columnId)?.span ?? 1;
+  };
+
+  const swapSpreadsheetCells = (from: SpreadsheetSelection, to: SpreadsheetSelection) => {
+    if (from.rowId === to.rowId && from.columnId === to.columnId) return;
+    setSpreadsheetRows((current) => {
+      const fromRow = current.find((row) => row.id === from.rowId);
+      const toRow = current.find((row) => row.id === to.rowId);
+      if (!fromRow || !toRow) return current;
+      const fromValue = fromRow.cells[from.columnId] ?? "";
+      const toValue = toRow.cells[to.columnId] ?? "";
+      return current.map((row) => {
+        if (row.id === from.rowId && row.id === to.rowId) {
+          return {
+            ...row,
+            cells: { ...row.cells, [from.columnId]: toValue, [to.columnId]: fromValue },
+          };
+        }
+        if (row.id === from.rowId) return { ...row, cells: { ...row.cells, [from.columnId]: toValue } };
+        if (row.id === to.rowId) return { ...row, cells: { ...row.cells, [to.columnId]: fromValue } };
+        return row;
+      });
+    });
   };
 
 
@@ -3137,7 +3194,7 @@ export default function Dashboard() {
 
                                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                                     <p className="text-xs text-muted-foreground">
-                                      {row.updatedAt ? `Last saved ${formatDate(row.updatedAt)}` : row.arrivalConfirmed ? "Arrival confirmed" : "Waiting for arrival confirmation"}
+                                      {row.updatedAt ? `Last saved ${formatDate(row.updatedAt)}` : row.arrivalConfirmed ? "Saved" : "Waiting for arrival"}
                                     </p>
                                     <button
                                       type="button"
@@ -3322,37 +3379,16 @@ export default function Dashboard() {
                 <div className="border-b border-border bg-muted/20 px-5 py-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Sample Sheet</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Try editing directly in the table, adding rows, moving rows, deleting rows, and changing row colors like a simple sheet.
+                    Try editing directly in the table, adding rows and columns, dragging cell values, and merging cells like a simple sheet.
                   </p>
                 </div>
 
                 <div className="border-b border-border bg-white px-4 py-3">
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="rounded-xl border border-border bg-muted/20 px-3 py-2 text-xs font-semibold text-muted-foreground">
-                      {selectedSpreadsheetRow ? `Selected: ${selectedSpreadsheetRow.ifsRef || selectedSpreadsheetRow.consignee || "Blank row"}` : "Select a row"}
-                    </div>
-                    <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-2">
-                      <span className="px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Fill</span>
-                      {([
-                        { key: "none", label: "None", className: "bg-white" },
-                        { key: "yellow", label: "Yellow", className: "bg-amber-300" },
-                        { key: "green", label: "Green", className: "bg-emerald-400" },
-                        { key: "blue", label: "Blue", className: "bg-sky-400" },
-                        { key: "red", label: "Red", className: "bg-red-400" },
-                      ] as const).map((tone) => (
-                        <button
-                          key={tone.key}
-                          type="button"
-                          onClick={() => applySpreadsheetRowColor(tone.key)}
-                          disabled={!selectedSpreadsheetRow}
-                          className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold text-secondary transition-all disabled:opacity-40 ${
-                            selectedSpreadsheetRow?.rowColor === tone.key ? "border-primary shadow-sm" : "border-border"
-                          }`}
-                        >
-                          <span className={`h-3.5 w-3.5 rounded-full border border-black/10 ${tone.className}`} />
-                          {tone.label}
-                        </button>
-                      ))}
+                      {selectedSpreadsheetCell && selectedSpreadsheetColumn
+                        ? `Selected: ${selectedSpreadsheetColumn.label || spreadsheetColumnLabel(spreadsheetColumns.findIndex((column) => column.id === selectedSpreadsheetColumn.id))}${selectedSpreadsheetIndex + 1}`
+                        : "Select a cell"}
                     </div>
                     <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-2">
                       <button
@@ -3361,6 +3397,13 @@ export default function Dashboard() {
                         className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-primary/90"
                       >
                         Add Row
+                      </button>
+                      <button
+                        type="button"
+                        onClick={addSpreadsheetColumn}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary"
+                      >
+                        Add Column
                       </button>
                       <button
                         type="button"
@@ -3388,8 +3431,24 @@ export default function Dashboard() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => selectedSpreadsheetRowId && deleteSpreadsheetRow(selectedSpreadsheetRowId)}
-                        disabled={!selectedSpreadsheetRowId || spreadsheetRows.length === 1}
+                        onClick={mergeSpreadsheetCellRight}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Merge Right
+                      </button>
+                      <button
+                        type="button"
+                        onClick={unmergeSpreadsheetCell}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Unmerge
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectedSpreadsheetCell && deleteSpreadsheetRow(selectedSpreadsheetCell.rowId)}
+                        disabled={!selectedSpreadsheetCell || spreadsheetRows.length === 1}
                         className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 disabled:opacity-40"
                       >
                         Delete Row
@@ -3401,94 +3460,88 @@ export default function Dashboard() {
                 <div className="overflow-x-auto">
                   <table className="min-w-[1400px] w-full border-collapse text-sm">
                     <thead>
+                      <tr className="bg-white">
+                        <th className="border border-border px-3 py-2 text-center text-[11px] font-bold text-muted-foreground">#</th>
+                        {spreadsheetColumns.map((column, index) => (
+                          <th key={`letter-${column.id}`} className="border border-border px-3 py-2 text-center text-[11px] font-bold text-muted-foreground">
+                            {spreadsheetColumnLabel(index)}
+                          </th>
+                        ))}
+                      </tr>
                       <tr className="bg-muted/30">
-                        <th className="border border-border px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Actions</th>
-                        <th className="border border-border px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Color</th>
-                        {SAMPLE_SPREADSHEET_COLUMNS.map((column) => (
+                        <th className="border border-border px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Row</th>
+                        {spreadsheetColumns.map((column) => (
                           <th
-                            key={column.key}
+                            key={column.id}
                             className={`border border-border px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide whitespace-nowrap ${
-                              column.key === "status"
+                              column.id === "status"
                                 ? "bg-red-50 text-red-700"
-                                : column.key === "mraRef"
+                                : column.id === "mraRef"
                                 ? "bg-amber-50 text-amber-700"
-                                : column.key === "invoiceNo"
+                                : column.id === "invoiceNo"
                                 ? "bg-blue-50 text-blue-700"
                                 : "text-muted-foreground"
                             }`}
                           >
-                            {column.label}
+                            {column.label || spreadsheetColumnLabel(spreadsheetColumns.findIndex((item) => item.id === column.id))}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {spreadsheetRows.map((row, index) => (
-                        <tr
-                          key={row.id}
-                          onClick={() => setSelectedSpreadsheetRowId(row.id)}
-                          className={`${rowColorClass(row.rowColor)} align-top ${selectedSpreadsheetRowId === row.id ? "outline outline-2 outline-primary/60" : ""}`}
-                        >
-                          <td className="border border-border px-2 py-2">
-                            <div className="flex min-w-[130px] flex-col gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => insertSpreadsheetRow(index)}
-                                className="rounded-md border border-border bg-white px-2 py-1 text-[11px] font-semibold text-secondary hover:border-primary/40 hover:bg-primary/5"
-                              >
-                                Insert Row
-                              </button>
-                              <div className="grid grid-cols-2 gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => moveSpreadsheetRow(index, -1)}
-                                  disabled={index === 0}
-                                  className="rounded-md border border-border bg-white px-2 py-1 text-[11px] font-semibold text-secondary disabled:opacity-40"
-                                >
-                                  Up
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => moveSpreadsheetRow(index, 1)}
-                                  disabled={index === spreadsheetRows.length - 1}
-                                  className="rounded-md border border-border bg-white px-2 py-1 text-[11px] font-semibold text-secondary disabled:opacity-40"
-                                >
-                                  Down
-                                </button>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => deleteSpreadsheetRow(row.id)}
-                                disabled={spreadsheetRows.length === 1}
-                                className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-40"
-                              >
-                                Delete
-                              </button>
-                            </div>
+                        <tr key={row.id} className="align-top">
+                          <td
+                            className="border border-border px-2 py-2 text-center text-xs font-semibold text-muted-foreground"
+                            draggable
+                            onDragStart={() => setDraggedSpreadsheetCell({ rowId: row.id, columnId: spreadsheetColumns[0]?.id ?? "" })}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={() => {
+                              if (draggedSpreadsheetCell?.rowId && draggedSpreadsheetCell.rowId !== row.id) {
+                                const fromIndex = spreadsheetRows.findIndex((item) => item.id === draggedSpreadsheetCell.rowId);
+                                const toIndex = index;
+                                if (fromIndex >= 0 && toIndex >= 0) {
+                                  const direction = fromIndex < toIndex ? 1 : -1;
+                                  let workingIndex = fromIndex;
+                                  while (workingIndex !== toIndex) {
+                                    moveSpreadsheetRow(workingIndex, direction);
+                                    workingIndex += direction;
+                                  }
+                                }
+                              }
+                            }}
+                          >
+                            {index + 1}
                           </td>
-                          <td className="border border-border px-2 py-2">
-                            <select
-                              value={row.rowColor}
-                              onChange={(e) => updateSpreadsheetCell(row.id, "rowColor", e.target.value)}
-                              className="w-[110px] rounded-md border border-border bg-white px-2 py-2 text-xs font-semibold text-secondary outline-none focus:border-primary"
-                            >
-                              <option value="none">None</option>
-                              <option value="yellow">Yellow</option>
-                              <option value="green">Green</option>
-                              <option value="blue">Blue</option>
-                              <option value="red">Red</option>
-                            </select>
-                          </td>
-                          {SAMPLE_SPREADSHEET_COLUMNS.map((column) => (
-                            <td key={`${row.id}-${column.key}`} className="border border-border px-1.5 py-1.5">
-                              <input
-                                type="text"
-                                value={row[column.key]}
-                                onChange={(e) => updateSpreadsheetCell(row.id, column.key as keyof SpreadsheetRow, e.target.value)}
-                                className="w-full min-w-[120px] rounded-md border border-transparent bg-transparent px-2 py-2 text-sm text-secondary outline-none focus:border-primary focus:bg-white"
-                              />
-                            </td>
-                          ))}
+                          {spreadsheetColumns.map((column, columnIndex) => {
+                            if (isMergedAwayCell(row.id, columnIndex)) return null;
+                            const colSpan = getMergeSpan(row.id, column.id);
+                            const isSelected = selectedSpreadsheetCell?.rowId === row.id && selectedSpreadsheetCell?.columnId === column.id;
+                            return (
+                              <td
+                                key={`${row.id}-${column.id}`}
+                                colSpan={colSpan}
+                                className={`border border-border px-1.5 py-1.5 ${isSelected ? "outline outline-2 outline-primary/60" : ""}`}
+                                draggable
+                                onDragStart={() => setDraggedSpreadsheetCell({ rowId: row.id, columnId: column.id })}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={() => {
+                                  if (draggedSpreadsheetCell) {
+                                    swapSpreadsheetCells(draggedSpreadsheetCell, { rowId: row.id, columnId: column.id });
+                                    setDraggedSpreadsheetCell(null);
+                                  }
+                                }}
+                              >
+                                <input
+                                  type="text"
+                                  value={row.cells[column.id] ?? ""}
+                                  onClick={() => setSelectedSpreadsheetCell({ rowId: row.id, columnId: column.id })}
+                                  onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
+                                  className="w-full min-w-[120px] rounded-md border border-transparent bg-transparent px-2 py-2 text-sm text-secondary outline-none focus:border-primary focus:bg-white"
+                                />
+                              </td>
+                            );
+                          })}
                         </tr>
                       ))}
                     </tbody>
