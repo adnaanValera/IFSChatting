@@ -2876,10 +2876,10 @@ export default function Dashboard() {
                                           type="button"
                                           onClick={() => row.arrivalConfirmed && updateBorderEntryDraftField(row.shipmentId, "sdoChecked", !row.sdoChecked)}
                                           disabled={!row.arrivalConfirmed}
-                                          className={`flex items-center justify-between gap-3 px-3 py-3 text-sm font-semibold transition-all ${row.sdoChecked ? "bg-red-600 text-white" : "bg-red-50 text-red-700"} ${row.arrivalConfirmed ? "hover:bg-red-500/90" : "cursor-not-allowed"}`}
+                                          className={`flex items-center justify-between gap-3 px-3 py-2 text-sm font-semibold transition-all ${row.sdoChecked ? "bg-red-600 text-white" : "bg-red-50 text-red-700"} ${row.arrivalConfirmed ? "hover:bg-red-500/90" : "cursor-not-allowed"}`}
                                         >
                                           <span>SDO</span>
-                                          <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${row.sdoChecked ? "bg-white/20 text-white" : "bg-white text-red-700"}`}>
+                                          <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${row.sdoChecked ? "bg-white/20 text-white" : "bg-white text-red-700"}`}>
                                             {row.sdoChecked ? "Y" : ""}
                                           </span>
                                         </button>
@@ -2887,10 +2887,10 @@ export default function Dashboard() {
                                           type="button"
                                           onClick={() => row.arrivalConfirmed && updateBorderEntryDraftField(row.shipmentId, "releaseOrderChecked", !row.releaseOrderChecked)}
                                           disabled={!row.arrivalConfirmed}
-                                          className={`flex items-center justify-between gap-3 border-l px-3 py-3 text-sm font-semibold transition-all ${row.releaseOrderChecked ? "bg-green-600 text-white" : "bg-green-50 text-green-700"} ${row.arrivalConfirmed ? "hover:bg-green-500/90" : "cursor-not-allowed border-border/60"}`}
+                                          className={`flex items-center justify-between gap-3 border-l px-3 py-2 text-sm font-semibold transition-all ${row.releaseOrderChecked ? "bg-green-600 text-white" : "bg-green-50 text-green-700"} ${row.arrivalConfirmed ? "hover:bg-green-500/90" : "cursor-not-allowed border-border/60"}`}
                                         >
                                           <span>Release Order</span>
-                                          <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${row.releaseOrderChecked ? "bg-white/20 text-white" : "bg-white text-green-700"}`}>
+                                          <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${row.releaseOrderChecked ? "bg-white/20 text-white" : "bg-white text-green-700"}`}>
                                             {row.releaseOrderChecked ? "Y" : ""}
                                           </span>
                                         </button>
