@@ -155,6 +155,8 @@ type SpreadsheetRow = {
 const STAFF_STATIONS = ["Blantyre", "Lilongwe", "Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"] as const;
 const READ_ONLY_BORDER_STATIONS = new Set(["Blantyre", "Lilongwe"]);
 const BORDER_ONLY_STATIONS = new Set(["Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"]);
+const normalizeBorderStation = (value: string) =>
+  value.toLowerCase().replace(/\bborder\b/g, " ").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
 const SAMPLE_SPREADSHEET_COLUMNS: Array<{ key: keyof Omit<SpreadsheetRow, "id" | "rowColor">; label: string; width: string }> = [
   { key: "section", label: "Section", width: "minmax(140px, 1.1fr)" },
   { key: "ifsRef", label: "IFS Ref", width: "minmax(140px, 1fr)" },
@@ -1272,9 +1274,9 @@ export default function Dashboard() {
   const filteredBorderEntries = borderEntries.filter((row) => {
     const query = borderSearch.trim().toLowerCase();
     if (stationRestrictedStaff) {
-      const rowBorder = (row.borderName ?? "").trim().toLowerCase();
-      const userBorder = staffStation.trim().toLowerCase();
-      if (!rowBorder || rowBorder !== userBorder) return false;
+      const rowBorder = normalizeBorderStation(row.borderName ?? "");
+      const userBorder = normalizeBorderStation(staffStation);
+      if (!rowBorder || !userBorder || !(rowBorder === userBorder || rowBorder.includes(userBorder) || userBorder.includes(rowBorder))) return false;
       if (borderMode === "entry" && row.finalConfirmed) return false;
       if (borderMode === "exit" && !row.finalConfirmed) return false;
     }

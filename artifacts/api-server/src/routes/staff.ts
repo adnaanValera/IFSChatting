@@ -812,6 +812,10 @@ function normalizeSectionLabel(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function normalizeBorderLabel(value: string): string {
+  return value.toLowerCase().replace(/\bborder\b/g, " ").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function sectionLabelFromRow(vals: unknown[]): string | null {
   const cells = vals.slice(1).map((v) => cellStr(v)).filter(Boolean) as string[];
   if (cells.length === 0) return null;
@@ -1419,7 +1423,7 @@ export async function parseMasterWorksheet(
     if (typeField) extraFields["Type"] = typeField;
     if (blManifest) extraFields["BL / Manifest No."] = blManifest;
     if (agent) extraFields["Agent"] = agent;
-    if (borderName) extraFields["Border"] = borderName;
+    if (borderName) extraFields["Border"] = normalizeBorderLabel(borderName);
     if (currentSection) extraFields["Source Section"] = currentSection;
     if (hasYellowDocsFlag || docsValue) extraFields["Needs Documents"] = "true";
 
@@ -1745,12 +1749,17 @@ router.get("/staff/border-entries", requireAuth, requireStaff, async (_req, res)
         be.updated_by AS "updatedBy"
       FROM shipments s
       LEFT JOIN border_entries be ON be.shipment_id = s.id
-      WHERE upper(coalesce(s.extra_fields->>'Source Section', s.extra_fields->>'source section', '')) IN (
+      WHERE regexp_replace(
+        upper(coalesce(s.extra_fields->>'Source Section', s.extra_fields->>'source section', '')),
+        '[^A-Z0-9]+',
+        ' ',
+        'g'
+      ) IN (
         'SHIPMENTS AT POD',
         'SHIPMENTS ENROUTE',
         'SHIPMENTS IN MALAWI'
       )
-        AND coalesce(nullif(s.extra_fields->>'Border', ''), nullif(s.extra_fields->>'border', ''), '') <> ''
+        AND btrim(coalesce(nullif(s.extra_fields->>'Border', ''), nullif(s.extra_fields->>'border', ''), '')) <> ''
       ORDER BY lower(coalesce(s.consignee, s.company_name, '')), lower(coalesce(s.shipper, '')), lower(coalesce(s.ifs_ref, ''))
     `);
 
