@@ -164,10 +164,12 @@ type SpreadsheetMerge = {
 };
 
 type SpreadsheetCellStyle = {
-  fill: "none" | "yellow" | "green" | "blue";
+  fill: "none" | "yellow" | "green" | "blue" | "navy";
   bold: boolean;
   italic: boolean;
   align: "left" | "center" | "right";
+  fontSize?: number;
+  textColor?: "default" | "white";
 };
 
 type SpreadsheetSelectionMode = "cell" | "row" | "column";
@@ -191,10 +193,17 @@ const BORDER_STATIONS_WITHOUT_DRIVER_PHONE = new Set(["Liwonde", "KIA", "Chileka
 const normalizeBorderStation = (value: string) =>
   value.toLowerCase().replace(/\bborder\b/g, " ").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
 const SPREADSHEET_COLUMN_LETTERS = Array.from({ length: 26 }, (_, index) => String.fromCharCode(65 + index));
-const DEFAULT_SPREADSHEET_CELL_STYLE: SpreadsheetCellStyle = { fill: "none", bold: false, italic: false, align: "left" };
+const DEFAULT_SPREADSHEET_CELL_STYLE: SpreadsheetCellStyle = { fill: "none", bold: false, italic: false, align: "left", fontSize: 11, textColor: "default" };
+
+const TRACKING_MASTER_HEADER_LABELS = ["IFS Ref", "Type", "BL / Manifest No.", "Contr", "Shipper", "Consignee", "Cargo Desc", "Invoice No.", "POD", "FPD"] as const;
+const TRACKING_MASTER_COLUMN_WIDTHS = [115, 42, 165, 106, 108, 150, 209, 124, 46, 38] as const;
 
 const createSpreadsheetColumns = (): SpreadsheetColumn[] =>
-  SPREADSHEET_COLUMN_LETTERS.map((letter) => ({ id: letter, label: letter, width: "120px" }));
+  SPREADSHEET_COLUMN_LETTERS.map((letter, index) => ({
+    id: letter,
+    label: index < TRACKING_MASTER_HEADER_LABELS.length ? TRACKING_MASTER_HEADER_LABELS[index]! : letter,
+    width: `${index < TRACKING_MASTER_COLUMN_WIDTHS.length ? TRACKING_MASTER_COLUMN_WIDTHS[index] : 120}px`,
+  }));
 
 const createSpreadsheetRows = (): SpreadsheetRow[] => {
   const columns = createSpreadsheetColumns();
@@ -203,29 +212,30 @@ const createSpreadsheetRows = (): SpreadsheetRow[] => {
     cells: Object.fromEntries(columns.map((column) => [column.id, ""])),
   }));
 
-  rows[0]!.cells["A"] = "Section";
-  rows[0]!.cells["B"] = "IFS Ref";
-  rows[0]!.cells["C"] = "MRA Ref";
-  rows[0]!.cells["D"] = "Shipper";
-  rows[0]!.cells["E"] = "Consignee";
-  rows[0]!.cells["F"] = "Invoice No.";
-  rows[0]!.cells["G"] = "Status";
-  rows[0]!.cells["H"] = "Notes";
-  rows[1]!.cells["A"] = "Shipments on Sea";
-  rows[1]!.cells["B"] = "IFS120/08/2026";
-  rows[1]!.cells["C"] = "MRA902144";
-  rows[1]!.cells["D"] = "Atlas Exporters";
-  rows[1]!.cells["E"] = "Natpack";
-  rows[1]!.cells["F"] = "INV-1022";
-  rows[1]!.cells["G"] = "ETA 12-Aug";
-  rows[1]!.cells["H"] = "Example row";
-  rows[2]!.cells["A"] = "Shipments Enroute";
-  rows[2]!.cells["B"] = "IFS121/08/2026";
-  rows[2]!.cells["C"] = "MRA902145";
-  rows[2]!.cells["D"] = "SV Industries";
-  rows[2]!.cells["E"] = "Kris Offset";
-  rows[2]!.cells["F"] = "INV-1023";
-  rows[2]!.cells["G"] = "Enroute Blantyre";
+  rows[0]!.cells["H"] = "=TODAY()";
+  rows[1]!.cells["A"] = "SHIPMENTS IN MALAWI";
+  TRACKING_MASTER_HEADER_LABELS.forEach((label, index) => {
+    rows[2]!.cells[SPREADSHEET_COLUMN_LETTERS[index]!] = label;
+  });
+  rows[3]!.cells["A"] = "IFT281/06/26";
+  rows[3]!.cells["B"] = "FTL";
+  rows[3]!.cells["C"] = "26EXP096";
+  rows[3]!.cells["D"] = "FTL";
+  rows[3]!.cells["E"] = "BICC PVT LTD";
+  rows[3]!.cells["F"] = "Auto General Dealers";
+  rows[3]!.cells["G"] = "Electrical Cables";
+  rows[3]!.cells["H"] = "20260014";
+  rows[3]!.cells["I"] = "JHB";
+  rows[3]!.cells["J"] = "LLW";
+  rows[4]!.cells["B"] = "LCL";
+  rows[4]!.cells["C"] = "MW9376";
+  rows[4]!.cells["D"] = "LCL";
+  rows[4]!.cells["E"] = "Flavorlogik";
+  rows[4]!.cells["F"] = "MH Investments";
+  rows[4]!.cells["G"] = "Food flavors";
+  rows[4]!.cells["I"] = "JHB";
+  rows[4]!.cells["J"] = "BLZ";
+  rows[11]!.cells["A"] = "SHIPMENTS ENROUTE";
 
   return rows;
 };
@@ -596,6 +606,7 @@ export default function Dashboard() {
   const [spreadsheetFileMenuOpen, setSpreadsheetFileMenuOpen] = useState(false);
   const spreadsheetImportInputRef = useRef<HTMLInputElement | null>(null);
   const spreadsheetSaveTimerRef = useRef<number | null>(null);
+  const spreadsheetPresetAppliedRef = useRef(false);
   const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
@@ -647,6 +658,19 @@ export default function Dashboard() {
       }
     };
   }, [activeTab, spreadsheetLoaded, spreadsheetColumns, spreadsheetRows, spreadsheetMerges, spreadsheetCellStyles, spreadsheetRowHeights]);
+
+  useEffect(() => {
+    if (activeTab !== "spreadsheet" || !spreadsheetLoaded || spreadsheetPresetAppliedRef.current) return;
+    const firstTenArePlain = spreadsheetColumns.slice(0, 10).every((column, index) => {
+      const defaultLetter = SPREADSHEET_COLUMN_LETTERS[index];
+      return column.label === defaultLetter || column.label === TRACKING_MASTER_HEADER_LABELS[index];
+    });
+    const hasTrackingStyle = spreadsheetCellStyles["row-2:A"]?.fill === "navy";
+    if (firstTenArePlain && !hasTrackingStyle) {
+      applyTrackingMasterFormatting();
+    }
+    spreadsheetPresetAppliedRef.current = true;
+  }, [activeTab, spreadsheetLoaded, spreadsheetColumns, spreadsheetCellStyles]);
 
   useEffect(() => {
     if (!spreadsheetOffline && spreadsheetSavePending && activeTab === "spreadsheet") {
@@ -916,6 +940,60 @@ export default function Dashboard() {
     )));
   };
 
+  const applyTrackingMasterFormatting = () => {
+    setSpreadsheetColumns((current) => current.map((column, index) => ({
+      ...column,
+      width: `${index < TRACKING_MASTER_COLUMN_WIDTHS.length ? TRACKING_MASTER_COLUMN_WIDTHS[index] : parseInt(String(column.width).replace("px", ""), 10) || 120}px`,
+      label: index < TRACKING_MASTER_HEADER_LABELS.length
+        ? (current[index]?.label && current[index]!.label !== current[index]!.id ? current[index]!.label : TRACKING_MASTER_HEADER_LABELS[index]!)
+        : column.label,
+    })));
+
+    setSpreadsheetMerges((current) => {
+      const withoutTitle = current.filter((merge) => !(merge.rowId === "row-2" && merge.columnId === "A"));
+      return [...withoutTitle, { rowId: "row-2", columnId: "A", rowSpan: 1, colSpan: 10 }];
+    });
+
+    setSpreadsheetRowHeights((current) => ({
+      ...current,
+      "row-1": 28,
+      "row-2": 34,
+      "row-3": 28,
+    }));
+
+    setSpreadsheetCellStyles((current) => {
+      const next = { ...current };
+      for (let index = 0; index < TRACKING_MASTER_HEADER_LABELS.length; index++) {
+        const columnId = SPREADSHEET_COLUMN_LETTERS[index]!;
+        next[`row-3:${columnId}`] = {
+          fill: "none",
+          bold: true,
+          italic: false,
+          align: columnId === "G" ? "left" : "center",
+          fontSize: 11,
+          textColor: "default",
+        };
+      }
+      next["row-2:A"] = {
+        fill: "navy",
+        bold: true,
+        italic: false,
+        align: "center",
+        fontSize: 14,
+        textColor: "white",
+      };
+      next["row-1:H"] = {
+        fill: "none",
+        bold: true,
+        italic: false,
+        align: "center",
+        fontSize: 11,
+        textColor: "default",
+      };
+      return next;
+    });
+  };
+
   const spreadsheetPayload = () => ({
     columns: spreadsheetColumns,
     rows: spreadsheetRows,
@@ -1130,6 +1208,13 @@ export default function Dashboard() {
     if (!selectedSpreadsheetCell) return null;
     const rowIndex = getSpreadsheetRowIndex(selectedSpreadsheetCell.rowId);
     const columnIndex = getSpreadsheetColumnIndex(selectedSpreadsheetCell.columnId);
+    if (rowIndex < 0 || columnIndex < 0) return null;
+    if (spreadsheetSelectionMode === "row") {
+      return { top: rowIndex, bottom: rowIndex, left: 0, right: Math.max(0, spreadsheetColumns.length - 1) };
+    }
+    if (spreadsheetSelectionMode === "column") {
+      return { top: 0, bottom: Math.max(0, spreadsheetRows.length - 1), left: columnIndex, right: columnIndex };
+    }
     return { top: rowIndex, bottom: rowIndex, left: columnIndex, right: columnIndex };
   };
 
@@ -3967,6 +4052,13 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-2">
                       <button
                         type="button"
+                        onClick={applyTrackingMasterFormatting}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary transition-all hover:border-primary/40 hover:bg-primary/5"
+                      >
+                        Match Tracking Master
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setSpreadsheetRows((current) => [...current, createBlankSpreadsheetRow()])}
                         className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-primary/90"
                       >
@@ -4219,7 +4311,7 @@ export default function Dashboard() {
                           <th
                             key={column.id}
                             style={{ width: column.width, minWidth: column.width }}
-                            className={`sticky top-[37px] z-30 border border-border bg-muted/30 px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide whitespace-nowrap text-muted-foreground ${spreadsheetSelectionMode === "column" && selectedSpreadsheetCell?.columnId === column.id ? "bg-primary/10" : ""}`}
+                            className={`sticky top-[37px] z-30 border border-border bg-muted/30 px-2 py-2 text-left text-[11px] font-bold whitespace-nowrap text-muted-foreground ${spreadsheetSelectionMode === "column" && selectedSpreadsheetCell?.columnId === column.id ? "bg-primary/10" : ""}`}
                           >
                             <input
                               type="text"
@@ -4236,7 +4328,8 @@ export default function Dashboard() {
                                 setSpreadsheetSelectionMode("column");
                               }}
                               onChange={(e) => updateSpreadsheetHeader(column.id, e.target.value)}
-                              className="w-full rounded border border-transparent bg-white px-2 py-1 text-[11px] font-bold tracking-wide text-secondary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                              spellCheck={false}
+                              className="w-full rounded border border-transparent bg-white px-2 py-1 text-[11px] font-semibold text-secondary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                             />
                           </th>
                         ))}
@@ -4288,11 +4381,13 @@ export default function Dashboard() {
                               cellStyle.fill === "yellow" ? "bg-amber-100" :
                               cellStyle.fill === "green" ? "bg-emerald-100" :
                               cellStyle.fill === "blue" ? "bg-sky-100" :
+                              cellStyle.fill === "navy" ? "bg-[#1F3864]" :
                               "bg-white";
                             const textAlignClass =
                               cellStyle.align === "center" ? "text-center" :
                               cellStyle.align === "right" ? "text-right" :
                               "text-left";
+                            const textColorClass = cellStyle.textColor === "white" ? "text-white" : "text-secondary";
                             const selectedByHeader = (spreadsheetSelectionMode === "row" && selectedSpreadsheetCell?.rowId === row.id)
                               || (spreadsheetSelectionMode === "column" && selectedSpreadsheetCell?.columnId === column.id);
                             return (
@@ -4363,7 +4458,9 @@ export default function Dashboard() {
                                     }
                                   }}
                                   onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
-                                  className={`w-full rounded-md border border-transparent bg-transparent px-2 py-2 text-sm text-secondary outline-none focus:border-primary focus:bg-white ${textAlignClass} ${cellStyle.bold ? "font-bold" : ""} ${cellStyle.italic ? "italic" : ""}`}
+                                  spellCheck={false}
+                                  style={{ fontSize: `${cellStyle.fontSize ?? 11}px` }}
+                                  className={`w-full rounded-md border border-transparent bg-transparent px-2 py-2 outline-none focus:border-primary focus:bg-white ${textAlignClass} ${textColorClass} ${cellStyle.bold ? "font-bold" : ""} ${cellStyle.italic ? "italic" : ""}`}
                                 />
                               </td>
                             );
