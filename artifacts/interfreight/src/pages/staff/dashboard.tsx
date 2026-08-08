@@ -126,6 +126,8 @@ type BorderEntryRow = {
   shipper: string;
   consignee: string;
   invoiceNo: string;
+  borderName?: string;
+  sourceSection?: string;
   arrivedAtBorder: string;
   sdoChecked: boolean;
   releaseOrderChecked: boolean;
@@ -1270,11 +1272,16 @@ export default function Dashboard() {
   const filteredBorderEntries = borderEntries.filter((row) => {
     const query = borderSearch.trim().toLowerCase();
     if (stationRestrictedStaff) {
+      const rowBorder = (row.borderName ?? "").trim().toLowerCase();
+      const userBorder = staffStation.trim().toLowerCase();
+      if (!rowBorder || rowBorder !== userBorder) return false;
       if (borderMode === "entry" && row.finalConfirmed) return false;
       if (borderMode === "exit" && !row.finalConfirmed) return false;
     }
     if (!query) return true;
-    return row.mraRef.toLowerCase().includes(query) || row.consignee.toLowerCase().includes(query);
+    return row.mraRef.toLowerCase().includes(query)
+      || row.consignee.toLowerCase().includes(query)
+      || (row.borderName ?? "").toLowerCase().includes(query);
   });
 
   useEffect(() => {

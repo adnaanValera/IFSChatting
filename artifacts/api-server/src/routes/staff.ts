@@ -1385,7 +1385,7 @@ export async function parseMasterWorksheet(
 
     const o = colOffset;
     // Tracking master columns: IFS Ref, Type, BL/Manifest No., Contr(ainer), Shipper,
-    // Consignee, Cargo Desc, Invoice No., POD, FPD, Agent, MRA Ref, Entry, Status, Docs
+    // Consignee, Cargo Desc, Invoice No., POD, Border, FPD, Agent, MRA Ref, Entry, Status, Docs
     const ifsRef      = cellStr(vals[o]);
     const typeField   = cellStr(vals[o + 1]);
     const blManifest  = cellStr(vals[o + 2]);
@@ -1395,13 +1395,14 @@ export async function parseMasterWorksheet(
     const cargoDesc   = cellStr(vals[o + 6]);
     const invoiceNo   = cellStr(vals[o + 7]);
     const pod         = cellStr(vals[o + 8]);
-    const fpd         = cellStr(vals[o + 9]);
-    const agent       = cellStr(vals[o + 10]);
-    const mraRef      = cellStr(vals[o + 11]);
-    const entry       = cellStr(vals[o + 12]);
-    const status      = cellStr(vals[o + 13]);
-    const docsValue    = cellStr(vals[o + 14]);
-    const docsCell = worksheet.getRow(r).getCell(o + 14);
+    const borderName  = cellStr(vals[o + 9]);
+    const fpd         = cellStr(vals[o + 10]);
+    const agent       = cellStr(vals[o + 11]);
+    const mraRef      = cellStr(vals[o + 12]);
+    const entry       = cellStr(vals[o + 13]);
+    const status      = cellStr(vals[o + 14]);
+    const docsValue   = cellStr(vals[o + 15]);
+    const docsCell = worksheet.getRow(r).getCell(o + 15);
     const hasYellowDocsFlag = cellHasYellowFill(docsCell);
 
     if (!consignee) continue;
@@ -1418,6 +1419,7 @@ export async function parseMasterWorksheet(
     if (typeField) extraFields["Type"] = typeField;
     if (blManifest) extraFields["BL / Manifest No."] = blManifest;
     if (agent) extraFields["Agent"] = agent;
+    if (borderName) extraFields["Border"] = borderName;
     if (currentSection) extraFields["Source Section"] = currentSection;
     if (hasYellowDocsFlag || docsValue) extraFields["Needs Documents"] = "true";
 
@@ -1730,7 +1732,8 @@ router.get("/staff/border-entries", requireAuth, requireStaff, async (_req, res)
         coalesce(nullif(s.shipper, ''), 'N/A') AS "shipper",
         coalesce(nullif(s.consignee, ''), 'N/A') AS "consignee",
         coalesce(nullif(s.invoice_no, ''), 'N/A') AS "invoiceNo",
-        upper(coalesce(s.extra_fields->>'Type', s.extra_fields->>'type', '')) AS "shipmentType",
+        coalesce(nullif(s.extra_fields->>'Border', ''), nullif(s.extra_fields->>'border', ''), '') AS "borderName",
+        coalesce(nullif(s.extra_fields->>'Source Section', ''), nullif(s.extra_fields->>'source section', ''), '') AS "sourceSection",
         coalesce(be.arrived_at_border, '') AS "arrivedAtBorder",
         coalesce(be.sdo_checked, false) AS "sdoChecked",
         coalesce(be.release_order_checked, false) AS "releaseOrderChecked",
@@ -1742,7 +1745,12 @@ router.get("/staff/border-entries", requireAuth, requireStaff, async (_req, res)
         be.updated_by AS "updatedBy"
       FROM shipments s
       LEFT JOIN border_entries be ON be.shipment_id = s.id
-      WHERE upper(coalesce(s.extra_fields->>'Type', s.extra_fields->>'type', '')) IN ('FTL', 'LCL')
+      WHERE upper(coalesce(s.extra_fields->>'Source Section', s.extra_fields->>'source section', '')) IN (
+        'SHIPMENTS AT POD',
+        'SHIPMENTS ENROUTE',
+        'SHIPMENTS IN MALAWI'
+      )
+        AND coalesce(nullif(s.extra_fields->>'Border', ''), nullif(s.extra_fields->>'border', ''), '') <> ''
       ORDER BY lower(coalesce(s.consignee, s.company_name, '')), lower(coalesce(s.shipper, '')), lower(coalesce(s.ifs_ref, ''))
     `);
 
