@@ -3281,7 +3281,7 @@ export default function Dashboard() {
                 <div>
                   <h2 className="text-2xl font-extrabold text-secondary mb-1">Spreadsheet</h2>
                   <p className="text-sm text-muted-foreground">
-                    Sample editable sheet for Blantyre staff and admin. We can shape this into the real system after you test the layout.
+                    Sample editable sheet for Blantyre staff and admin. This version is table-style so it feels closer to the tracking master.
                   </p>
                 </div>
                 <button
@@ -3298,94 +3298,101 @@ export default function Dashboard() {
                 <div className="border-b border-border bg-muted/20 px-5 py-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Sample Sheet</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Try editing cells, inserting rows, moving rows, deleting rows, and changing row colors.
+                    Try editing directly in the table, adding rows, moving rows, deleting rows, and changing row colors like a simple sheet.
                   </p>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <div className="min-w-[1180px]">
-                    <div
-                      className="grid gap-px border-b border-border bg-border/70"
-                      style={{ gridTemplateColumns: spreadsheetGridColumns }}
-                    >
-                      <div className="bg-muted/40 px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Actions</div>
-                      <div className="bg-muted/40 px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Color</div>
-                      {SAMPLE_SPREADSHEET_COLUMNS.map((column) => (
-                        <div key={column.key} className="bg-muted/40 px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                          {column.label}
-                        </div>
-                      ))}
-                    </div>
-
-                    {spreadsheetRows.map((row, index) => (
-                      <div
-                        key={row.id}
-                        className={`grid gap-px border-b border-border/70 bg-border/40 ${rowColorClass(row.rowColor)}`}
-                        style={{ gridTemplateColumns: spreadsheetGridColumns }}
-                      >
-                        <div className="flex flex-col gap-2 bg-white/80 px-2 py-2">
-                          <button
-                            type="button"
-                            onClick={() => insertSpreadsheetRow(index)}
-                            className="rounded-md border border-border bg-white px-2 py-1 text-[11px] font-semibold text-secondary hover:border-primary/40 hover:bg-primary/5"
-                          >
-                            Insert
-                          </button>
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => moveSpreadsheetRow(index, -1)}
-                              disabled={index === 0}
-                              className="rounded-md border border-border bg-white px-2 py-1 text-[11px] font-semibold text-secondary disabled:opacity-40"
-                            >
-                              Up
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => moveSpreadsheetRow(index, 1)}
-                              disabled={index === spreadsheetRows.length - 1}
-                              className="rounded-md border border-border bg-white px-2 py-1 text-[11px] font-semibold text-secondary disabled:opacity-40"
-                            >
-                              Down
-                            </button>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => deleteSpreadsheetRow(row.id)}
-                            disabled={spreadsheetRows.length === 1}
-                            className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-40"
-                          >
-                            Delete
-                          </button>
-                        </div>
-
-                        <div className="bg-white/80 px-2 py-2">
-                          <select
-                            value={row.rowColor}
-                            onChange={(e) => updateSpreadsheetCell(row.id, "rowColor", e.target.value)}
-                            className="w-full rounded-md border border-border bg-white px-2 py-2 text-xs font-semibold text-secondary outline-none focus:border-primary"
-                          >
-                            <option value="none">None</option>
-                            <option value="yellow">Yellow</option>
-                            <option value="green">Green</option>
-                            <option value="blue">Blue</option>
-                            <option value="red">Red</option>
-                          </select>
-                        </div>
-
+                  <table className="min-w-[1400px] w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-muted/30">
+                        <th className="border border-border px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Actions</th>
+                        <th className="border border-border px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Color</th>
                         {SAMPLE_SPREADSHEET_COLUMNS.map((column) => (
-                          <div key={`${row.id}-${column.key}`} className="bg-white/80 px-2 py-2">
-                            <input
-                              type="text"
-                              value={row[column.key]}
-                              onChange={(e) => updateSpreadsheetCell(row.id, column.key as keyof SpreadsheetRow, e.target.value)}
-                              className="w-full rounded-md border border-transparent bg-transparent px-2 py-2 text-sm text-secondary outline-none focus:border-primary focus:bg-white"
-                            />
-                          </div>
+                          <th
+                            key={column.key}
+                            className={`border border-border px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide whitespace-nowrap ${
+                              column.key === "status"
+                                ? "bg-red-50 text-red-700"
+                                : column.key === "mraRef"
+                                ? "bg-amber-50 text-amber-700"
+                                : column.key === "invoiceNo"
+                                ? "bg-blue-50 text-blue-700"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {column.label}
+                          </th>
                         ))}
-                      </div>
-                    ))}
-                  </div>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {spreadsheetRows.map((row, index) => (
+                        <tr key={row.id} className={`${rowColorClass(row.rowColor)} align-top`}>
+                          <td className="border border-border px-2 py-2">
+                            <div className="flex min-w-[130px] flex-col gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => insertSpreadsheetRow(index)}
+                                className="rounded-md border border-border bg-white px-2 py-1 text-[11px] font-semibold text-secondary hover:border-primary/40 hover:bg-primary/5"
+                              >
+                                Insert Row
+                              </button>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => moveSpreadsheetRow(index, -1)}
+                                  disabled={index === 0}
+                                  className="rounded-md border border-border bg-white px-2 py-1 text-[11px] font-semibold text-secondary disabled:opacity-40"
+                                >
+                                  Up
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveSpreadsheetRow(index, 1)}
+                                  disabled={index === spreadsheetRows.length - 1}
+                                  className="rounded-md border border-border bg-white px-2 py-1 text-[11px] font-semibold text-secondary disabled:opacity-40"
+                                >
+                                  Down
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => deleteSpreadsheetRow(row.id)}
+                                disabled={spreadsheetRows.length === 1}
+                                className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-40"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                          <td className="border border-border px-2 py-2">
+                            <select
+                              value={row.rowColor}
+                              onChange={(e) => updateSpreadsheetCell(row.id, "rowColor", e.target.value)}
+                              className="w-[110px] rounded-md border border-border bg-white px-2 py-2 text-xs font-semibold text-secondary outline-none focus:border-primary"
+                            >
+                              <option value="none">None</option>
+                              <option value="yellow">Yellow</option>
+                              <option value="green">Green</option>
+                              <option value="blue">Blue</option>
+                              <option value="red">Red</option>
+                            </select>
+                          </td>
+                          {SAMPLE_SPREADSHEET_COLUMNS.map((column) => (
+                            <td key={`${row.id}-${column.key}`} className="border border-border px-1.5 py-1.5">
+                              <input
+                                type="text"
+                                value={row[column.key]}
+                                onChange={(e) => updateSpreadsheetCell(row.id, column.key as keyof SpreadsheetRow, e.target.value)}
+                                className="w-full min-w-[120px] rounded-md border border-transparent bg-transparent px-2 py-2 text-sm text-secondary outline-none focus:border-primary focus:bg-white"
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
