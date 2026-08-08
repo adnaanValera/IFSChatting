@@ -13,7 +13,7 @@ import {
   UploadCloud, Clock, CheckCircle2, AlertTriangle, Ship,
   Truck, Trash2, MessageSquare, ChevronDown, ChevronUp, Send, Mail, Home, History,
   Building2, Download, Search, ChevronRight,
-  Menu, X, UserCheck, UserX, Bell, Smartphone, ReceiptText,
+  Menu, X, UserCheck, UserX, Bell, Smartphone, ReceiptText, Check,
 } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -3006,7 +3006,7 @@ export default function Dashboard() {
                 ) : borderEntries.length === 0 ? (
                   <div className="py-20 text-center">
                     <Truck className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" />
-                    <p className="text-lg font-semibold text-secondary mb-2">No FTL or LCL rows found</p>
+                    <p className="text-lg font-semibold text-secondary mb-2">No border rows found</p>
                     <p className="text-sm text-muted-foreground">Upload the latest tracking master and this section will populate automatically.</p>
                   </div>
                 ) : stationRestrictedStaff ? (
@@ -3145,7 +3145,7 @@ export default function Dashboard() {
                                         >
                                           <span>SDO</span>
                                           <span className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] font-bold ${row.sdoChecked ? "bg-white/20 text-white" : "bg-white text-red-700"}`}>
-                                            {row.sdoChecked ? "Y" : ""}
+                                            {row.sdoChecked ? <Check size={10} /> : ""}
                                           </span>
                                         </button>
                                         <button
@@ -3156,7 +3156,7 @@ export default function Dashboard() {
                                         >
                                           <span>Release Order</span>
                                           <span className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] font-bold ${row.releaseOrderChecked ? "bg-white/20 text-white" : "bg-white text-green-700"}`}>
-                                            {row.releaseOrderChecked ? "Y" : ""}
+                                            {row.releaseOrderChecked ? <Check size={10} /> : ""}
                                           </span>
                                         </button>
                                       </div>
@@ -3217,28 +3217,46 @@ export default function Dashboard() {
                     )}
                   </div>
                 ) : (
+                  <div className="space-y-4">
+                    <div className="inline-flex overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => setBorderMode("entry")}
+                        className={`min-h-[48px] px-4 py-3 text-sm font-bold transition-colors ${borderMode === "entry" ? "bg-amber-400 text-secondary" : "bg-amber-300 text-secondary/90 hover:bg-amber-400"}`}
+                      >
+                        Border entry
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBorderMode("exit")}
+                        className={`min-h-[48px] border-l border-white/30 px-4 py-3 text-sm font-bold transition-colors ${borderMode === "exit" ? "bg-blue-600 text-white" : "bg-blue-500 text-white/95 hover:bg-blue-600"}`}
+                      >
+                        Border exit
+                      </button>
+                    </div>
+
                   <div className="overflow-x-auto">
-                    <table className="min-w-[1380px] w-full text-sm">
+                    <table className="w-full table-auto text-sm">
                       <thead className="bg-muted/30 border-b border-border">
                         <tr>
                           {["IFS Ref", "MRA Ref", "Shipper", "Consignee", "Invoice No.", "Arrived at Border", "SDO", "Release Order", "Released from Border", "Driver Phone", ""].map((label) => (
-                            <th key={label} className="px-4 py-3 text-left font-semibold text-secondary whitespace-nowrap">
+                            <th key={label} className="px-3 py-3 text-left font-semibold text-secondary whitespace-nowrap">
                               {label}
                             </th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {borderEntries.map((row) => {
+                        {borderEntries.filter((row) => (borderMode === "entry" ? !row.finalConfirmed : row.finalConfirmed)).map((row) => {
                           const isEditing = editingBorderShipmentId === row.shipmentId;
                           return (
                           <tr key={row.shipmentId} className="border-b border-border/70 hover:bg-muted/10 transition-colors align-top">
-                            <td className="px-4 py-3 font-semibold text-secondary whitespace-nowrap">{row.ifsRef}</td>
-                            <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{row.mraRef}</td>
-                            <td className="px-4 py-3 text-muted-foreground min-w-[220px]">{row.shipper}</td>
-                            <td className="px-4 py-3 text-muted-foreground min-w-[220px]">{row.consignee}</td>
-                            <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{row.invoiceNo}</td>
-                            <td className="px-4 py-3 min-w-[180px]">
+                            <td className="px-3 py-3 font-semibold text-secondary whitespace-nowrap">{row.ifsRef}</td>
+                            <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{row.mraRef}</td>
+                            <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{row.shipper}</td>
+                            <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{row.consignee}</td>
+                            <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{row.invoiceNo}</td>
+                            <td className="px-3 py-3">
                               <input
                                 type="text"
                                 value={row.arrivedAtBorder ?? ""}
@@ -3249,10 +3267,10 @@ export default function Dashboard() {
                                 maxLength={10}
                                 readOnly={borderReadOnlyViewer && !isEditing}
                                 disabled={borderReadOnlyViewer && !isEditing}
-                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer && !isEditing ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
+                                className={`w-full min-w-[120px] rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer && !isEditing ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
                               />
                             </td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-3 py-3 text-center">
                               {isEditing ? (
                                 <button
                                   type="button"
@@ -3263,11 +3281,11 @@ export default function Dashboard() {
                                 </button>
                               ) : (
                                 <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${row.sdoChecked ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
-                                  {row.sdoChecked ? "Y" : "-"}
+                                  {row.sdoChecked ? <Check size={12} /> : "-"}
                                 </span>
                               )}
                             </td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-3 py-3 text-center">
                               {isEditing ? (
                                 <button
                                   type="button"
@@ -3278,11 +3296,11 @@ export default function Dashboard() {
                                 </button>
                               ) : (
                                 <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${row.releaseOrderChecked ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
-                                  {row.releaseOrderChecked ? "Y" : "-"}
+                                  {row.releaseOrderChecked ? <Check size={12} /> : "-"}
                                 </span>
                               )}
                             </td>
-                            <td className="px-4 py-3 min-w-[180px]">
+                            <td className="px-3 py-3">
                               <input
                                 type="text"
                                 value={row.releasedFromBorder ?? ""}
@@ -3293,10 +3311,10 @@ export default function Dashboard() {
                                 maxLength={10}
                                 readOnly={borderReadOnlyViewer && !isEditing}
                                 disabled={borderReadOnlyViewer && !isEditing}
-                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer && !isEditing ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
+                                className={`w-full min-w-[120px] rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer && !isEditing ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
                               />
                             </td>
-                            <td className="px-4 py-3 min-w-[170px]">
+                            <td className="px-3 py-3">
                               <input
                                 type="text"
                                 value={row.driverPhone ?? ""}
@@ -3307,10 +3325,10 @@ export default function Dashboard() {
                                 maxLength={15}
                                 readOnly={borderReadOnlyViewer && !isEditing}
                                 disabled={borderReadOnlyViewer && !isEditing}
-                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer && !isEditing ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
+                                className={`w-full min-w-[120px] rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer && !isEditing ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
                               />
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
+                            <td className="px-3 py-3 whitespace-nowrap text-xs text-muted-foreground">
                               {borderReadOnlyViewer ? (
                                 isEditing ? (
                                   <div className="flex items-center gap-2">
@@ -3350,6 +3368,7 @@ export default function Dashboard() {
                         )})}
                       </tbody>
                     </table>
+                  </div>
                   </div>
                 )}
               </div>
