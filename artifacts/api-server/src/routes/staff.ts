@@ -1868,7 +1868,7 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
         const consigneeName = (shipmentDetails?.consignee || "N/A").trim() || "N/A";
         const detailText = `${identifier} ${consigneeName}`.trim();
         const message = mode === "final"
-          ? `(${notifyingStation}) confirmed release for ${detailText}`
+          ? `${detailText} is released from ${notifyingStation}`
           : `(${notifyingStation}) confirmed arrival for ${detailText}`;
 
         await db.insert(notificationsTable).values(
