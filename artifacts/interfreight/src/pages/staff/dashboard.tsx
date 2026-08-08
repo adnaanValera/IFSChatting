@@ -42,6 +42,7 @@ type Announcement = {
 
 type CompanyItem = { id: number; companyName: string; shipmentCount: number };
 const WEB_APP_ICON_REFRESH_KEY = "intf_web_app_icon_refresh_2026_07";
+const SHARED_SPREADSHEET_CACHE_KEY = "intf_shared_spreadsheet_cache_v1";
 type PendingSignup = {
   id: number;
   fullName: string;
@@ -587,6 +588,8 @@ export default function Dashboard() {
   const [spreadsheetContextMenu, setSpreadsheetContextMenu] = useState<SpreadsheetContextMenuState>(null);
   const [spreadsheetLoaded, setSpreadsheetLoaded] = useState(false);
   const [spreadsheetSaving, setSpreadsheetSaving] = useState(false);
+  const [spreadsheetSavePending, setSpreadsheetSavePending] = useState(false);
+  const [spreadsheetOffline, setSpreadsheetOffline] = useState<boolean>(typeof navigator !== "undefined" ? !navigator.onLine : false);
   const [spreadsheetFileMenuOpen, setSpreadsheetFileMenuOpen] = useState(false);
   const spreadsheetImportInputRef = useRef<HTMLInputElement | null>(null);
   const spreadsheetSaveTimerRef = useRef<number | null>(null);
@@ -610,6 +613,17 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    const handleOnline = () => setSpreadsheetOffline(false);
+    const handleOffline = () => setSpreadsheetOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
     if (activeTab === "spreadsheet") {
       void loadSpreadsheet(true);
     }
@@ -630,6 +644,12 @@ export default function Dashboard() {
       }
     };
   }, [activeTab, spreadsheetLoaded, spreadsheetColumns, spreadsheetRows, spreadsheetMerges, spreadsheetCellStyles, spreadsheetRowHeights]);
+
+  useEffect(() => {
+    if (!spreadsheetOffline && spreadsheetSavePending && activeTab === "spreadsheet") {
+      void saveSpreadsheetNow(true);
+    }
+  }, [spreadsheetOffline, spreadsheetSavePending, activeTab]);
 
   const loadPendingSignups = async () => {
     setPendingSignupsLoading(true);
@@ -896,6 +916,31 @@ export default function Dashboard() {
     rowHeights: spreadsheetRowHeights,
   });
 
+  const cacheSpreadsheetLocally = (payload = spreadsheetPayload()) => {
+    try {
+      localStorage.setItem(SHARED_SPREADSHEET_CACHE_KEY, JSON.stringify(payload));
+    } catch {
+      // Ignore cache write failures.
+    }
+  };
+
+  const loadSpreadsheetFromCache = () => {
+    try {
+      const raw = localStorage.getItem(SHARED_SPREADSHEET_CACHE_KEY);
+      if (!raw) return false;
+      const payload = JSON.parse(raw);
+      setSpreadsheetColumns(payload.columns ?? createSpreadsheetColumns());
+      setSpreadsheetRows(payload.rows ?? createSpreadsheetRows());
+      setSpreadsheetMerges(payload.merges ?? []);
+      setSpreadsheetCellStyles(payload.cellStyles ?? {});
+      setSpreadsheetRowHeights(payload.rowHeights ?? {});
+      setSpreadsheetLoaded(true);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const loadSpreadsheet = async (silent = false) => {
     try {
       const token = localStorage.getItem("intf_token");
@@ -910,8 +955,18 @@ export default function Dashboard() {
       setSpreadsheetMerges(payload.merges ?? []);
       setSpreadsheetCellStyles(payload.cellStyles ?? {});
       setSpreadsheetRowHeights(payload.rowHeights ?? {});
+      cacheSpreadsheetLocally(payload);
       setSpreadsheetLoaded(true);
+      setSpreadsheetSavePending(false);
     } catch (err: any) {
+      const loadedFromCache = loadSpreadsheetFromCache();
+      if (loadedFromCache) {
+        setSpreadsheetOffline(true);
+        if (!silent) {
+          toast({ title: "Offline cache loaded", description: "Using the last saved spreadsheet until connection returns." });
+        }
+        return;
+      }
       if (!silent) {
         toast({ variant: "destructive", title: "Spreadsheet failed", description: err.message });
       }
@@ -921,6 +976,12 @@ export default function Dashboard() {
   const saveSpreadsheetNow = async (silent = false) => {
     try {
       setSpreadsheetSaving(true);
+      cacheSpreadsheetLocally();
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setSpreadsheetOffline(true);
+        setSpreadsheetSavePending(true);
+        return;
+      }
       const token = localStorage.getItem("intf_token");
       const base = import.meta.env.BASE_URL.replace(/\/$/, "");
       const res = await fetch(`${base}/api/staff/spreadsheet`, {
@@ -933,7 +994,10 @@ export default function Dashboard() {
       });
       if (!res.ok) throw new Error("Failed to save spreadsheet");
       setSpreadsheetLoaded(true);
+      setSpreadsheetSavePending(false);
+      setSpreadsheetOffline(false);
     } catch (err: any) {
+      setSpreadsheetSavePending(true);
       if (!silent) {
         toast({ variant: "destructive", title: "Save failed", description: err.message });
       }
@@ -959,6 +1023,7 @@ export default function Dashboard() {
     setSpreadsheetMerges(payload.merges ?? []);
     setSpreadsheetCellStyles(payload.cellStyles ?? {});
     setSpreadsheetRowHeights(payload.rowHeights ?? {});
+    cacheSpreadsheetLocally(payload);
     setSpreadsheetLoaded(true);
   };
 
@@ -1050,6 +1115,116 @@ export default function Dashboard() {
   const insertSelectedColumnRight = () => {
     if (!selectedSpreadsheetCell) return;
     insertSpreadsheetColumnAt(getSpreadsheetColumnIndex(selectedSpreadsheetCell.columnId) + 1);
+  };
+
+  const currentSpreadsheetBounds = () => {
+    if (spreadsheetRangeSelection) return getRangeBounds(spreadsheetRangeSelection);
+    if (!selectedSpreadsheetCell) return null;
+    const rowIndex = getSpreadsheetRowIndex(selectedSpreadsheetCell.rowId);
+    const columnIndex = getSpreadsheetColumnIndex(selectedSpreadsheetCell.columnId);
+    return { top: rowIndex, bottom: rowIndex, left: columnIndex, right: columnIndex };
+  };
+
+  const getSelectedSpreadsheetCells = () => {
+    const bounds = currentSpreadsheetBounds();
+    if (!bounds) return [] as Array<{ rowId: string; columnId: string }>;
+    const cells: Array<{ rowId: string; columnId: string }> = [];
+    for (let r = bounds.top; r <= bounds.bottom; r++) {
+      for (let c = bounds.left; c <= bounds.right; c++) {
+        const rowId = spreadsheetRows[r]?.id;
+        const columnId = spreadsheetColumns[c]?.id;
+        if (rowId && columnId) cells.push({ rowId, columnId });
+      }
+    }
+    return cells;
+  };
+
+  const clearSelectedSpreadsheetCells = () => {
+    const selected = getSelectedSpreadsheetCells();
+    if (selected.length === 0) return;
+    setSpreadsheetRows((current) => current.map((row) => {
+      const rowSelections = selected.filter((cell) => cell.rowId === row.id);
+      if (rowSelections.length === 0) return row;
+      const nextCells = { ...row.cells };
+      rowSelections.forEach((cell) => { nextCells[cell.columnId] = ""; });
+      return { ...row, cells: nextCells };
+    }));
+  };
+
+  const copySelectedSpreadsheetCells = async (cut = false) => {
+    const bounds = currentSpreadsheetBounds();
+    if (!bounds) return;
+    const lines: string[] = [];
+    for (let r = bounds.top; r <= bounds.bottom; r++) {
+      const values: string[] = [];
+      for (let c = bounds.left; c <= bounds.right; c++) {
+        const rowId = spreadsheetRows[r]?.id;
+        const columnId = spreadsheetColumns[c]?.id;
+        values.push(rowId && columnId ? (spreadsheetRows[r]?.cells[columnId] ?? "") : "");
+      }
+      lines.push(values.join("\t"));
+    }
+    const text = lines.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      if (cut) clearSelectedSpreadsheetCells();
+    } catch {
+      toast({ variant: "destructive", title: "Clipboard blocked", description: "Your browser blocked clipboard access." });
+    }
+  };
+
+  const pasteIntoSpreadsheet = async () => {
+    if (!selectedSpreadsheetCell) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+      const startRow = getSpreadsheetRowIndex(selectedSpreadsheetCell.rowId);
+      const startColumn = getSpreadsheetColumnIndex(selectedSpreadsheetCell.columnId);
+      const rowsToPaste = text.split(/\r?\n/).map((line) => line.split("\t"));
+      setSpreadsheetRows((current) => current.map((row, rowIndex) => {
+        if (rowIndex < startRow || rowIndex >= startRow + rowsToPaste.length) return row;
+        const rowPaste = rowsToPaste[rowIndex - startRow] ?? [];
+        const nextCells = { ...row.cells };
+        rowPaste.forEach((value, index) => {
+          const column = spreadsheetColumns[startColumn + index];
+          if (column) nextCells[column.id] = value;
+        });
+        return { ...row, cells: nextCells };
+      }));
+    } catch {
+      toast({ variant: "destructive", title: "Paste blocked", description: "Your browser blocked clipboard access." });
+    }
+  };
+
+  const deleteSelectedSpreadsheetRow = () => {
+    if (!selectedSpreadsheetCell) return;
+    deleteSpreadsheetRow(selectedSpreadsheetCell.rowId);
+  };
+
+  const deleteSelectedSpreadsheetColumn = () => {
+    if (!selectedSpreadsheetCell) return;
+    const targetColumnId = selectedSpreadsheetCell.columnId;
+    if (spreadsheetColumns.length <= 1) return;
+    setSpreadsheetColumns((current) => current.filter((column) => column.id !== targetColumnId));
+    setSpreadsheetRows((current) => current.map((row) => {
+      const nextCells = { ...row.cells };
+      delete nextCells[targetColumnId];
+      return { ...row, cells: nextCells };
+    }));
+    setSelectedSpreadsheetCell((current) => current ? { ...current, columnId: spreadsheetColumns.find((column) => column.id !== targetColumnId)?.id ?? "A" } : current);
+  };
+
+  const moveSpreadsheetSelection = (rowDelta: number, columnDelta: number) => {
+    if (!selectedSpreadsheetCell) return;
+    const rowIndex = getSpreadsheetRowIndex(selectedSpreadsheetCell.rowId);
+    const columnIndex = getSpreadsheetColumnIndex(selectedSpreadsheetCell.columnId);
+    const nextRow = spreadsheetRows[Math.max(0, Math.min(spreadsheetRows.length - 1, rowIndex + rowDelta))];
+    const nextColumn = spreadsheetColumns[Math.max(0, Math.min(spreadsheetColumns.length - 1, columnIndex + columnDelta))];
+    if (nextRow && nextColumn) {
+      setSelectedSpreadsheetCell({ rowId: nextRow.id, columnId: nextColumn.id });
+      setSpreadsheetSelectionMode("cell");
+      setSpreadsheetRangeSelection(null);
+    }
   };
 
   const mergeSpreadsheetCellRight = () => {
@@ -3656,7 +3831,7 @@ export default function Dashboard() {
                 </div>
                 <div className="relative flex items-center gap-3">
                   <div className="rounded-xl border border-border bg-white px-3 py-2 text-xs font-semibold text-muted-foreground">
-                    {spreadsheetSaving ? "Saving..." : "Auto-save on"}
+                    {spreadsheetSaving ? "Saving..." : spreadsheetOffline ? (spreadsheetSavePending ? "Offline - sync pending" : "Offline copy") : "Auto-save on"}
                   </div>
                   <button
                     type="button"
@@ -3711,6 +3886,17 @@ export default function Dashboard() {
                       >
                         <FileDown size={15} />
                         Export Excel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          loadSpreadsheetFromCache();
+                          setSpreadsheetFileMenuOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        <Smartphone size={15} />
+                        Open Offline Copy
                       </button>
                     </div>
                   )}
@@ -3876,6 +4062,46 @@ export default function Dashboard() {
                         className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
                       >
                         Row +
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void copySelectedSpreadsheetCells(false)}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Copy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void copySelectedSpreadsheetCells(true)}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Cut
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void pasteIntoSpreadsheet()}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Paste
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearSelectedSpreadsheetCells}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        onClick={deleteSelectedSpreadsheetColumn}
+                        disabled={!selectedSpreadsheetCell || spreadsheetColumns.length === 1}
+                        className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 disabled:opacity-40"
+                      >
+                        Delete Col
                       </button>
                     </div>
                     <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-2">
@@ -4066,6 +4292,33 @@ export default function Dashboard() {
                                     setSelectedSpreadsheetCell({ rowId: row.id, columnId: column.id });
                                     setSpreadsheetSelectionMode("cell");
                                   }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "ArrowUp") {
+                                      event.preventDefault();
+                                      moveSpreadsheetSelection(-1, 0);
+                                    } else if (event.key === "ArrowDown" || event.key === "Enter") {
+                                      event.preventDefault();
+                                      moveSpreadsheetSelection(1, 0);
+                                    } else if (event.key === "ArrowLeft") {
+                                      event.preventDefault();
+                                      moveSpreadsheetSelection(0, -1);
+                                    } else if (event.key === "ArrowRight" || event.key === "Tab") {
+                                      event.preventDefault();
+                                      moveSpreadsheetSelection(0, 1);
+                                    } else if ((event.key === "Delete" || event.key === "Backspace") && !event.currentTarget.value) {
+                                      event.preventDefault();
+                                      clearSelectedSpreadsheetCells();
+                                    } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
+                                      event.preventDefault();
+                                      void copySelectedSpreadsheetCells(false);
+                                    } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "x") {
+                                      event.preventDefault();
+                                      void copySelectedSpreadsheetCells(true);
+                                    } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+                                      event.preventDefault();
+                                      void pasteIntoSpreadsheet();
+                                    }
+                                  }}
                                   onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
                                   className={`w-full rounded-md border border-transparent bg-transparent px-2 py-2 text-sm text-secondary outline-none focus:border-primary focus:bg-white ${textAlignClass} ${cellStyle.bold ? "font-bold" : ""}`}
                                 />
@@ -4113,6 +4366,72 @@ export default function Dashboard() {
                         className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
                       >
                         Merge Selection
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSpreadsheetCell({ rowId: spreadsheetContextMenu.rowId, columnId: spreadsheetContextMenu.columnId });
+                          clearSelectedSpreadsheetCells();
+                          setSpreadsheetContextMenu(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        Clear Cells
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSpreadsheetCell({ rowId: spreadsheetContextMenu.rowId, columnId: spreadsheetContextMenu.columnId });
+                          void copySelectedSpreadsheetCells(false);
+                          setSpreadsheetContextMenu(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        Copy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSpreadsheetCell({ rowId: spreadsheetContextMenu.rowId, columnId: spreadsheetContextMenu.columnId });
+                          void pasteIntoSpreadsheet();
+                          setSpreadsheetContextMenu(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        Paste
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSpreadsheetCell({ rowId: spreadsheetContextMenu.rowId, columnId: spreadsheetContextMenu.columnId });
+                          insertSpreadsheetRow(getSpreadsheetRowIndex(spreadsheetContextMenu.rowId));
+                          setSpreadsheetContextMenu(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        Insert Row Above
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSpreadsheetCell({ rowId: spreadsheetContextMenu.rowId, columnId: spreadsheetContextMenu.columnId });
+                          deleteSelectedSpreadsheetRow();
+                          setSpreadsheetContextMenu(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        Delete Row
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSpreadsheetCell({ rowId: spreadsheetContextMenu.rowId, columnId: spreadsheetContextMenu.columnId });
+                          deleteSelectedSpreadsheetColumn();
+                          setSpreadsheetContextMenu(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        Delete Column
                       </button>
                       <button
                         type="button"
