@@ -164,7 +164,7 @@ type SpreadsheetMerge = {
 };
 
 type SpreadsheetCellStyle = {
-  fill: "none" | "yellow" | "green" | "blue" | "navy";
+  fill: "none" | "yellow" | "green" | "blue" | "navy" | "gray" | "red";
   bold: boolean;
   italic: boolean;
   align: "left" | "center" | "right";
@@ -607,6 +607,7 @@ export default function Dashboard() {
   const spreadsheetImportInputRef = useRef<HTMLInputElement | null>(null);
   const spreadsheetSaveTimerRef = useRef<number | null>(null);
   const spreadsheetPresetAppliedRef = useRef(false);
+  const draggedSpreadsheetRowIdsRef = useRef<string[]>([]);
   const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
@@ -872,6 +873,19 @@ export default function Dashboard() {
     });
   };
 
+  const moveSpreadsheetRowBlock = (rowIds: string[], targetIndex: number) => {
+    if (rowIds.length === 0) return;
+    setSpreadsheetRows((current) => {
+      const selected = current.filter((row) => rowIds.includes(row.id));
+      if (selected.length === 0) return current;
+      const remaining = current.filter((row) => !rowIds.includes(row.id));
+      const adjustedTarget = Math.max(0, Math.min(remaining.length, targetIndex));
+      const next = [...remaining];
+      next.splice(adjustedTarget, 0, ...selected);
+      return next;
+    });
+  };
+
   const selectedSpreadsheetIndex = spreadsheetRows.findIndex((row) => row.id === selectedSpreadsheetCell?.rowId);
   const selectedSpreadsheetRow = selectedSpreadsheetIndex >= 0 ? spreadsheetRows[selectedSpreadsheetIndex] : null;
   const selectedSpreadsheetColumn = spreadsheetColumns.find((column) => column.id === selectedSpreadsheetCell?.columnId) ?? null;
@@ -982,6 +996,17 @@ export default function Dashboard() {
         fontSize: 14,
         textColor: "white",
       };
+      for (let index = 0; index < TRACKING_MASTER_HEADER_LABELS.length; index++) {
+        const columnId = SPREADSHEET_COLUMN_LETTERS[index]!;
+        next[`row-3:${columnId}`] = {
+          fill: "gray",
+          bold: true,
+          italic: false,
+          align: columnId === "G" ? "left" : "center",
+          fontSize: 11,
+          textColor: "default",
+        };
+      }
       next["row-1:H"] = {
         fill: "none",
         bold: true,
@@ -1230,6 +1255,17 @@ export default function Dashboard() {
       }
     }
     return cells;
+  };
+
+  const getSelectedSpreadsheetRowIds = () => {
+    const bounds = currentSpreadsheetBounds();
+    if (!bounds) return [] as string[];
+    const rowIds: string[] = [];
+    for (let r = bounds.top; r <= bounds.bottom; r++) {
+      const rowId = spreadsheetRows[r]?.id;
+      if (rowId) rowIds.push(rowId);
+    }
+    return rowIds;
   };
 
   const clearSelectedSpreadsheetCells = () => {
@@ -3572,7 +3608,7 @@ export default function Dashboard() {
                       <button
                         type="button"
                         onClick={() => setBorderMode("exit")}
-                        className={`min-h-[52px] border-l border-white/30 px-4 py-3 text-base font-bold transition-colors ${borderMode === "exit" ? "bg-blue-600 text-white" : "bg-blue-500 text-white/95 hover:bg-blue-600"}`}
+                        className={`min-h-[52px] border-l border-white/30 px-4 py-3 text-base font-bold transition-colors ${borderMode === "exit" ? "bg-blue-900 text-white" : "bg-blue-800 text-white/95 hover:bg-blue-900"}`}
                       >
                         Border exit
                       </button>
@@ -3783,7 +3819,7 @@ export default function Dashboard() {
                       <button
                         type="button"
                         onClick={() => setBorderMode("exit")}
-                        className={`min-h-[48px] border-l border-white/30 px-4 py-3 text-sm font-bold transition-colors ${borderMode === "exit" ? "bg-blue-600 text-white" : "bg-blue-500 text-white/95 hover:bg-blue-600"}`}
+                        className={`min-h-[48px] border-l border-white/30 px-4 py-3 text-sm font-bold transition-colors ${borderMode === "exit" ? "bg-blue-900 text-white" : "bg-blue-800 text-white/95 hover:bg-blue-900"}`}
                       >
                         Border exit
                       </button>
@@ -4261,6 +4297,9 @@ export default function Dashboard() {
                         { key: "yellow", label: "Yellow", className: "bg-amber-200" },
                         { key: "green", label: "Green", className: "bg-emerald-200" },
                         { key: "blue", label: "Blue", className: "bg-sky-200" },
+                        { key: "navy", label: "Navy", className: "bg-[#1F3864]" },
+                        { key: "gray", label: "Gray", className: "bg-[#D9E2F3]" },
+                        { key: "red", label: "Red", className: "bg-red-200" },
                       ] as const).map((fillOption) => (
                         <button
                           key={fillOption.key}
@@ -4273,6 +4312,30 @@ export default function Dashboard() {
                           {fillOption.label}
                         </button>
                       ))}
+                      <button
+                        type="button"
+                        onClick={() => setSpreadsheetCellStyle((current) => ({ ...current, textColor: current.textColor === "white" ? "default" : "white" }))}
+                        disabled={!selectedSpreadsheetCell}
+                        className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${selectedSpreadsheetStyle.textColor === "white" ? "border-primary bg-primary/10 text-primary" : "border-border bg-white text-secondary"}`}
+                      >
+                        White Text
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSpreadsheetCellStyle((current) => ({ ...current, fontSize: Math.max(9, Math.min(18, (current.fontSize ?? 11) - 1)) }))}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Font -
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSpreadsheetCellStyle((current) => ({ ...current, fontSize: Math.max(9, Math.min(18, (current.fontSize ?? 11) + 1)) }))}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Font +
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -4288,10 +4351,19 @@ export default function Dashboard() {
                         {spreadsheetColumns.map((column, index) => (
                           <th
                             key={`letter-${column.id}`}
-                            onClick={() => {
+                            onClick={(event) => {
+                              if (event.shiftKey && selectedSpreadsheetCell) {
+                                setSpreadsheetRangeSelection({
+                                  startRowId: spreadsheetRows[0]?.id ?? "row-1",
+                                  endRowId: spreadsheetRows[Math.max(0, spreadsheetRows.length - 1)]?.id ?? "row-1",
+                                  startColumnId: selectedSpreadsheetCell.columnId,
+                                  endColumnId: column.id,
+                                });
+                              } else {
+                                setSpreadsheetRangeSelection(null);
+                              }
                               setSelectedSpreadsheetCell({ rowId: selectedSpreadsheetCell?.rowId ?? "row-1", columnId: column.id });
                               setSpreadsheetSelectionMode("column");
-                              setSpreadsheetRangeSelection(null);
                             }}
                             onContextMenu={(event) => {
                               event.preventDefault();
@@ -4318,9 +4390,18 @@ export default function Dashboard() {
                               value={column.label || column.id}
                               onClick={(event) => {
                                 event.stopPropagation();
+                                if (event.shiftKey && selectedSpreadsheetCell) {
+                                  setSpreadsheetRangeSelection({
+                                    startRowId: spreadsheetRows[0]?.id ?? "row-1",
+                                    endRowId: spreadsheetRows[Math.max(0, spreadsheetRows.length - 1)]?.id ?? "row-1",
+                                    startColumnId: selectedSpreadsheetCell.columnId,
+                                    endColumnId: column.id,
+                                  });
+                                } else {
+                                  setSpreadsheetRangeSelection(null);
+                                }
                                 setSelectedSpreadsheetCell({ rowId: selectedSpreadsheetCell?.rowId ?? "row-1", columnId: column.id });
                                 setSpreadsheetSelectionMode("column");
-                                setSpreadsheetRangeSelection(null);
                               }}
                               onFocus={(event) => {
                                 event.stopPropagation();
@@ -4339,10 +4420,19 @@ export default function Dashboard() {
                       {spreadsheetRows.map((row, index) => (
                         <tr key={row.id} className="align-top" style={{ height: `${spreadsheetRowHeights[row.id] ?? 40}px` }}>
                           <td
-                            onClick={() => {
+                            onClick={(event) => {
+                              if (event.shiftKey && selectedSpreadsheetCell) {
+                                setSpreadsheetRangeSelection({
+                                  startRowId: selectedSpreadsheetCell.rowId,
+                                  endRowId: row.id,
+                                  startColumnId: spreadsheetColumns[0]?.id ?? "A",
+                                  endColumnId: spreadsheetColumns[Math.max(0, spreadsheetColumns.length - 1)]?.id ?? "A",
+                                });
+                              } else {
+                                setSpreadsheetRangeSelection(null);
+                              }
                               setSelectedSpreadsheetCell({ rowId: row.id, columnId: selectedSpreadsheetCell?.columnId ?? "A" });
                               setSpreadsheetSelectionMode("row");
-                              setSpreadsheetRangeSelection(null);
                             }}
                             onContextMenu={(event) => {
                               event.preventDefault();
@@ -4352,21 +4442,20 @@ export default function Dashboard() {
                             }}
                             className={`sticky left-0 z-20 cursor-pointer border border-border bg-white px-2 py-2 text-center text-xs font-semibold text-muted-foreground ${spreadsheetSelectionMode === "row" && selectedSpreadsheetCell?.rowId === row.id ? "bg-primary/10 text-primary" : ""}`}
                             draggable
-                            onDragStart={() => setDraggedSpreadsheetCell({ rowId: row.id, columnId: spreadsheetColumns[0]?.id ?? "" })}
+                            onDragStart={() => {
+                              const selectedRowIds = spreadsheetSelectionMode === "row" ? getSelectedSpreadsheetRowIds() : [];
+                              draggedSpreadsheetRowIdsRef.current = selectedRowIds.includes(row.id) ? selectedRowIds : [row.id];
+                              setDraggedSpreadsheetCell({ rowId: row.id, columnId: spreadsheetColumns[0]?.id ?? "" });
+                            }}
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={() => {
-                              if (draggedSpreadsheetCell?.rowId && draggedSpreadsheetCell.rowId !== row.id) {
-                                const fromIndex = spreadsheetRows.findIndex((item) => item.id === draggedSpreadsheetCell.rowId);
-                                const toIndex = index;
-                                if (fromIndex >= 0 && toIndex >= 0) {
-                                  const direction = fromIndex < toIndex ? 1 : -1;
-                                  let workingIndex = fromIndex;
-                                  while (workingIndex !== toIndex) {
-                                    moveSpreadsheetRow(workingIndex, direction);
-                                    workingIndex += direction;
-                                  }
-                                }
+                              const draggedRowIds = draggedSpreadsheetRowIdsRef.current;
+                              if (draggedRowIds.length > 0 && !draggedRowIds.includes(row.id)) {
+                                const targetIndex = spreadsheetRows.findIndex((item) => item.id === row.id);
+                                moveSpreadsheetRowBlock(draggedRowIds, targetIndex);
                               }
+                              draggedSpreadsheetRowIdsRef.current = [];
+                              setDraggedSpreadsheetCell(null);
                             }}
                           >
                             {index + 1}
@@ -4403,15 +4492,6 @@ export default function Dashboard() {
                                   setSpreadsheetContextMenu({ x: event.clientX, y: event.clientY, rowId: row.id, columnId: column.id });
                                 }}
                                 className={`border border-border px-1.5 py-1.5 ${fillClass} ${(isSelected || selectedByHeader || isCellInRangeSelection(row.id, column.id)) ? "outline outline-2 outline-primary/60" : ""}`}
-                                draggable
-                                onDragStart={() => setDraggedSpreadsheetCell({ rowId: row.id, columnId: column.id })}
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={() => {
-                                  if (draggedSpreadsheetCell) {
-                                    swapSpreadsheetCells(draggedSpreadsheetCell, { rowId: row.id, columnId: column.id });
-                                    setDraggedSpreadsheetCell(null);
-                                  }
-                                }}
                               >
                                 <input
                                   type="text"
