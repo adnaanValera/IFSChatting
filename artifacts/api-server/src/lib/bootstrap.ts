@@ -216,6 +216,15 @@ async function createTables() {
 
     CREATE UNIQUE INDEX IF NOT EXISTS border_entries_shipment_id_idx
       ON border_entries(shipment_id);
+
+    CREATE TABLE IF NOT EXISTS shared_spreadsheets (
+      id serial PRIMARY KEY,
+      sheet_key text NOT NULL UNIQUE,
+      content jsonb NOT NULL,
+      updated_by text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
   `);
 
   await pool.query(`

@@ -13,7 +13,7 @@ import {
   UploadCloud, Clock, CheckCircle2, AlertTriangle, Ship,
   Truck, Trash2, MessageSquare, ChevronDown, ChevronUp, Send, Mail, Home, History,
   Building2, Download, Search, ChevronRight,
-  Menu, X, UserCheck, UserX, Bell, Smartphone, ReceiptText, Check,
+  Menu, X, UserCheck, UserX, Bell, Smartphone, ReceiptText, Check, FolderOpen, Save, Import, FileDown,
 } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -585,6 +585,11 @@ export default function Dashboard() {
   const [spreadsheetCellStyles, setSpreadsheetCellStyles] = useState<Record<string, SpreadsheetCellStyle>>({});
   const [spreadsheetRowHeights, setSpreadsheetRowHeights] = useState<Record<string, number>>({});
   const [spreadsheetContextMenu, setSpreadsheetContextMenu] = useState<SpreadsheetContextMenuState>(null);
+  const [spreadsheetLoaded, setSpreadsheetLoaded] = useState(false);
+  const [spreadsheetSaving, setSpreadsheetSaving] = useState(false);
+  const [spreadsheetFileMenuOpen, setSpreadsheetFileMenuOpen] = useState(false);
+  const spreadsheetImportInputRef = useRef<HTMLInputElement | null>(null);
+  const spreadsheetSaveTimerRef = useRef<number | null>(null);
   const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
@@ -603,6 +608,28 @@ export default function Dashboard() {
   useEffect(() => {
     void loadSavedReports(true);
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "spreadsheet") {
+      void loadSpreadsheet(true);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!spreadsheetLoaded) return;
+    if (activeTab !== "spreadsheet") return;
+    if (spreadsheetSaveTimerRef.current) {
+      window.clearTimeout(spreadsheetSaveTimerRef.current);
+    }
+    spreadsheetSaveTimerRef.current = window.setTimeout(() => {
+      void saveSpreadsheetNow(true);
+    }, 700);
+    return () => {
+      if (spreadsheetSaveTimerRef.current) {
+        window.clearTimeout(spreadsheetSaveTimerRef.current);
+      }
+    };
+  }, [activeTab, spreadsheetLoaded, spreadsheetColumns, spreadsheetRows, spreadsheetMerges, spreadsheetCellStyles, spreadsheetRowHeights]);
 
   const loadPendingSignups = async () => {
     setPendingSignupsLoading(true);
@@ -859,6 +886,96 @@ export default function Dashboard() {
     setSpreadsheetColumns((current) => current.map((column) => (
       column.id === columnId ? { ...column, label: value } : column
     )));
+  };
+
+  const spreadsheetPayload = () => ({
+    columns: spreadsheetColumns,
+    rows: spreadsheetRows,
+    merges: spreadsheetMerges,
+    cellStyles: spreadsheetCellStyles,
+    rowHeights: spreadsheetRowHeights,
+  });
+
+  const loadSpreadsheet = async (silent = false) => {
+    try {
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/spreadsheet`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to load spreadsheet");
+      const payload = await res.json();
+      setSpreadsheetColumns(payload.columns ?? createSpreadsheetColumns());
+      setSpreadsheetRows(payload.rows ?? createSpreadsheetRows());
+      setSpreadsheetMerges(payload.merges ?? []);
+      setSpreadsheetCellStyles(payload.cellStyles ?? {});
+      setSpreadsheetRowHeights(payload.rowHeights ?? {});
+      setSpreadsheetLoaded(true);
+    } catch (err: any) {
+      if (!silent) {
+        toast({ variant: "destructive", title: "Spreadsheet failed", description: err.message });
+      }
+    }
+  };
+
+  const saveSpreadsheetNow = async (silent = false) => {
+    try {
+      setSpreadsheetSaving(true);
+      const token = localStorage.getItem("intf_token");
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/staff/spreadsheet`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(spreadsheetPayload()),
+      });
+      if (!res.ok) throw new Error("Failed to save spreadsheet");
+      setSpreadsheetLoaded(true);
+    } catch (err: any) {
+      if (!silent) {
+        toast({ variant: "destructive", title: "Save failed", description: err.message });
+      }
+    } finally {
+      setSpreadsheetSaving(false);
+    }
+  };
+
+  const importSpreadsheetFile = async (file: File) => {
+    const token = localStorage.getItem("intf_token");
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${base}/api/staff/spreadsheet/import`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!res.ok) throw new Error("Failed to import spreadsheet");
+    const payload = await res.json();
+    setSpreadsheetColumns(payload.columns ?? createSpreadsheetColumns());
+    setSpreadsheetRows(payload.rows ?? createSpreadsheetRows());
+    setSpreadsheetMerges(payload.merges ?? []);
+    setSpreadsheetCellStyles(payload.cellStyles ?? {});
+    setSpreadsheetRowHeights(payload.rowHeights ?? {});
+    setSpreadsheetLoaded(true);
+  };
+
+  const exportSpreadsheetFile = async () => {
+    const token = localStorage.getItem("intf_token");
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    const res = await fetch(`${base}/api/staff/spreadsheet/export`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("Failed to export spreadsheet");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `Tracking Master Shared.xlsx`;
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
   const getSpreadsheetRowIndex = (rowId: string) => spreadsheetRows.findIndex((row) => row.id === rowId);
@@ -3537,14 +3654,85 @@ export default function Dashboard() {
                     Sample editable sheet for Blantyre staff and admin. This version is table-style so it feels closer to the tracking master.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSpreadsheetRows((current) => [...current, createBlankSpreadsheetRow()])}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-primary/90"
-                >
-                  <FileSpreadsheet size={16} />
-                  Add Row
-                </button>
+                <div className="relative flex items-center gap-3">
+                  <div className="rounded-xl border border-border bg-white px-3 py-2 text-xs font-semibold text-muted-foreground">
+                    {spreadsheetSaving ? "Saving..." : "Auto-save on"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSpreadsheetFileMenuOpen((current) => !current)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-primary/90"
+                  >
+                    <FileSpreadsheet size={16} />
+                    File
+                  </button>
+                  {spreadsheetFileMenuOpen && (
+                    <div className="absolute right-0 top-12 z-40 min-w-[220px] overflow-hidden rounded-xl border border-border bg-white shadow-xl">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void loadSpreadsheet();
+                          setSpreadsheetFileMenuOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        <FolderOpen size={15} />
+                        Open
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void saveSpreadsheetNow();
+                          setSpreadsheetFileMenuOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        <Save size={15} />
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          spreadsheetImportInputRef.current?.click();
+                          setSpreadsheetFileMenuOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        <Import size={15} />
+                        Import Excel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void exportSpreadsheetFile();
+                          setSpreadsheetFileMenuOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        <FileDown size={15} />
+                        Export Excel
+                      </button>
+                    </div>
+                  )}
+                  <input
+                    ref={spreadsheetImportInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="hidden"
+                    onChange={async (event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        await importSpreadsheetFile(file);
+                        toast({ title: "Spreadsheet imported", description: "The shared sheet has been updated." });
+                      } catch (err: any) {
+                        toast({ variant: "destructive", title: "Import failed", description: err.message });
+                      } finally {
+                        event.currentTarget.value = "";
+                      }
+                    }}
+                  />
+                </div>
               </div>
 
               <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden">

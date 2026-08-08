@@ -34,10 +34,121 @@ const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 const templateStorage = multer.memoryStorage();
 const templateUpload = multer({ storage: templateStorage, limits: { fileSize: 10 * 1024 * 1024 } });
 const asycudaUpload = multer({ storage: templateStorage, limits: { fileSize: 20 * 1024 * 1024 } });
+const spreadsheetImportUpload = multer({ storage: templateStorage, limits: { fileSize: 20 * 1024 * 1024 } });
 
 const router = Router();
 const runtimeDir = path.dirname(fileURLToPath(import.meta.url));
 const REPORT_TITLE_IMAGE_PATH = path.resolve(runtimeDir, "assets", "interfreightsolutions-title.png");
+const SHARED_SPREADSHEET_KEY = "tracking_master_shared";
+
+type PersistedSpreadsheetPayload = {
+  columns: Array<{ id: string; label: string; width: string }>;
+  rows: Array<{ id: string; cells: Record<string, string> }>;
+  merges?: Array<{ rowId: string; columnId: string; span: number }>;
+  cellStyles?: Record<string, { fill: string; bold: boolean; align: string }>;
+  rowHeights?: Record<string, number>;
+};
+
+function createDefaultSpreadsheetPayload(): PersistedSpreadsheetPayload {
+  const columns = Array.from({ length: 26 }, (_, index) => {
+    const letter = String.fromCharCode(65 + index);
+    return { id: letter, label: letter, width: "120px" };
+  });
+  const rows = Array.from({ length: 300 }, (_, index) => ({
+    id: `row-${index + 1}`,
+    cells: Object.fromEntries(columns.map((column) => [column.id, ""] as const)),
+  }));
+
+  rows[0]!.cells["A"] = "Section";
+  rows[0]!.cells["B"] = "IFS Ref";
+  rows[0]!.cells["C"] = "MRA Ref";
+  rows[0]!.cells["D"] = "Shipper";
+  rows[0]!.cells["E"] = "Consignee";
+  rows[0]!.cells["F"] = "Invoice No.";
+  rows[0]!.cells["G"] = "Status";
+  rows[0]!.cells["H"] = "Notes";
+
+  return { columns, rows, merges: [], cellStyles: {}, rowHeights: {} };
+}
+
+async function loadSharedSpreadsheet(): Promise<PersistedSpreadsheetPayload> {
+  const result = await pool.query<{ content: PersistedSpreadsheetPayload }>(
+    "SELECT content FROM shared_spreadsheets WHERE sheet_key = $1 LIMIT 1",
+    [SHARED_SPREADSHEET_KEY],
+  );
+  return result.rows[0]?.content ?? createDefaultSpreadsheetPayload();
+}
+
+async function saveSharedSpreadsheet(content: PersistedSpreadsheetPayload, updatedBy: string) {
+  await pool.query(
+    `INSERT INTO shared_spreadsheets (sheet_key, content, updated_by, updated_at)
+     VALUES ($1, $2::jsonb, $3, now())
+     ON CONFLICT (sheet_key)
+     DO UPDATE SET content = EXCLUDED.content, updated_by = EXCLUDED.updated_by, updated_at = now()`,
+    [SHARED_SPREADSHEET_KEY, JSON.stringify(content), updatedBy],
+  );
+}
+
+async function spreadsheetPayloadToWorkbook(payload: PersistedSpreadsheetPayload): Promise<ExcelJS.Workbook> {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Tracking Master");
+  const columnWidths = payload.columns.map((column) => {
+    const widthPx = parseInt(String(column.width).replace("px", ""), 10) || 120;
+    return Math.max(10, Math.round(widthPx / 7));
+  });
+  ws.columns = payload.columns.map((column, index) => ({
+    key: column.id,
+    width: columnWidths[index],
+  }));
+
+  payload.rows.forEach((row, rowIndex) => {
+    const excelRow = ws.getRow(rowIndex + 1);
+    payload.columns.forEach((column, columnIndex) => {
+      const cell = excelRow.getCell(columnIndex + 1);
+      cell.value = row.cells[column.id] ?? "";
+      const style = payload.cellStyles?.[`${row.id}:${column.id}`];
+      if (style?.bold) cell.font = { ...(cell.font ?? {}), bold: true };
+      if (style?.align) cell.alignment = { ...(cell.alignment ?? {}), horizontal: style.align as "left" | "center" | "right" };
+      if (style?.fill && style.fill !== "none") {
+        const argb =
+          style.fill === "yellow" ? "FFFDE68A" :
+          style.fill === "green" ? "FFD1FAE5" :
+          style.fill === "blue" ? "FFDBEAFE" :
+          undefined;
+        if (argb) {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb } };
+        }
+      }
+    });
+    excelRow.height = (payload.rowHeights?.[row.id] ?? 40) * 0.75;
+  });
+
+  (payload.merges ?? []).forEach((merge) => {
+    const rowIndex = payload.rows.findIndex((row) => row.id === merge.rowId);
+    const columnIndex = payload.columns.findIndex((column) => column.id === merge.columnId);
+    if (rowIndex < 0 || columnIndex < 0 || merge.span <= 1) return;
+    ws.mergeCells(rowIndex + 1, columnIndex + 1, rowIndex + 1, columnIndex + merge.span);
+  });
+
+  return wb;
+}
+
+async function workbookToSpreadsheetPayload(workbook: ExcelJS.Workbook): Promise<PersistedSpreadsheetPayload> {
+  const ws = workbook.worksheets[0];
+  if (!ws) return createDefaultSpreadsheetPayload();
+  const base = createDefaultSpreadsheetPayload();
+  const columns = base.columns;
+  const rows = base.rows.map((row, rowIndex) => {
+    const excelRow = ws.getRow(rowIndex + 1);
+    const cells = { ...row.cells };
+    columns.forEach((column, columnIndex) => {
+      const value = excelRow.getCell(columnIndex + 1).text ?? "";
+      cells[column.id] = String(value ?? "");
+    });
+    return { ...row, cells };
+  });
+  return { columns, rows, merges: [], cellStyles: {}, rowHeights: {} };
+}
 
 function applyReportTitleImage(
   wb: ExcelJS.Workbook,
@@ -1967,6 +2078,78 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
   } catch (error: any) {
     logger.error({ err: error }, "Failed to save border entry");
     res.status(500).json({ error: error?.message || "Failed to save border entry" });
+  }
+});
+
+router.get("/staff/spreadsheet", requireAuth, requireStaff, async (_req, res) => {
+  try {
+    const payload = await loadSharedSpreadsheet();
+    res.json(payload);
+  } catch (error: any) {
+    logger.error({ err: error }, "Failed to load shared spreadsheet");
+    res.status(500).json({ error: error?.message || "Failed to load shared spreadsheet" });
+  }
+});
+
+router.put("/staff/spreadsheet", requireAuth, requireStaff, async (req, res) => {
+  try {
+    const authReq = req as typeof req & { user: { email: string } };
+    const payload = req.body as PersistedSpreadsheetPayload;
+    if (!payload || !Array.isArray(payload.columns) || !Array.isArray(payload.rows)) {
+      res.status(400).json({ error: "Invalid spreadsheet payload" });
+      return;
+    }
+    await saveSharedSpreadsheet(payload, authReq.user.email);
+    res.status(204).end();
+  } catch (error: any) {
+    logger.error({ err: error }, "Failed to save shared spreadsheet");
+    res.status(500).json({ error: error?.message || "Failed to save shared spreadsheet" });
+  }
+});
+
+router.post("/staff/spreadsheet/import", requireAuth, requireStaff, spreadsheetImportUpload.single("file"), async (req, res) => {
+  try {
+    const authReq = req as typeof req & { user: { email: string } };
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: "No spreadsheet file uploaded" });
+      return;
+    }
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(file.buffer);
+    const payload = await workbookToSpreadsheetPayload(wb);
+    await saveSharedSpreadsheet(payload, authReq.user.email);
+    res.json(payload);
+  } catch (error: any) {
+    logger.error({ err: error }, "Failed to import shared spreadsheet");
+    res.status(500).json({ error: error?.message || "Failed to import shared spreadsheet" });
+  }
+});
+
+router.get("/staff/spreadsheet/export", requireAuth, requireStaff, async (_req, res) => {
+  try {
+    const payload = await loadSharedSpreadsheet();
+    const wb = await spreadsheetPayloadToWorkbook(payload);
+    const buffer = Buffer.from(await wb.xlsx.writeBuffer());
+    const filename = `Tracking Master Shared (${todayString()}).xlsx`;
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", contentDispositionFilename(filename));
+    res.send(buffer);
+  } catch (error: any) {
+    logger.error({ err: error }, "Failed to export shared spreadsheet");
+    res.status(500).json({ error: error?.message || "Failed to export shared spreadsheet" });
+  }
+});
+
+router.post("/staff/spreadsheet/reset", requireAuth, requireStaff, async (req, res) => {
+  try {
+    const authReq = req as typeof req & { user: { email: string } };
+    const payload = createDefaultSpreadsheetPayload();
+    await saveSharedSpreadsheet(payload, authReq.user.email);
+    res.json(payload);
+  } catch (error: any) {
+    logger.error({ err: error }, "Failed to reset shared spreadsheet");
+    res.status(500).json({ error: error?.message || "Failed to reset shared spreadsheet" });
   }
 });
 
