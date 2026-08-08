@@ -159,12 +159,14 @@ type SpreadsheetSelection = {
 type SpreadsheetMerge = {
   rowId: string;
   columnId: string;
-  span: number;
+  rowSpan: number;
+  colSpan: number;
 };
 
 type SpreadsheetCellStyle = {
   fill: "none" | "yellow" | "green" | "blue";
   bold: boolean;
+  italic: boolean;
   align: "left" | "center" | "right";
 };
 
@@ -188,7 +190,7 @@ const BORDER_ONLY_STATIONS = new Set(["Mwanza", "Dedza", "Songwe", "Liwonde", "K
 const normalizeBorderStation = (value: string) =>
   value.toLowerCase().replace(/\bborder\b/g, " ").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
 const SPREADSHEET_COLUMN_LETTERS = Array.from({ length: 26 }, (_, index) => String.fromCharCode(65 + index));
-const DEFAULT_SPREADSHEET_CELL_STYLE: SpreadsheetCellStyle = { fill: "none", bold: false, align: "left" };
+const DEFAULT_SPREADSHEET_CELL_STYLE: SpreadsheetCellStyle = { fill: "none", bold: false, italic: false, align: "left" };
 
 const createSpreadsheetColumns = (): SpreadsheetColumn[] =>
   SPREADSHEET_COLUMN_LETTERS.map((letter) => ({ id: letter, label: letter, width: "120px" }));
@@ -850,12 +852,16 @@ export default function Dashboard() {
   const selectedSpreadsheetStyle = selectedSpreadsheetCell ? spreadsheetCellStyles[`${selectedSpreadsheetCell.rowId}:${selectedSpreadsheetCell.columnId}`] ?? DEFAULT_SPREADSHEET_CELL_STYLE : DEFAULT_SPREADSHEET_CELL_STYLE;
 
   const setSpreadsheetCellStyle = (updater: (current: SpreadsheetCellStyle) => SpreadsheetCellStyle) => {
-    if (!selectedSpreadsheetCell) return;
-    const key = `${selectedSpreadsheetCell.rowId}:${selectedSpreadsheetCell.columnId}`;
-    setSpreadsheetCellStyles((current) => ({
-      ...current,
-      [key]: updater(current[key] ?? DEFAULT_SPREADSHEET_CELL_STYLE),
-    }));
+    const selectedCells = getSelectedSpreadsheetCells();
+    if (selectedCells.length === 0) return;
+    setSpreadsheetCellStyles((current) => {
+      const next = { ...current };
+      selectedCells.forEach(({ rowId, columnId }) => {
+        const key = `${rowId}:${columnId}`;
+        next[key] = updater(current[key] ?? DEFAULT_SPREADSHEET_CELL_STYLE);
+      });
+      return next;
+    });
   };
 
   const autoFitColumns = (targetColumnId?: string) => {
@@ -1074,15 +1080,15 @@ export default function Dashboard() {
     }
     const bounds = getRangeBounds(spreadsheetRangeSelection);
     if (bounds.left < 0 || bounds.right < 0 || bounds.top < 0 || bounds.bottom < 0) return;
-    if (bounds.top !== bounds.bottom) return;
     const rowId = spreadsheetRows[bounds.top]?.id;
     const columnId = spreadsheetColumns[bounds.left]?.id;
     if (!rowId || !columnId) return;
-    const span = bounds.right - bounds.left + 1;
-    if (span <= 1) return;
+    const rowSpan = bounds.bottom - bounds.top + 1;
+    const colSpan = bounds.right - bounds.left + 1;
+    if (rowSpan <= 1 && colSpan <= 1) return;
     setSpreadsheetMerges((current) => {
       const filtered = current.filter((merge) => !(merge.rowId === rowId && merge.columnId === columnId));
-      return [...filtered, { rowId, columnId, span }];
+      return [...filtered, { rowId, columnId, rowSpan, colSpan }];
     });
   };
 
@@ -1233,7 +1239,7 @@ export default function Dashboard() {
     if (columnIndex < 0 || columnIndex >= spreadsheetColumns.length - 1) return;
     setSpreadsheetMerges((current) => {
       const filtered = current.filter((merge) => !(merge.rowId === selectedSpreadsheetCell.rowId && merge.columnId === selectedSpreadsheetCell.columnId));
-      return [...filtered, { rowId: selectedSpreadsheetCell.rowId, columnId: selectedSpreadsheetCell.columnId, span: 2 }];
+      return [...filtered, { rowId: selectedSpreadsheetCell.rowId, columnId: selectedSpreadsheetCell.columnId, rowSpan: 1, colSpan: 2 }];
     });
   };
 
@@ -1244,14 +1250,19 @@ export default function Dashboard() {
 
   const isMergedAwayCell = (rowId: string, columnIndex: number) => {
     return spreadsheetMerges.some((merge) => {
-      if (merge.rowId !== rowId) return false;
-      const startIndex = spreadsheetColumns.findIndex((column) => column.id === merge.columnId);
-      return startIndex >= 0 && columnIndex > startIndex && columnIndex < startIndex + merge.span;
+      const startRowIndex = getSpreadsheetRowIndex(merge.rowId);
+      const startColIndex = spreadsheetColumns.findIndex((column) => column.id === merge.columnId);
+      const currentRowIndex = getSpreadsheetRowIndex(rowId);
+      const withinRows = startRowIndex >= 0 && currentRowIndex >= startRowIndex && currentRowIndex < startRowIndex + merge.rowSpan;
+      const withinCols = startColIndex >= 0 && columnIndex >= startColIndex && columnIndex < startColIndex + merge.colSpan;
+      const isAnchor = merge.rowId === rowId && columnIndex === startColIndex;
+      return withinRows && withinCols && !isAnchor;
     });
   };
 
   const getMergeSpan = (rowId: string, columnId: string) => {
-    return spreadsheetMerges.find((merge) => merge.rowId === rowId && merge.columnId === columnId)?.span ?? 1;
+    const merge = spreadsheetMerges.find((item) => item.rowId === rowId && item.columnId === columnId);
+    return merge ? { rowSpan: merge.rowSpan, colSpan: merge.colSpan } : { rowSpan: 1, colSpan: 1 };
   };
 
   const swapSpreadsheetCells = (from: SpreadsheetSelection, to: SpreadsheetSelection) => {
@@ -4113,6 +4124,14 @@ export default function Dashboard() {
                       >
                         Bold
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setSpreadsheetCellStyle((current) => ({ ...current, italic: !current.italic }))}
+                        disabled={!selectedSpreadsheetCell}
+                        className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${selectedSpreadsheetStyle.italic ? "border-primary bg-primary/10 text-primary" : "border-border bg-white text-secondary"}`}
+                      >
+                        Italic
+                      </button>
                       {([
                         { key: "left", label: "Left" },
                         { key: "center", label: "Center" },
@@ -4244,7 +4263,7 @@ export default function Dashboard() {
                           </td>
                           {spreadsheetColumns.map((column, columnIndex) => {
                             if (isMergedAwayCell(row.id, columnIndex)) return null;
-                            const colSpan = getMergeSpan(row.id, column.id);
+                            const mergeSpan = getMergeSpan(row.id, column.id);
                             const isSelected = selectedSpreadsheetCell?.rowId === row.id && selectedSpreadsheetCell?.columnId === column.id;
                             const styleKey = `${row.id}:${column.id}`;
                             const cellStyle = spreadsheetCellStyles[styleKey] ?? DEFAULT_SPREADSHEET_CELL_STYLE;
@@ -4262,7 +4281,8 @@ export default function Dashboard() {
                             return (
                               <td
                                 key={`${row.id}-${column.id}`}
-                                colSpan={colSpan}
+                                colSpan={mergeSpan.colSpan}
+                                rowSpan={mergeSpan.rowSpan}
                                 style={{ width: column.width, minWidth: column.width }}
                                 onContextMenu={(event) => {
                                   event.preventDefault();
@@ -4326,7 +4346,7 @@ export default function Dashboard() {
                                     }
                                   }}
                                   onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
-                                  className={`w-full rounded-md border border-transparent bg-transparent px-2 py-2 text-sm text-secondary outline-none focus:border-primary focus:bg-white ${textAlignClass} ${cellStyle.bold ? "font-bold" : ""}`}
+                                  className={`w-full rounded-md border border-transparent bg-transparent px-2 py-2 text-sm text-secondary outline-none focus:border-primary focus:bg-white ${textAlignClass} ${cellStyle.bold ? "font-bold" : ""} ${cellStyle.italic ? "italic" : ""}`}
                                 />
                               </td>
                             );

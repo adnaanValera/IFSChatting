@@ -44,8 +44,8 @@ const SHARED_SPREADSHEET_KEY = "tracking_master_shared";
 type PersistedSpreadsheetPayload = {
   columns: Array<{ id: string; label: string; width: string }>;
   rows: Array<{ id: string; cells: Record<string, string> }>;
-  merges?: Array<{ rowId: string; columnId: string; span: number }>;
-  cellStyles?: Record<string, { fill: string; bold: boolean; align: string }>;
+  merges?: Array<{ rowId: string; columnId: string; rowSpan: number; colSpan: number }>;
+  cellStyles?: Record<string, { fill: string; bold: boolean; italic: boolean; align: string }>;
   rowHeights?: Record<string, number>;
 };
 
@@ -108,6 +108,7 @@ async function spreadsheetPayloadToWorkbook(payload: PersistedSpreadsheetPayload
       cell.value = row.cells[column.id] ?? "";
       const style = payload.cellStyles?.[`${row.id}:${column.id}`];
       if (style?.bold) cell.font = { ...(cell.font ?? {}), bold: true };
+      if (style?.italic) cell.font = { ...(cell.font ?? {}), italic: true };
       if (style?.align) cell.alignment = { ...(cell.alignment ?? {}), horizontal: style.align as "left" | "center" | "right" };
       if (style?.fill && style.fill !== "none") {
         const argb =
@@ -126,8 +127,8 @@ async function spreadsheetPayloadToWorkbook(payload: PersistedSpreadsheetPayload
   (payload.merges ?? []).forEach((merge) => {
     const rowIndex = payload.rows.findIndex((row) => row.id === merge.rowId);
     const columnIndex = payload.columns.findIndex((column) => column.id === merge.columnId);
-    if (rowIndex < 0 || columnIndex < 0 || merge.span <= 1) return;
-    ws.mergeCells(rowIndex + 1, columnIndex + 1, rowIndex + 1, columnIndex + merge.span);
+    if (rowIndex < 0 || columnIndex < 0 || merge.colSpan <= 1 && merge.rowSpan <= 1) return;
+    ws.mergeCells(rowIndex + 1, columnIndex + 1, rowIndex + merge.rowSpan, columnIndex + merge.colSpan);
   });
 
   return wb;
@@ -137,17 +138,61 @@ async function workbookToSpreadsheetPayload(workbook: ExcelJS.Workbook): Promise
   const ws = workbook.worksheets[0];
   if (!ws) return createDefaultSpreadsheetPayload();
   const base = createDefaultSpreadsheetPayload();
-  const columns = base.columns;
+  const columns = base.columns.map((column, index) => {
+    const excelWidth = ws.getColumn(index + 1).width;
+    const widthPx = excelWidth ? `${Math.max(80, Math.round(excelWidth * 7))}px` : column.width;
+    return { ...column, width: widthPx };
+  });
+  const cellStyles: PersistedSpreadsheetPayload["cellStyles"] = {};
+  const rowHeights: Record<string, number> = {};
   const rows = base.rows.map((row, rowIndex) => {
     const excelRow = ws.getRow(rowIndex + 1);
     const cells = { ...row.cells };
+    if (excelRow.height) {
+      rowHeights[row.id] = Math.max(30, Math.round(excelRow.height / 0.75));
+    }
     columns.forEach((column, columnIndex) => {
-      const value = excelRow.getCell(columnIndex + 1).text ?? "";
+      const excelCell = excelRow.getCell(columnIndex + 1);
+      const value = excelCell.text ?? "";
       cells[column.id] = String(value ?? "");
+      const fillArgb = excelCell.fill && "fgColor" in excelCell.fill ? (excelCell.fill as any).fgColor?.argb as string | undefined : undefined;
+      const fill =
+        fillArgb?.includes("FDE68A") ? "yellow" :
+        fillArgb?.includes("D1FAE5") ? "green" :
+        fillArgb?.includes("DBEAFE") ? "blue" :
+        "none";
+      const bold = !!excelCell.font?.bold;
+      const italic = !!excelCell.font?.italic;
+      const align = (excelCell.alignment?.horizontal as "left" | "center" | "right" | undefined) ?? "left";
+      if (fill !== "none" || bold || italic || align !== "left") {
+        cellStyles[`${row.id}:${column.id}`] = { fill, bold, italic, align };
+      }
     });
     return { ...row, cells };
   });
-  return { columns, rows, merges: [], cellStyles: {}, rowHeights: {} };
+  const merges: NonNullable<PersistedSpreadsheetPayload["merges"]> = [];
+  const mergeRefs = (ws.model.merges ?? []) as string[];
+  const mergeRegex = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/;
+  const colToIndex = (letters: string) => letters.split("").reduce((sum, ch) => sum * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+  for (const ref of mergeRefs) {
+    const match = mergeRegex.exec(ref);
+    if (!match) continue;
+    const [, startColLetters, startRowRaw, endColLetters, endRowRaw] = match;
+    const startRowIndex = Number(startRowRaw) - 1;
+    const endRowIndex = Number(endRowRaw) - 1;
+    const startColIndex = colToIndex(startColLetters);
+    const endColIndex = colToIndex(endColLetters);
+    const rowId = rows[startRowIndex]?.id;
+    const columnId = columns[startColIndex]?.id;
+    if (!rowId || !columnId) continue;
+    merges.push({
+      rowId,
+      columnId,
+      rowSpan: Math.max(1, endRowIndex - startRowIndex + 1),
+      colSpan: Math.max(1, endColIndex - startColIndex + 1),
+    });
+  }
+  return { columns, rows, merges, cellStyles, rowHeights };
 }
 
 function applyReportTitleImage(
