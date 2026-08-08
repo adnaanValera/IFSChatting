@@ -187,6 +187,7 @@ type SpreadsheetContextMenuState = {
 const STAFF_STATIONS = ["Blantyre", "Lilongwe", "Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"] as const;
 const READ_ONLY_BORDER_STATIONS = new Set(["Blantyre", "Lilongwe"]);
 const BORDER_ONLY_STATIONS = new Set(["Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"]);
+const BORDER_STATIONS_WITHOUT_DRIVER_PHONE = new Set(["Liwonde", "KIA", "Chileka"]);
 const normalizeBorderStation = (value: string) =>
   value.toLowerCase().replace(/\bborder\b/g, " ").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
 const SPREADSHEET_COLUMN_LETTERS = Array.from({ length: 26 }, (_, index) => String.fromCharCode(65 + index));
@@ -791,6 +792,7 @@ export default function Dashboard() {
   const borderReadOnlyStaff = isStaff && READ_ONLY_BORDER_STATIONS.has(staffStation);
   const borderReadOnlyViewer = isAdmin || borderReadOnlyStaff;
   const canUseSpreadsheetSample = isAdmin || (isStaff && staffStation === "Blantyre");
+  const stationRequiresDriverPhone = !BORDER_STATIONS_WITHOUT_DRIVER_PHONE.has(staffStation);
 
   const spreadsheetGridColumns = ["64px", ...spreadsheetColumns.map((column) => column.width)].join(" ");
 
@@ -1713,10 +1715,11 @@ export default function Dashboard() {
           ? {
               ...item,
               arrivalConfirmed: mode === "arrival" ? true : mode === "correction" ? !!row.arrivedAtBorder : item.arrivalConfirmed,
-              finalConfirmed: mode === "final" ? true : mode === "correction" ? !!row.arrivedAtBorder && !!row.releasedFromBorder && !!row.driverPhone && (!!row.sdoChecked || !!row.releaseOrderChecked) : item.finalConfirmed,
+              finalConfirmed: mode === "final" ? true : mode === "correction" ? !!row.arrivedAtBorder && !!row.releasedFromBorder && (!stationRequiresDriverPhone || !!row.driverPhone) && (!!row.sdoChecked || !!row.releaseOrderChecked) : item.finalConfirmed,
             }
           : item
       )));
+      await loadBorderEntries(true);
       if (mode === "final" && expandedBorderCard === row.shipmentId) {
         setExpandedBorderCard(null);
       }
@@ -1758,12 +1761,18 @@ export default function Dashboard() {
       row.shipmentId === shipmentId
         ? {
             ...row,
-            [field]:
-              typeof value === "boolean"
-                ? value
-                : field === "driverPhone"
-                ? normalizePhoneLikeInput(value)
-                : normalizeDateLikeInput(value) || "",
+            ...(field === "sdoChecked" && value === true
+              ? { sdoChecked: true, releaseOrderChecked: false }
+              : field === "releaseOrderChecked" && value === true
+              ? { sdoChecked: false, releaseOrderChecked: true }
+              : {
+                  [field]:
+                    typeof value === "boolean"
+                      ? value
+                      : field === "driverPhone"
+                      ? normalizePhoneLikeInput(value)
+                      : normalizeDateLikeInput(value) || "",
+                }),
           }
         : row
     )));
@@ -3507,7 +3516,7 @@ export default function Dashboard() {
                           const isExpanded = expandedBorderCard === row.shipmentId;
                           const isSaving = !!borderSavingByShipment[row.shipmentId];
                           const isExitCard = borderMode === "exit" || row.finalConfirmed;
-                          const canConfirmFinal = !isExitCard && row.arrivalConfirmed && (row.sdoChecked || row.releaseOrderChecked) && !!row.releasedFromBorder && !!row.driverPhone;
+                          const canConfirmFinal = !isExitCard && row.arrivalConfirmed && (row.sdoChecked || row.releaseOrderChecked) && !!row.releasedFromBorder && (!stationRequiresDriverPhone || !!row.driverPhone);
                           return (
                             <div key={row.shipmentId} className="w-full min-w-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
                               <button
@@ -3520,8 +3529,8 @@ export default function Dashboard() {
                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                                       <span className="min-w-0 break-words font-extrabold text-secondary max-w-full sm:max-w-[180px]">{row.consignee || "N/A"}</span>
                                       <span className="min-w-0 break-words text-muted-foreground max-w-full sm:max-w-[160px]">MRA: {row.mraRef || "N/A"}</span>
-                                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${row.arrivalConfirmed ? "bg-amber-100 text-amber-800" : "bg-primary/10 text-primary"}`}>
-                                        {isExitCard ? "Completed" : row.arrivalConfirmed ? "Awaiting final" : "Arrival pending"}
+                                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${isExitCard ? "bg-blue-100 text-blue-800" : row.arrivalConfirmed ? "bg-amber-100 text-amber-800" : "bg-primary/10 text-primary"}`}>
+                                        {isExitCard ? "Released" : row.arrivalConfirmed ? "Awaiting final" : "Arrival pending"}
                                       </span>
                                     </div>
                                   </div>
@@ -3550,10 +3559,12 @@ export default function Dashboard() {
                                           <span className={`rounded-lg px-3 py-2 text-sm font-semibold ${row.releaseOrderChecked ? "bg-green-600 text-white" : "bg-muted text-muted-foreground"}`}>Release Order</span>
                                         </div>
                                       </div>
-                                      <div>
+                                      {stationRequiresDriverPhone && (
+                                        <div>
                                         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Driver's Phone Number</p>
                                         <div className="w-full rounded-lg border border-input bg-muted/40 px-3 py-2 text-sm text-secondary">{row.driverPhone || "N/A"}</div>
-                                      </div>
+                                        </div>
+                                      )}
                                       <div className="sm:col-span-2 text-xs text-muted-foreground">
                                         {row.updatedAt ? `Last saved ${formatDate(row.updatedAt)}` : "Completed border exit"}
                                       </div>
@@ -3632,7 +3643,8 @@ export default function Dashboard() {
                                         className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${row.arrivalConfirmed ? "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20" : "bg-muted/30 cursor-not-allowed"}`}
                                       />
                                     </div>
-                                    <div>
+                                    {stationRequiresDriverPhone && (
+                                      <div>
                                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Driver's Phone Number</p>
                                       <input
                                         type="text"
@@ -3645,7 +3657,8 @@ export default function Dashboard() {
                                         disabled={!row.arrivalConfirmed}
                                         className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${row.arrivalConfirmed ? "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20" : "bg-muted/30 cursor-not-allowed"}`}
                                       />
-                                    </div>
+                                      </div>
+                                    )}
                                   </div>
 
                                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -3693,10 +3706,10 @@ export default function Dashboard() {
 
                   <div className="max-h-[70vh] overflow-auto rounded-2xl border border-border">
                     <table className="w-full table-auto text-sm">
-                      <thead className="bg-muted/30 border-b border-border">
+                      <thead className="border-b border-border">
                         <tr>
                           {["IFS Ref", "MRA Ref", "Shipper", "Consignee", "Invoice No.", "Arrived at Border", "SDO", "Release Order", "Released from Border", "Driver Phone", ""].map((label) => (
-                            <th key={label} className="px-3 py-3 text-left font-semibold text-secondary whitespace-nowrap">
+                            <th key={label} className="sticky top-0 z-20 bg-muted/40 px-3 py-3 text-left font-semibold text-secondary whitespace-nowrap">
                               {label}
                             </th>
                           ))}
@@ -3706,7 +3719,7 @@ export default function Dashboard() {
                         {borderEntries.filter((row) => (borderMode === "entry" ? !row.finalConfirmed : row.finalConfirmed)).map((row) => {
                           const isEditing = editingBorderShipmentId === row.shipmentId;
                           return (
-                          <tr key={row.shipmentId} className={`border-b border-border/70 transition-colors align-top ${row.arrivalConfirmed ? "bg-amber-300/95" : "bg-white"}`}>
+                          <tr key={row.shipmentId} className={`border-b border-border/70 transition-colors align-top ${borderMode === "exit" || row.finalConfirmed ? "bg-blue-100/95" : row.arrivalConfirmed ? "bg-amber-300/95" : "bg-white"}`}>
                             <td className="px-3 py-3 font-semibold text-secondary whitespace-nowrap">{row.ifsRef}</td>
                             <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{row.mraRef}</td>
                             <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{row.shipper}</td>
@@ -3731,12 +3744,12 @@ export default function Dashboard() {
                                 <button
                                   type="button"
                                   onClick={() => updateBorderEntryDraftField(row.shipmentId, "sdoChecked", !row.sdoChecked)}
-                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${row.sdoChecked ? "bg-red-600 text-white" : "bg-muted text-muted-foreground"}`}
+                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${row.sdoChecked ? "bg-red-600 text-white" : "bg-red-500 text-white/90"}`}
                                 >
                                   SDO
                                 </button>
                               ) : (
-                                <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${row.sdoChecked ? "bg-green-700 text-white shadow-sm" : "bg-muted text-muted-foreground"}`}>
+                                <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${row.sdoChecked ? "bg-red-600 text-white shadow-sm" : "bg-muted text-muted-foreground"}`}>
                                   {row.sdoChecked ? <Check size={16} strokeWidth={3} /> : "-"}
                                 </span>
                               )}
@@ -3746,7 +3759,7 @@ export default function Dashboard() {
                                 <button
                                   type="button"
                                   onClick={() => updateBorderEntryDraftField(row.shipmentId, "releaseOrderChecked", !row.releaseOrderChecked)}
-                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${row.releaseOrderChecked ? "bg-green-600 text-white" : "bg-muted text-muted-foreground"}`}
+                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${row.releaseOrderChecked ? "bg-green-600 text-white" : "bg-green-500 text-white/90"}`}
                                 >
                                   RO
                                 </button>
@@ -3771,18 +3784,22 @@ export default function Dashboard() {
                               />
                             </td>
                             <td className="px-3 py-3">
-                              <input
-                                type="text"
-                                value={row.driverPhone ?? ""}
-                                onChange={(e) => updateBorderEntryField(row.shipmentId, "driverPhone", e.target.value)}
-                                placeholder="265..."
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                maxLength={15}
-                                readOnly={borderReadOnlyViewer && !isEditing}
-                                disabled={borderReadOnlyViewer && !isEditing}
-                                className={`w-full min-w-[120px] rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer && !isEditing ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
-                              />
+                              {stationRequiresDriverPhone ? (
+                                <input
+                                  type="text"
+                                  value={row.driverPhone ?? ""}
+                                  onChange={(e) => updateBorderEntryField(row.shipmentId, "driverPhone", e.target.value)}
+                                  placeholder="265..."
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  maxLength={15}
+                                  readOnly={borderReadOnlyViewer && !isEditing}
+                                  disabled={borderReadOnlyViewer && !isEditing}
+                                  className={`w-full min-w-[120px] rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer && !isEditing ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
+                                />
+                              ) : (
+                                <div className="px-1 py-2 text-sm text-muted-foreground">N/A</div>
+                              )}
                             </td>
                             <td className="px-3 py-3 whitespace-nowrap text-xs text-muted-foreground">
                               {borderReadOnlyViewer ? (
@@ -4175,7 +4192,7 @@ export default function Dashboard() {
                   <table className="min-w-[2400px] w-full border-collapse text-sm">
                     <thead>
                       <tr className="bg-white">
-                        <th className="border border-border px-3 py-2 text-center text-[11px] font-bold text-muted-foreground">#</th>
+                        <th className="sticky left-0 top-0 z-40 border border-border bg-white px-3 py-2 text-center text-[11px] font-bold text-muted-foreground">#</th>
                         {spreadsheetColumns.map((column, index) => (
                           <th
                             key={`letter-${column.id}`}
@@ -4190,19 +4207,19 @@ export default function Dashboard() {
                               setSpreadsheetSelectionMode("column");
                               setSpreadsheetContextMenu({ x: event.clientX, y: event.clientY, rowId: selectedSpreadsheetCell?.rowId ?? "row-1", columnId: column.id });
                             }}
-                            className={`cursor-pointer border border-border px-3 py-2 text-center text-[11px] font-bold text-muted-foreground ${spreadsheetSelectionMode === "column" && selectedSpreadsheetCell?.columnId === column.id ? "bg-primary/10 text-primary" : ""}`}
+                            className={`sticky top-0 z-30 cursor-pointer border border-border bg-white px-3 py-2 text-center text-[11px] font-bold text-muted-foreground ${spreadsheetSelectionMode === "column" && selectedSpreadsheetCell?.columnId === column.id ? "bg-primary/10 text-primary" : ""}`}
                           >
                             {spreadsheetColumnLabel(index)}
                           </th>
                         ))}
                       </tr>
                       <tr className="bg-muted/30">
-                        <th className="border border-border px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Row</th>
+                        <th className="sticky left-0 top-[37px] z-40 border border-border bg-muted/30 px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Row</th>
                         {spreadsheetColumns.map((column) => (
                           <th
                             key={column.id}
                             style={{ width: column.width, minWidth: column.width }}
-                            className={`border border-border px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide whitespace-nowrap text-muted-foreground ${spreadsheetSelectionMode === "column" && selectedSpreadsheetCell?.columnId === column.id ? "bg-primary/10" : ""}`}
+                            className={`sticky top-[37px] z-30 border border-border bg-muted/30 px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide whitespace-nowrap text-muted-foreground ${spreadsheetSelectionMode === "column" && selectedSpreadsheetCell?.columnId === column.id ? "bg-primary/10" : ""}`}
                           >
                             <input
                               type="text"
@@ -4219,7 +4236,7 @@ export default function Dashboard() {
                                 setSpreadsheetSelectionMode("column");
                               }}
                               onChange={(e) => updateSpreadsheetHeader(column.id, e.target.value)}
-                              className="w-full rounded border border-transparent bg-white px-2 py-1 text-[11px] font-bold tracking-wide text-secondary outline-none focus:border-primary"
+                              className="w-full rounded border border-transparent bg-white px-2 py-1 text-[11px] font-bold tracking-wide text-secondary outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                             />
                           </th>
                         ))}
@@ -4240,7 +4257,7 @@ export default function Dashboard() {
                               setSpreadsheetSelectionMode("row");
                               setSpreadsheetContextMenu({ x: event.clientX, y: event.clientY, rowId: row.id, columnId: selectedSpreadsheetCell?.columnId ?? "A" });
                             }}
-                            className={`cursor-pointer border border-border px-2 py-2 text-center text-xs font-semibold text-muted-foreground ${spreadsheetSelectionMode === "row" && selectedSpreadsheetCell?.rowId === row.id ? "bg-primary/10 text-primary" : ""}`}
+                            className={`sticky left-0 z-20 cursor-pointer border border-border bg-white px-2 py-2 text-center text-xs font-semibold text-muted-foreground ${spreadsheetSelectionMode === "row" && selectedSpreadsheetCell?.rowId === row.id ? "bg-primary/10 text-primary" : ""}`}
                             draggable
                             onDragStart={() => setDraggedSpreadsheetCell({ rowId: row.id, columnId: spreadsheetColumns[0]?.id ?? "" })}
                             onDragOver={(e) => e.preventDefault()}

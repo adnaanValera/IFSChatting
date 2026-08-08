@@ -40,6 +40,7 @@ const router = Router();
 const runtimeDir = path.dirname(fileURLToPath(import.meta.url));
 const REPORT_TITLE_IMAGE_PATH = path.resolve(runtimeDir, "assets", "interfreightsolutions-title.png");
 const SHARED_SPREADSHEET_KEY = "tracking_master_shared";
+const BORDER_STATIONS_WITHOUT_DRIVER_PHONE = new Set(["Liwonde", "KIA", "Chileka"]);
 
 type PersistedSpreadsheetPayload = {
   columns: Array<{ id: string; label: string; width: string }>;
@@ -1951,10 +1952,15 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
     }
 
     const arrivedAtBorder = typeof req.body?.arrivedAtBorder === "string" ? req.body.arrivedAtBorder.trim() : "";
-    const sdoChecked = req.body?.sdoChecked === true;
-    const releaseOrderChecked = req.body?.releaseOrderChecked === true;
+    let sdoChecked = req.body?.sdoChecked === true;
+    let releaseOrderChecked = req.body?.releaseOrderChecked === true;
     const releasedFromBorder = typeof req.body?.releasedFromBorder === "string" ? req.body.releasedFromBorder.trim() : "";
     const driverPhone = typeof req.body?.driverPhone === "string" ? req.body.driverPhone.replace(/\D/g, "").slice(0, 15) : "";
+    const requiresDriverPhone = !BORDER_STATIONS_WITHOUT_DRIVER_PHONE.has(requestStation);
+
+    if (sdoChecked && releaseOrderChecked) {
+      releaseOrderChecked = false;
+    }
 
     const [shipment] = await db
       .select({ id: shipmentsTable.id })
@@ -2012,8 +2018,8 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
         res.status(400).json({ error: "Confirm the arrival date first." });
         return;
       }
-      if (!releasedFromBorder || !driverPhone || (!sdoChecked && !releaseOrderChecked)) {
-        res.status(400).json({ error: "Tick SDO or Release Order, then enter released from border and driver's phone number." });
+      if (!releasedFromBorder || (requiresDriverPhone && !driverPhone) || (!sdoChecked && !releaseOrderChecked)) {
+        res.status(400).json({ error: requiresDriverPhone ? "Tick SDO or Release Order, then enter released from border and driver's phone number." : "Tick SDO or Release Order, then enter released from border." });
         return;
       }
 
@@ -2040,7 +2046,7 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
         return;
       }
 
-      const finalConfirmed = !!arrivedAtBorder && !!releasedFromBorder && !!driverPhone && (!!sdoChecked || !!releaseOrderChecked);
+      const finalConfirmed = !!arrivedAtBorder && !!releasedFromBorder && (!requiresDriverPhone || !!driverPhone) && (!!sdoChecked || !!releaseOrderChecked);
       await pool.query(
         `INSERT INTO border_entries (
            shipment_id, arrived_at_border, arrival_confirmed, sdo_checked, release_order_checked,
