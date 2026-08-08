@@ -1721,7 +1721,7 @@ export default function Dashboard() {
   };
 
   const updateBorderEntryField = (shipmentId: number, field: "arrivedAtBorder" | "releasedFromBorder" | "driverPhone", value: string) => {
-    if (borderReadOnlyViewer) {
+    if (borderReadOnlyViewer && editingBorderShipmentId !== shipmentId) {
       return;
     }
     const normalizedValue = field === "driverPhone" ? normalizePhoneLikeInput(value) : normalizeDateLikeInput(value);
@@ -1740,7 +1740,7 @@ export default function Dashboard() {
     field: "arrivedAtBorder" | "releasedFromBorder" | "driverPhone" | "sdoChecked" | "releaseOrderChecked",
     value: string | boolean,
   ) => {
-    if (borderReadOnlyViewer) {
+    if (borderReadOnlyViewer && editingBorderShipmentId !== shipmentId) {
       return;
     }
     setBorderEntries((current) => current.map((row) => (
@@ -3695,7 +3695,7 @@ export default function Dashboard() {
                         {borderEntries.filter((row) => (borderMode === "entry" ? !row.finalConfirmed : row.finalConfirmed)).map((row) => {
                           const isEditing = editingBorderShipmentId === row.shipmentId;
                           return (
-                          <tr key={row.shipmentId} className={`border-b border-border/70 hover:bg-muted/10 transition-colors align-top ${row.arrivalConfirmed ? "bg-amber-50/80" : ""}`}>
+                          <tr key={row.shipmentId} className={`border-b border-border/70 transition-colors align-top ${row.arrivalConfirmed ? "bg-amber-300/95" : "bg-white"}`}>
                             <td className="px-3 py-3 font-semibold text-secondary whitespace-nowrap">{row.ifsRef}</td>
                             <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{row.mraRef}</td>
                             <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{row.shipper}</td>
@@ -3725,8 +3725,8 @@ export default function Dashboard() {
                                   SDO
                                 </button>
                               ) : (
-                                <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${row.sdoChecked ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
-                                  {row.sdoChecked ? <Check size={12} /> : "-"}
+                                <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${row.sdoChecked ? "bg-green-700 text-white shadow-sm" : "bg-muted text-muted-foreground"}`}>
+                                  {row.sdoChecked ? <Check size={16} strokeWidth={3} /> : "-"}
                                 </span>
                               )}
                             </td>
@@ -3740,8 +3740,8 @@ export default function Dashboard() {
                                   RO
                                 </button>
                               ) : (
-                                <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${row.releaseOrderChecked ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
-                                  {row.releaseOrderChecked ? <Check size={12} /> : "-"}
+                                <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${row.releaseOrderChecked ? "bg-green-700 text-white shadow-sm" : "bg-muted text-muted-foreground"}`}>
+                                  {row.releaseOrderChecked ? <Check size={16} strokeWidth={3} /> : "-"}
                                 </span>
                               )}
                             </td>
@@ -4188,13 +4188,19 @@ export default function Dashboard() {
                             <input
                               type="text"
                               value={column.label || column.id}
-                              onClick={() => {
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 setSelectedSpreadsheetCell({ rowId: selectedSpreadsheetCell?.rowId ?? "row-1", columnId: column.id });
                                 setSpreadsheetSelectionMode("column");
                                 setSpreadsheetRangeSelection(null);
                               }}
+                              onFocus={(event) => {
+                                event.stopPropagation();
+                                setSelectedSpreadsheetCell({ rowId: selectedSpreadsheetCell?.rowId ?? "row-1", columnId: column.id });
+                                setSpreadsheetSelectionMode("column");
+                              }}
                               onChange={(e) => updateSpreadsheetHeader(column.id, e.target.value)}
-                              className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground outline-none focus:border-primary focus:bg-white"
+                              className="w-full rounded border border-transparent bg-white px-2 py-1 text-[11px] font-bold tracking-wide text-secondary outline-none focus:border-primary"
                             />
                           </th>
                         ))}
