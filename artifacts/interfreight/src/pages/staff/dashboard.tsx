@@ -167,6 +167,8 @@ type SpreadsheetCellStyle = {
   align: "left" | "center" | "right";
 };
 
+type SpreadsheetSelectionMode = "cell" | "row" | "column";
+
 const STAFF_STATIONS = ["Blantyre", "Lilongwe", "Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"] as const;
 const READ_ONLY_BORDER_STATIONS = new Set(["Blantyre", "Lilongwe"]);
 const BORDER_ONLY_STATIONS = new Set(["Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"]);
@@ -564,9 +566,11 @@ export default function Dashboard() {
   const [selectedSpreadsheetCell, setSelectedSpreadsheetCell] = useState<SpreadsheetSelection | null>(
     { rowId: "row-1", columnId: "A" },
   );
+  const [spreadsheetSelectionMode, setSpreadsheetSelectionMode] = useState<SpreadsheetSelectionMode>("cell");
   const [spreadsheetMerges, setSpreadsheetMerges] = useState<SpreadsheetMerge[]>([]);
   const [draggedSpreadsheetCell, setDraggedSpreadsheetCell] = useState<SpreadsheetSelection | null>(null);
   const [spreadsheetCellStyles, setSpreadsheetCellStyles] = useState<Record<string, SpreadsheetCellStyle>>({});
+  const [spreadsheetRowHeights, setSpreadsheetRowHeights] = useState<Record<string, number>>({});
   const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
@@ -803,6 +807,44 @@ export default function Dashboard() {
       const width = Math.min(260, Math.max(80, maxLength * 9 + 24));
       return { ...column, width: `${width}px` };
     }));
+  };
+
+  const autoFitRows = (targetRowId?: string) => {
+    setSpreadsheetRowHeights((current) => {
+      const next = { ...current };
+      for (const row of spreadsheetRows) {
+        if (targetRowId && row.id !== targetRowId) continue;
+        const maxLength = Math.max(...spreadsheetColumns.map((column) => (row.cells[column.id] ?? "").length), 0);
+        next[row.id] = Math.min(72, Math.max(36, maxLength > 60 ? 64 : maxLength > 30 ? 52 : 40));
+      }
+      return next;
+    });
+  };
+
+  const adjustSelectedColumnWidth = (delta: number) => {
+    if (!selectedSpreadsheetCell) return;
+    setSpreadsheetColumns((current) => current.map((column) => {
+      if (column.id !== selectedSpreadsheetCell.columnId) return column;
+      const currentWidth = parseInt(String(column.width).replace("px", ""), 10) || 120;
+      return { ...column, width: `${Math.max(70, Math.min(320, currentWidth + delta))}px` };
+    }));
+  };
+
+  const adjustSelectedRowHeight = (delta: number) => {
+    if (!selectedSpreadsheetCell) return;
+    setSpreadsheetRowHeights((current) => {
+      const currentHeight = current[selectedSpreadsheetCell.rowId] ?? 40;
+      return {
+        ...current,
+        [selectedSpreadsheetCell.rowId]: Math.max(30, Math.min(100, currentHeight + delta)),
+      };
+    });
+  };
+
+  const updateSpreadsheetHeader = (columnId: string, value: string) => {
+    setSpreadsheetColumns((current) => current.map((column) => (
+      column.id === columnId ? { ...column, label: value } : column
+    )));
   };
 
   const mergeSpreadsheetCellRight = () => {
@@ -3258,7 +3300,7 @@ export default function Dashboard() {
                       </button>
                     </div>
 
-                  <div className="overflow-x-auto">
+                  <div className="max-h-[70vh] overflow-auto rounded-2xl border border-border">
                     <table className="w-full table-auto text-sm">
                       <thead className="bg-muted/30 border-b border-border">
                         <tr>
@@ -3503,6 +3545,46 @@ export default function Dashboard() {
                       >
                         Fit All
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => autoFitRows(selectedSpreadsheetCell?.rowId)}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Fit Row
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => adjustSelectedColumnWidth(-20)}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Col -
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => adjustSelectedColumnWidth(20)}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Col +
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => adjustSelectedRowHeight(-6)}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Row -
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => adjustSelectedRowHeight(6)}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Row +
+                      </button>
                     </div>
                     <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-2">
                       <button
@@ -3549,13 +3631,20 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="max-h-[72vh] overflow-auto border-t border-border">
                   <table className="min-w-[2400px] w-full border-collapse text-sm">
                     <thead>
                       <tr className="bg-white">
                         <th className="border border-border px-3 py-2 text-center text-[11px] font-bold text-muted-foreground">#</th>
                         {spreadsheetColumns.map((column, index) => (
-                          <th key={`letter-${column.id}`} className="border border-border px-3 py-2 text-center text-[11px] font-bold text-muted-foreground">
+                          <th
+                            key={`letter-${column.id}`}
+                            onClick={() => {
+                              setSelectedSpreadsheetCell({ rowId: selectedSpreadsheetCell?.rowId ?? "row-1", columnId: column.id });
+                              setSpreadsheetSelectionMode("column");
+                            }}
+                            className={`cursor-pointer border border-border px-3 py-2 text-center text-[11px] font-bold text-muted-foreground ${spreadsheetSelectionMode === "column" && selectedSpreadsheetCell?.columnId === column.id ? "bg-primary/10 text-primary" : ""}`}
+                          >
                             {spreadsheetColumnLabel(index)}
                           </th>
                         ))}
@@ -3566,18 +3655,31 @@ export default function Dashboard() {
                           <th
                             key={column.id}
                             style={{ width: column.width, minWidth: column.width }}
-                            className="border border-border px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide whitespace-nowrap text-muted-foreground"
+                            className={`border border-border px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide whitespace-nowrap text-muted-foreground ${spreadsheetSelectionMode === "column" && selectedSpreadsheetCell?.columnId === column.id ? "bg-primary/10" : ""}`}
                           >
-                            {column.label || column.id}
+                            <input
+                              type="text"
+                              value={column.label || column.id}
+                              onClick={() => {
+                                setSelectedSpreadsheetCell({ rowId: selectedSpreadsheetCell?.rowId ?? "row-1", columnId: column.id });
+                                setSpreadsheetSelectionMode("column");
+                              }}
+                              onChange={(e) => updateSpreadsheetHeader(column.id, e.target.value)}
+                              className="w-full rounded border border-transparent bg-transparent px-1 py-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground outline-none focus:border-primary focus:bg-white"
+                            />
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {spreadsheetRows.map((row, index) => (
-                        <tr key={row.id} className="align-top">
+                        <tr key={row.id} className="align-top" style={{ height: `${spreadsheetRowHeights[row.id] ?? 40}px` }}>
                           <td
-                            className="border border-border px-2 py-2 text-center text-xs font-semibold text-muted-foreground"
+                            onClick={() => {
+                              setSelectedSpreadsheetCell({ rowId: row.id, columnId: selectedSpreadsheetCell?.columnId ?? "A" });
+                              setSpreadsheetSelectionMode("row");
+                            }}
+                            className={`cursor-pointer border border-border px-2 py-2 text-center text-xs font-semibold text-muted-foreground ${spreadsheetSelectionMode === "row" && selectedSpreadsheetCell?.rowId === row.id ? "bg-primary/10 text-primary" : ""}`}
                             draggable
                             onDragStart={() => setDraggedSpreadsheetCell({ rowId: row.id, columnId: spreadsheetColumns[0]?.id ?? "" })}
                             onDragOver={(e) => e.preventDefault()}
@@ -3613,12 +3715,14 @@ export default function Dashboard() {
                               cellStyle.align === "center" ? "text-center" :
                               cellStyle.align === "right" ? "text-right" :
                               "text-left";
+                            const selectedByHeader = (spreadsheetSelectionMode === "row" && selectedSpreadsheetCell?.rowId === row.id)
+                              || (spreadsheetSelectionMode === "column" && selectedSpreadsheetCell?.columnId === column.id);
                             return (
                               <td
                                 key={`${row.id}-${column.id}`}
                                 colSpan={colSpan}
                                 style={{ width: column.width, minWidth: column.width }}
-                                className={`border border-border px-1.5 py-1.5 ${fillClass} ${isSelected ? "outline outline-2 outline-primary/60" : ""}`}
+                                className={`border border-border px-1.5 py-1.5 ${fillClass} ${(isSelected || selectedByHeader) ? "outline outline-2 outline-primary/60" : ""}`}
                                 draggable
                                 onDragStart={() => setDraggedSpreadsheetCell({ rowId: row.id, columnId: column.id })}
                                 onDragOver={(e) => e.preventDefault()}
@@ -3632,7 +3736,10 @@ export default function Dashboard() {
                                 <input
                                   type="text"
                                   value={row.cells[column.id] ?? ""}
-                                  onClick={() => setSelectedSpreadsheetCell({ rowId: row.id, columnId: column.id })}
+                                  onClick={() => {
+                                    setSelectedSpreadsheetCell({ rowId: row.id, columnId: column.id });
+                                    setSpreadsheetSelectionMode("cell");
+                                  }}
                                   onChange={(e) => updateSpreadsheetCell(row.id, column.id, e.target.value)}
                                   className={`w-full rounded-md border border-transparent bg-transparent px-2 py-2 text-sm text-secondary outline-none focus:border-primary focus:bg-white ${textAlignClass} ${cellStyle.bold ? "font-bold" : ""}`}
                                 />
