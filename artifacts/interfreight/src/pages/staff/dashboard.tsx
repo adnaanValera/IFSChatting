@@ -1300,6 +1300,7 @@ export default function Dashboard() {
   }, [location, stationRestrictedStaff]);
 
   const handleLogout = () => {
+    if (!window.confirm("Are you sure you want to sign out?")) return;
     logoutMutation.mutate(undefined, {
       onSettled: () => {
         localStorage.removeItem("intf_token");
@@ -1901,8 +1902,8 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f5f6fa] flex flex-col">
-      <NotificationOptIn storageKey="intf_push_prompt_staff" scope={{ type: "auth" }} />
+    <div className="min-h-screen bg-[#f5f6fa] flex flex-col overflow-x-hidden">
+      {!stationRestrictedStaff && <NotificationOptIn storageKey="intf_push_prompt_staff" scope={{ type: "auth" }} />}
       {/* Top bar */}
       <header className="bg-secondary text-white h-14 flex items-center px-4 sm:px-6 border-b border-white/10 sticky top-0 z-40 shadow-md">
         <div className="flex items-center gap-3 flex-1">
@@ -1932,9 +1933,11 @@ export default function Dashboard() {
               )}
             </span>
           )}
-          <div className="rounded-xl border border-white/10 bg-white/5 px-1.5 py-1">
-            <NotificationBell />
-          </div>
+          {!stationRestrictedStaff && (
+            <div className="rounded-xl border border-white/10 bg-white/5 px-1.5 py-1">
+              <NotificationBell />
+            </div>
+          )}
           <AccountSwitcher currentToken={localStorage.getItem("intf_token")} />
           <button
             onClick={handleLogout}
@@ -1978,7 +1981,7 @@ export default function Dashboard() {
           </div>
         </div>
       ) : (
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 overflow-x-hidden">
         {isMobileNavOpen && (
           <div
             className="fixed inset-0 bg-black/40 z-40 lg:hidden"
@@ -2076,7 +2079,7 @@ export default function Dashboard() {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8">
 
           {/* ── OVERVIEW ──────────────────────────────────── */}
           {activeTab === "overview" && (
@@ -2815,7 +2818,7 @@ export default function Dashboard() {
                     <p className="text-sm text-muted-foreground">Upload the latest tracking master and this section will populate automatically.</p>
                   </div>
                 ) : stationRestrictedStaff ? (
-                  <div className="p-5 space-y-5">
+                  <div className="w-full overflow-x-hidden p-4 sm:p-5 space-y-5">
                     <div className="grid w-full grid-cols-2 overflow-hidden rounded-2xl border border-border shadow-sm">
                       <button
                         type="button"
@@ -2833,7 +2836,7 @@ export default function Dashboard() {
                       </button>
                     </div>
 
-                    <div className="relative max-w-xl">
+                    <div className="relative w-full max-w-xl">
                       <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <input
                         type="text"
@@ -2851,24 +2854,24 @@ export default function Dashboard() {
                         <p className="mt-2 text-sm text-muted-foreground">Try a different MRA Ref or consignee name.</p>
                       </div>
                     ) : (
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      <div className="grid w-full gap-3 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
                         {filteredBorderEntries.map((row) => {
                           const isExpanded = expandedBorderCard === row.shipmentId;
                           const isSaving = !!borderSavingByShipment[row.shipmentId];
                           const isExitCard = borderMode === "exit" || row.finalConfirmed;
                           const canConfirmFinal = !isExitCard && row.arrivalConfirmed && (row.sdoChecked || row.releaseOrderChecked) && !!row.releasedFromBorder && !!row.driverPhone;
                           return (
-                            <div key={row.shipmentId} className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+                            <div key={row.shipmentId} className="w-full min-w-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
                               <button
                                 type="button"
                                 onClick={() => setExpandedBorderCard(isExpanded ? null : row.shipmentId)}
-                                className="w-full text-left px-4 py-3"
+                                className="w-full min-w-0 text-left px-4 py-3"
                               >
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                                      <span className="truncate font-extrabold text-secondary max-w-[180px]">{row.consignee || "N/A"}</span>
-                                      <span className="truncate text-muted-foreground max-w-[160px]">MRA: {row.mraRef || "N/A"}</span>
+                                      <span className="min-w-0 break-words font-extrabold text-secondary max-w-full sm:max-w-[180px]">{row.consignee || "N/A"}</span>
+                                      <span className="min-w-0 break-words text-muted-foreground max-w-full sm:max-w-[160px]">MRA: {row.mraRef || "N/A"}</span>
                                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${row.arrivalConfirmed ? "bg-amber-100 text-amber-800" : "bg-primary/10 text-primary"}`}>
                                         {isExitCard ? "Completed" : row.arrivalConfirmed ? "Awaiting final" : "Arrival pending"}
                                       </span>
