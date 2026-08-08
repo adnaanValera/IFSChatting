@@ -2869,27 +2869,32 @@ export default function Dashboard() {
                                       </div>
                                     </div>
 
-                                    <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
-                                      <label className={`flex items-center justify-between rounded-xl border px-3 py-3 ${row.arrivalConfirmed ? "border-border bg-white" : "border-border/60 bg-muted/30 opacity-60"}`}>
-                                        <span className="text-sm font-semibold text-secondary">SDO</span>
-                                        <input
-                                          type="checkbox"
-                                          checked={!!row.sdoChecked}
-                                          onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "sdoChecked", e.target.checked)}
+                                    <div className="sm:col-span-2">
+                                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Documents</p>
+                                      <div className={`grid grid-cols-2 overflow-hidden rounded-xl border ${row.arrivalConfirmed ? "border-border" : "border-border/60 opacity-60"}`}>
+                                        <button
+                                          type="button"
+                                          onClick={() => row.arrivalConfirmed && updateBorderEntryDraftField(row.shipmentId, "sdoChecked", !row.sdoChecked)}
                                           disabled={!row.arrivalConfirmed}
-                                          className="h-4 w-4 accent-primary"
-                                        />
-                                      </label>
-                                      <label className={`flex items-center justify-between rounded-xl border px-3 py-3 ${row.arrivalConfirmed ? "border-border bg-white" : "border-border/60 bg-muted/30 opacity-60"}`}>
-                                        <span className="text-sm font-semibold text-secondary">Release Order</span>
-                                        <input
-                                          type="checkbox"
-                                          checked={!!row.releaseOrderChecked}
-                                          onChange={(e) => updateBorderEntryDraftField(row.shipmentId, "releaseOrderChecked", e.target.checked)}
+                                          className={`flex items-center justify-between gap-3 px-3 py-3 text-sm font-semibold transition-all ${row.sdoChecked ? "bg-red-600 text-white" : "bg-red-50 text-red-700"} ${row.arrivalConfirmed ? "hover:bg-red-500/90" : "cursor-not-allowed"}`}
+                                        >
+                                          <span>SDO</span>
+                                          <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${row.sdoChecked ? "bg-white/20 text-white" : "bg-white text-red-700"}`}>
+                                            {row.sdoChecked ? "Y" : ""}
+                                          </span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => row.arrivalConfirmed && updateBorderEntryDraftField(row.shipmentId, "releaseOrderChecked", !row.releaseOrderChecked)}
                                           disabled={!row.arrivalConfirmed}
-                                          className="h-4 w-4 accent-primary"
-                                        />
-                                      </label>
+                                          className={`flex items-center justify-between gap-3 border-l px-3 py-3 text-sm font-semibold transition-all ${row.releaseOrderChecked ? "bg-green-600 text-white" : "bg-green-50 text-green-700"} ${row.arrivalConfirmed ? "hover:bg-green-500/90" : "cursor-not-allowed border-border/60"}`}
+                                        >
+                                          <span>Release Order</span>
+                                          <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${row.releaseOrderChecked ? "bg-white/20 text-white" : "bg-white text-green-700"}`}>
+                                            {row.releaseOrderChecked ? "Y" : ""}
+                                          </span>
+                                        </button>
+                                      </div>
                                     </div>
 
                                     <div>
