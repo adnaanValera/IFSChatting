@@ -1864,11 +1864,12 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
         );
 
       if (blantyreRecipients.length > 0) {
-        const identifier = (shipmentDetails?.mraRef || shipmentDetails?.ifsRef || "Border entry").trim() || "Border entry";
+        const identifier = (shipmentDetails?.mraRef || shipmentDetails?.ifsRef || "N/A").trim() || "N/A";
         const consigneeName = (shipmentDetails?.consignee || "N/A").trim() || "N/A";
-        const detailText = `${identifier} - ${consigneeName}`;
-        const stageLabel = mode === "final" ? "completed border release for" : "confirmed arrival for";
-        const message = `${notifyingStation} ${stageLabel} ${detailText}.`;
+        const detailText = `${identifier} ${consigneeName}`.trim();
+        const message = mode === "final"
+          ? `(${notifyingStation}) confirmed release for ${detailText}`
+          : `(${notifyingStation}) confirmed arrival for ${detailText}`;
 
         await db.insert(notificationsTable).values(
           blantyreRecipients.map(({ id: userId }) => ({
