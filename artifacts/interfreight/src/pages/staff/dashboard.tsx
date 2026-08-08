@@ -539,6 +539,7 @@ export default function Dashboard() {
   const [editingBorderShipmentId, setEditingBorderShipmentId] = useState<number | null>(null);
   const [borderEditSnapshot, setBorderEditSnapshot] = useState<BorderEntryRow | null>(null);
   const [spreadsheetRows, setSpreadsheetRows] = useState<SpreadsheetRow[]>(SAMPLE_SPREADSHEET_ROWS);
+  const [selectedSpreadsheetRowId, setSelectedSpreadsheetRowId] = useState<string | null>(SAMPLE_SPREADSHEET_ROWS[0]?.id ?? null);
   const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
@@ -731,7 +732,13 @@ export default function Dashboard() {
   };
 
   const deleteSpreadsheetRow = (rowId: string) => {
-    setSpreadsheetRows((current) => current.filter((row) => row.id !== rowId));
+    setSpreadsheetRows((current) => {
+      const next = current.filter((row) => row.id !== rowId);
+      if (selectedSpreadsheetRowId === rowId) {
+        setSelectedSpreadsheetRowId(next[0]?.id ?? null);
+      }
+      return next;
+    });
   };
 
   const moveSpreadsheetRow = (index: number, direction: -1 | 1) => {
@@ -753,6 +760,14 @@ export default function Dashboard() {
       case "red": return "bg-red-50";
       default: return "bg-white";
     }
+  };
+
+  const selectedSpreadsheetIndex = spreadsheetRows.findIndex((row) => row.id === selectedSpreadsheetRowId);
+  const selectedSpreadsheetRow = selectedSpreadsheetIndex >= 0 ? spreadsheetRows[selectedSpreadsheetIndex] : null;
+
+  const applySpreadsheetRowColor = (rowColor: SpreadsheetRow["rowColor"]) => {
+    if (!selectedSpreadsheetRowId) return;
+    updateSpreadsheetCell(selectedSpreadsheetRowId, "rowColor", rowColor);
   };
 
 
@@ -3302,6 +3317,78 @@ export default function Dashboard() {
                   </p>
                 </div>
 
+                <div className="border-b border-border bg-white px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2 text-xs font-semibold text-muted-foreground">
+                      {selectedSpreadsheetRow ? `Selected: ${selectedSpreadsheetRow.ifsRef || selectedSpreadsheetRow.consignee || "Blank row"}` : "Select a row"}
+                    </div>
+                    <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-2">
+                      <span className="px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Fill</span>
+                      {([
+                        { key: "none", label: "None", className: "bg-white" },
+                        { key: "yellow", label: "Yellow", className: "bg-amber-300" },
+                        { key: "green", label: "Green", className: "bg-emerald-400" },
+                        { key: "blue", label: "Blue", className: "bg-sky-400" },
+                        { key: "red", label: "Red", className: "bg-red-400" },
+                      ] as const).map((tone) => (
+                        <button
+                          key={tone.key}
+                          type="button"
+                          onClick={() => applySpreadsheetRowColor(tone.key)}
+                          disabled={!selectedSpreadsheetRow}
+                          className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold text-secondary transition-all disabled:opacity-40 ${
+                            selectedSpreadsheetRow?.rowColor === tone.key ? "border-primary shadow-sm" : "border-border"
+                          }`}
+                        >
+                          <span className={`h-3.5 w-3.5 rounded-full border border-black/10 ${tone.className}`} />
+                          {tone.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-2">
+                      <button
+                        type="button"
+                        onClick={() => setSpreadsheetRows((current) => [...current, createBlankSpreadsheetRow()])}
+                        className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-primary/90"
+                      >
+                        Add Row
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectedSpreadsheetIndex >= 0 && insertSpreadsheetRow(selectedSpreadsheetIndex)}
+                        disabled={selectedSpreadsheetIndex < 0}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Insert Above
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectedSpreadsheetIndex >= 0 && moveSpreadsheetRow(selectedSpreadsheetIndex, -1)}
+                        disabled={selectedSpreadsheetIndex <= 0}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Move Up
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectedSpreadsheetIndex >= 0 && moveSpreadsheetRow(selectedSpreadsheetIndex, 1)}
+                        disabled={selectedSpreadsheetIndex < 0 || selectedSpreadsheetIndex >= spreadsheetRows.length - 1}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Move Down
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectedSpreadsheetRowId && deleteSpreadsheetRow(selectedSpreadsheetRowId)}
+                        disabled={!selectedSpreadsheetRowId || spreadsheetRows.length === 1}
+                        className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 disabled:opacity-40"
+                      >
+                        Delete Row
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="overflow-x-auto">
                   <table className="min-w-[1400px] w-full border-collapse text-sm">
                     <thead>
@@ -3328,7 +3415,11 @@ export default function Dashboard() {
                     </thead>
                     <tbody>
                       {spreadsheetRows.map((row, index) => (
-                        <tr key={row.id} className={`${rowColorClass(row.rowColor)} align-top`}>
+                        <tr
+                          key={row.id}
+                          onClick={() => setSelectedSpreadsheetRowId(row.id)}
+                          className={`${rowColorClass(row.rowColor)} align-top ${selectedSpreadsheetRowId === row.id ? "outline outline-2 outline-primary/60" : ""}`}
+                        >
                           <td className="border border-border px-2 py-2">
                             <div className="flex min-w-[130px] flex-col gap-1.5">
                               <button
