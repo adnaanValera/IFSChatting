@@ -14,6 +14,33 @@ function resolveVariant(extraFields?: Record<string, unknown> | null): Variant {
   return "container";
 }
 
+function primaryReferenceForShipment(
+  shipment: ShipmentCardProps["shipment"],
+  variant: Variant,
+): { label: string; value: string } {
+  const blManifestNo = extraText(
+    shipment.extraFields,
+    "BL / Manifest No.",
+    "BL/Manifest No.",
+    "BL",
+    "bl",
+    "Manifest No.",
+    "manifestNo",
+  );
+
+  if (variant === "container") {
+    return {
+      label: "Container No.",
+      value: shipment.containerNo?.trim() || blManifestNo || shipment.mraRef?.trim() || "N/A",
+    };
+  }
+
+  return {
+    label: "BL / Manifest No.",
+    value: blManifestNo || shipment.mraRef?.trim() || shipment.invoiceNo?.trim() || "N/A",
+  };
+}
+
 const T = {
   truck: {
     label: "TRUCK",
@@ -270,7 +297,8 @@ export function ShipmentCard({
   const typeLabel = String(ef["Type"] ?? ef["type"] ?? "").toUpperCase() || null;
   const sourceSection = String(ef["Source Section"] ?? ef["sourceSection"] ?? ef["Section"] ?? "").trim();
   const blManifestNo = extraText(s.extraFields, "BL / Manifest No.", "BL/Manifest No.", "BL", "bl", "Manifest No.", "manifestNo");
-  const collapsedIdentifier = variant === "container" ? (s.containerNo || "N/A") : (blManifestNo || "N/A");
+  const primaryReference = primaryReferenceForShipment(s, variant);
+  const collapsedIdentifier = primaryReference.value;
 
   const handleToggle = () => {
     setIsOpen((current) => {
@@ -405,9 +433,9 @@ export function ShipmentCard({
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] text-zinc-500 uppercase tracking-[0.22em] font-semibold mb-0.5">IFS Ref</p>
+                <p className="text-[11px] text-zinc-500 uppercase tracking-[0.22em] font-semibold mb-0.5">{primaryReference.label}</p>
                 <p className="text-lg sm:text-2xl font-extrabold text-white leading-tight break-all">
-                  {s.ifsRef || "—"}
+                  {primaryReference.value}
                 </p>
               </div>
 
@@ -511,3 +539,5 @@ export function ShipmentCard({
     </div>
   );
 }
+
+

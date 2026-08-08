@@ -25,8 +25,14 @@ const registerSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+const teamSchema = z.object({
+  fullName: z.string().min(2, "Full name is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
 type LoginValues = z.infer<typeof loginSchema>;
 type RegisterValues = z.infer<typeof registerSchema>;
+type TeamValues = z.infer<typeof teamSchema>;
 
 function saveLoggedInAccount(token: string, user: any) {
   try {
@@ -235,8 +241,62 @@ function RegisterForm({ onSuccess }: { onSuccess: (user: any) => void }) {
   );
 }
 
+function TeamForm({ onSuccess }: { onSuccess: (user: any) => void }) {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const form = useForm<TeamValues>({ resolver: zodResolver(teamSchema) });
+
+  const onSubmit = async (data: TeamValues) => {
+    setIsLoading(true);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/auth/team-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "IFS Team login failed");
+      localStorage.setItem("intf_token", json.token);
+      localStorage.setItem("intf_session_duration_confirmed", "1");
+      saveLoggedInAccount(json.token, json.user);
+      onSuccess(json.user);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "IFS Team failed", description: err.message || "Could not continue." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+      <FieldInput
+        icon={User}
+        type="text"
+        placeholder="Full Name"
+        error={form.formState.errors.fullName?.message}
+        {...form.register("fullName")}
+      />
+      <FieldInput
+        icon={Lock}
+        type="password"
+        placeholder="Password"
+        error={form.formState.errors.password?.message}
+        {...form.register("password")}
+      />
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="flex w-full items-center justify-center gap-2 rounded-md bg-red-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+      >
+        {isLoading ? <Spinner className="h-5 w-5" /> : <><span>IFS Team</span><ArrowRight size={16} /></>}
+      </button>
+    </form>
+  );
+}
+
 export default function AuthPage() {
-  const [tab, setTab] = useState<"login" | "register">("login");
+  const [tab, setTab] = useState<"login" | "register" | "team">("login");
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const standalone = isStandaloneDisplay();
@@ -280,10 +340,10 @@ export default function AuthPage() {
           />
         </div>
         <h2 className="text-3xl font-extrabold text-secondary">
-          {tab === "login" ? "Sign In to Your Account" : "Create an Account"}
+          {tab === "login" ? "Sign In to Your Account" : tab === "team" ? "IFS Team Access" : "Create an Account"}
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          {tab === "login" ? "Track your shipments and reports" : "Register to access your company's reports"}
+          {tab === "login" ? "Track your shipments and reports" : tab === "team" ? "One-time staff access with your full name and password." : "Register to access your company's reports"}
         </p>
       </div>
 
@@ -304,10 +364,19 @@ export default function AuthPage() {
             >
               Sign Up
             </button>
+            <button
+              type="button"
+              onClick={() => setTab("team")}
+              className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${tab === "team" ? "bg-red-600 text-white shadow-sm" : "bg-red-600/90 text-white hover:bg-red-700"}`}
+            >
+              IFS Team
+            </button>
           </div>
 
           {tab === "login" ? (
             <LoginForm onSuccess={handleSuccess} />
+          ) : tab === "team" ? (
+            <TeamForm onSuccess={handleSuccess} />
           ) : (
             <RegisterForm onSuccess={handleSuccess} />
           )}

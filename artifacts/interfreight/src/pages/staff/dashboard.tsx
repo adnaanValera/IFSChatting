@@ -137,7 +137,9 @@ type BorderEntryRow = {
   updatedBy: string | null;
 };
 
-const STAFF_STATIONS = ["Blantyre", "Mwanza", "Dedza", "Songwe", "Liwonde"] as const;
+const STAFF_STATIONS = ["Blantyre", "Lilongwe", "Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"] as const;
+const READ_ONLY_BORDER_STATIONS = new Set(["Blantyre", "Lilongwe"]);
+const BORDER_ONLY_STATIONS = new Set(["Mwanza", "Dedza", "Songwe", "Liwonde", "KIA", "Chileka", "Mchinji"]);
 
 const CARD_COLS = [
   { key: "ifsRef",              label: "IFS Ref" },
@@ -483,6 +485,9 @@ export default function Dashboard() {
   const [borderSavingByShipment, setBorderSavingByShipment] = useState<Record<number, boolean>>({});
   const [borderSearch, setBorderSearch] = useState("");
   const [expandedBorderCard, setExpandedBorderCard] = useState<number | null>(null);
+  const [borderMode, setBorderMode] = useState<"entry" | "exit">("entry");
+  const [editingBorderShipmentId, setEditingBorderShipmentId] = useState<number | null>(null);
+  const [borderEditSnapshot, setBorderEditSnapshot] = useState<BorderEntryRow | null>(null);
   const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
@@ -636,9 +641,9 @@ export default function Dashboard() {
   const isStaffOrAdmin = isAdmin || isStaff;
   const staffStation = typeof typedUser?.station === "string" ? typedUser.station.trim() : "";
   const staffNeedsStation = isStaff && !staffStation;
-  const stationRestrictedStaff = isStaff && !!staffStation && staffStation !== "Blantyre";
-  const blantyreReadOnlyStaff = isStaff && staffStation === "Blantyre";
-  const borderReadOnlyViewer = isAdmin || blantyreReadOnlyStaff;
+  const stationRestrictedStaff = isStaff && BORDER_ONLY_STATIONS.has(staffStation);
+  const borderReadOnlyStaff = isStaff && READ_ONLY_BORDER_STATIONS.has(staffStation);
+  const borderReadOnlyViewer = isAdmin || borderReadOnlyStaff;
 
 
   useEffect(() => {
@@ -1034,8 +1039,8 @@ export default function Dashboard() {
     }
   };
 
-  const saveBorderEntry = async (row: BorderEntryRow, mode: "arrival" | "final") => {
-    if (borderReadOnlyViewer) {
+  const saveBorderEntry = async (row: BorderEntryRow, mode: "arrival" | "final" | "correction") => {
+    if (borderReadOnlyViewer && mode !== "correction") {
       return;
     }
     setBorderSavingByShipment((current) => ({ ...current, [row.shipmentId]: true }));
@@ -1065,13 +1070,17 @@ export default function Dashboard() {
         item.shipmentId === row.shipmentId
           ? {
               ...item,
-              arrivalConfirmed: mode === "arrival" ? true : item.arrivalConfirmed,
-              finalConfirmed: mode === "final" ? true : item.finalConfirmed,
+              arrivalConfirmed: mode === "arrival" ? true : mode === "correction" ? !!row.arrivedAtBorder : item.arrivalConfirmed,
+              finalConfirmed: mode === "final" ? true : mode === "correction" ? !!row.arrivedAtBorder && !!row.releasedFromBorder && !!row.driverPhone && (!!row.sdoChecked || !!row.releaseOrderChecked) : item.finalConfirmed,
             }
           : item
       )));
       if (mode === "final" && expandedBorderCard === row.shipmentId) {
         setExpandedBorderCard(null);
+      }
+      if (mode === "correction") {
+        setEditingBorderShipmentId(null);
+        setBorderEditSnapshot(null);
       }
     } catch (err: any) {
       toast({ variant: "destructive", title: "Save failed", description: err.message });
@@ -1118,9 +1127,27 @@ export default function Dashboard() {
     )));
   };
 
+  const startEditingBorderEntry = (row: BorderEntryRow) => {
+    setEditingBorderShipmentId(row.shipmentId);
+    setBorderEditSnapshot({ ...row });
+  };
+
+  const cancelEditingBorderEntry = () => {
+    if (borderEditSnapshot) {
+      setBorderEntries((current) => current.map((row) => (
+        row.shipmentId === borderEditSnapshot.shipmentId ? borderEditSnapshot : row
+      )));
+    }
+    setEditingBorderShipmentId(null);
+    setBorderEditSnapshot(null);
+  };
+
   const filteredBorderEntries = borderEntries.filter((row) => {
     const query = borderSearch.trim().toLowerCase();
-    if (stationRestrictedStaff && row.finalConfirmed) return false;
+    if (stationRestrictedStaff) {
+      if (borderMode === "entry" && row.finalConfirmed) return false;
+      if (borderMode === "exit" && !row.finalConfirmed) return false;
+    }
     if (!query) return true;
     return row.mraRef.toLowerCase().includes(query) || row.consignee.toLowerCase().includes(query);
   });
@@ -1739,7 +1766,7 @@ export default function Dashboard() {
 
   const defaultSecondaryNavItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     ...(isAdmin ? [{ id: "activity" as Tab, label: "Activity", icon: <Clock size={18} /> }] : []),
-    { id: "border", label: "Border Entry", icon: <Truck size={18} />, badge: borderEntries.length || undefined },
+    { id: "border", label: "Border", icon: <Truck size={18} />, badge: borderEntries.length || undefined },
     { id: "authorize", label: "Authorize Sign Up", icon: <UserCheck size={18} />, badge: pendingSignups.length || undefined },
     { id: "messages", label: "Messages", icon: <Bell size={18} />, badge: unreadCount || undefined },
     { id: "problems", label: "Problems", icon: <AlertTriangle size={18} />, badge: unreadProblemCount || undefined },
@@ -1925,7 +1952,7 @@ export default function Dashboard() {
               <Truck className="w-12 h-12 text-primary mx-auto mb-4" />
               <h2 className="text-2xl font-extrabold text-secondary mb-2">Choose Your Station</h2>
               <p className="text-sm text-muted-foreground">
-                This is a one-time setup for staff. Once you choose your station, the dashboard will show the right working section for that location.
+                This is a one-time setup for staff. Once you choose your station, the dashboard will show the right working section for your station.
               </p>
             </div>
 
@@ -1938,9 +1965,6 @@ export default function Dashboard() {
                   className="rounded-xl border border-border bg-white px-4 py-4 text-left transition-all hover:border-primary hover:bg-primary/5 disabled:opacity-60"
                 >
                   <div className="font-bold text-secondary">{station}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {station === "Blantyre" ? "Full staff dashboard" : "Border entry only for now"}
-                  </div>
                 </button>
               ))}
             </div>
@@ -1999,13 +2023,15 @@ export default function Dashboard() {
               </button>
             ))}
 
-            <button
-              onClick={openHomepageTracking}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-secondary transition-all"
-            >
-              <Search size={18} />
-              <span className="flex-1 text-left">Tracking</span>
-            </button>
+            {!stationRestrictedStaff && (
+              <button
+                onClick={openHomepageTracking}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-secondary transition-all"
+              >
+                <Search size={18} />
+                <span className="flex-1 text-left">Tracking</span>
+              </button>
+            )}
 
             {secondaryNavItems.map((item) => (
               <button
@@ -2761,10 +2787,10 @@ export default function Dashboard() {
             <div className="space-y-6 max-w-7xl">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                  <h2 className="text-2xl font-extrabold text-secondary mb-1">Border Entry</h2>
+                  <h2 className="text-2xl font-extrabold text-secondary mb-1">Border</h2>
                   <p className="text-sm text-muted-foreground">
                     {borderReadOnlyViewer
-                      ? "Shipment details and border fields are read-only for Blantyre staff and admin."
+                      ? "Shipment details and border fields are read-only for Blantyre, Lilongwe staff, and admin."
                       : "Search for the shipment, confirm arrival first, then complete the final border release details."}
                   </p>
                 </div>
@@ -2790,6 +2816,23 @@ export default function Dashboard() {
                   </div>
                 ) : stationRestrictedStaff ? (
                   <div className="p-5 space-y-5">
+                    <div className="inline-flex rounded-xl border border-border overflow-hidden bg-white shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => setBorderMode("entry")}
+                        className={`px-4 py-2 text-sm font-semibold transition-colors ${borderMode === "entry" ? "bg-amber-400 text-secondary" : "bg-white text-muted-foreground hover:bg-amber-50"}`}
+                      >
+                        Border entry
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBorderMode("exit")}
+                        className={`border-l px-4 py-2 text-sm font-semibold transition-colors ${borderMode === "exit" ? "bg-blue-600 text-white" : "bg-white text-muted-foreground hover:bg-blue-50"}`}
+                      >
+                        Border exit
+                      </button>
+                    </div>
+
                     <div className="relative max-w-xl">
                       <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <input
@@ -2812,7 +2855,8 @@ export default function Dashboard() {
                         {filteredBorderEntries.map((row) => {
                           const isExpanded = expandedBorderCard === row.shipmentId;
                           const isSaving = !!borderSavingByShipment[row.shipmentId];
-                          const canConfirmFinal = row.arrivalConfirmed && (row.sdoChecked || row.releaseOrderChecked) && !!row.releasedFromBorder && !!row.driverPhone;
+                          const isExitCard = borderMode === "exit" || row.finalConfirmed;
+                          const canConfirmFinal = !isExitCard && row.arrivalConfirmed && (row.sdoChecked || row.releaseOrderChecked) && !!row.releasedFromBorder && !!row.driverPhone;
                           return (
                             <div key={row.shipmentId} className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
                               <button
@@ -2825,9 +2869,8 @@ export default function Dashboard() {
                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                                       <span className="truncate font-extrabold text-secondary max-w-[180px]">{row.consignee || "N/A"}</span>
                                       <span className="truncate text-muted-foreground max-w-[160px]">MRA: {row.mraRef || "N/A"}</span>
-                                      <span className="truncate text-muted-foreground max-w-[160px]">IFS: {row.ifsRef || "N/A"}</span>
                                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${row.arrivalConfirmed ? "bg-amber-100 text-amber-800" : "bg-primary/10 text-primary"}`}>
-                                        {row.arrivalConfirmed ? "Awaiting final" : "Arrival pending"}
+                                        {isExitCard ? "Completed" : row.arrivalConfirmed ? "Awaiting final" : "Arrival pending"}
                                       </span>
                                     </div>
                                   </div>
@@ -2839,6 +2882,33 @@ export default function Dashboard() {
 
                               {isExpanded && (
                                 <div className="border-t border-border bg-muted/10 px-5 py-5">
+                                  {isExitCard ? (
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                      <div>
+                                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Arrived at Border</p>
+                                        <div className="w-full rounded-lg border border-input bg-muted/40 px-3 py-2 text-sm text-secondary">{row.arrivedAtBorder || "N/A"}</div>
+                                      </div>
+                                      <div>
+                                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Released from Border</p>
+                                        <div className="w-full rounded-lg border border-input bg-muted/40 px-3 py-2 text-sm text-secondary">{row.releasedFromBorder || "N/A"}</div>
+                                      </div>
+                                      <div>
+                                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Documents</p>
+                                        <div className="flex gap-2">
+                                          <span className={`rounded-lg px-3 py-2 text-sm font-semibold ${row.sdoChecked ? "bg-red-600 text-white" : "bg-muted text-muted-foreground"}`}>SDO</span>
+                                          <span className={`rounded-lg px-3 py-2 text-sm font-semibold ${row.releaseOrderChecked ? "bg-green-600 text-white" : "bg-muted text-muted-foreground"}`}>Release Order</span>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Driver's Phone Number</p>
+                                        <div className="w-full rounded-lg border border-input bg-muted/40 px-3 py-2 text-sm text-secondary">{row.driverPhone || "N/A"}</div>
+                                      </div>
+                                      <div className="sm:col-span-2 text-xs text-muted-foreground">
+                                        {row.updatedAt ? `Last saved ${formatDate(row.updatedAt)}` : "Completed border exit"}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                  <div className="space-y-4">
                                   <div className="grid gap-4 sm:grid-cols-2">
                                     <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
                                       <div>
@@ -2941,6 +3011,8 @@ export default function Dashboard() {
                                       Confirm Final
                                     </button>
                                   </div>
+                                  </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -2962,7 +3034,9 @@ export default function Dashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {borderEntries.map((row) => (
+                        {borderEntries.map((row) => {
+                          const isEditing = editingBorderShipmentId === row.shipmentId;
+                          return (
                           <tr key={row.shipmentId} className="border-b border-border/70 hover:bg-muted/10 transition-colors align-top">
                             <td className="px-4 py-3 font-semibold text-secondary whitespace-nowrap">{row.ifsRef}</td>
                             <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{row.mraRef}</td>
@@ -2978,20 +3052,40 @@ export default function Dashboard() {
                                 inputMode="numeric"
                                 pattern="[0-9-]*"
                                 maxLength={10}
-                                readOnly={borderReadOnlyViewer}
-                                disabled={borderReadOnlyViewer}
-                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
+                                readOnly={borderReadOnlyViewer && !isEditing}
+                                disabled={borderReadOnlyViewer && !isEditing}
+                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer && !isEditing ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
                               />
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${row.sdoChecked ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
-                                {row.sdoChecked ? "Y" : "-"}
-                              </span>
+                              {isEditing ? (
+                                <button
+                                  type="button"
+                                  onClick={() => updateBorderEntryDraftField(row.shipmentId, "sdoChecked", !row.sdoChecked)}
+                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${row.sdoChecked ? "bg-red-600 text-white" : "bg-muted text-muted-foreground"}`}
+                                >
+                                  SDO
+                                </button>
+                              ) : (
+                                <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${row.sdoChecked ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                                  {row.sdoChecked ? "Y" : "-"}
+                                </span>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${row.releaseOrderChecked ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
-                                {row.releaseOrderChecked ? "Y" : "-"}
-                              </span>
+                              {isEditing ? (
+                                <button
+                                  type="button"
+                                  onClick={() => updateBorderEntryDraftField(row.shipmentId, "releaseOrderChecked", !row.releaseOrderChecked)}
+                                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${row.releaseOrderChecked ? "bg-green-600 text-white" : "bg-muted text-muted-foreground"}`}
+                                >
+                                  RO
+                                </button>
+                              ) : (
+                                <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${row.releaseOrderChecked ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                                  {row.releaseOrderChecked ? "Y" : "-"}
+                                </span>
+                              )}
                             </td>
                             <td className="px-4 py-3 min-w-[180px]">
                               <input
@@ -3002,9 +3096,9 @@ export default function Dashboard() {
                                 inputMode="numeric"
                                 pattern="[0-9/]*"
                                 maxLength={10}
-                                readOnly={borderReadOnlyViewer}
-                                disabled={borderReadOnlyViewer}
-                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
+                                readOnly={borderReadOnlyViewer && !isEditing}
+                                disabled={borderReadOnlyViewer && !isEditing}
+                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer && !isEditing ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
                               />
                             </td>
                             <td className="px-4 py-3 min-w-[170px]">
@@ -3016,22 +3110,49 @@ export default function Dashboard() {
                                 inputMode="numeric"
                                 pattern="[0-9]*"
                                 maxLength={15}
-                                readOnly={borderReadOnlyViewer}
-                                disabled={borderReadOnlyViewer}
-                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
+                                readOnly={borderReadOnlyViewer && !isEditing}
+                                disabled={borderReadOnlyViewer && !isEditing}
+                                className={`w-full rounded-lg border border-input px-3 py-2 text-sm outline-none ${borderReadOnlyViewer && !isEditing ? "bg-muted/40 text-muted-foreground cursor-not-allowed" : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"}`}
                               />
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
-                              {borderReadOnlyViewer
-                                ? "Read only"
-                                : borderSavingByShipment[row.shipmentId]
+                              {borderReadOnlyViewer ? (
+                                isEditing ? (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => void saveBorderEntry(row, "correction")}
+                                      disabled={!!borderSavingByShipment[row.shipmentId]}
+                                      className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                                    >
+                                      {borderSavingByShipment[row.shipmentId] ? <Spinner className="h-[13px] w-[13px]" /> : null}
+                                      Save
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={cancelEditingBorderEntry}
+                                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => startEditingBorderEntry(row)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary hover:border-primary/40 hover:bg-primary/5"
+                                  >
+                                    Edit
+                                  </button>
+                                )
+                              ) : borderSavingByShipment[row.shipmentId]
                                 ? <span className="inline-flex items-center gap-2 text-primary"><Spinner className="h-[13px] w-[13px]" /> Saving...</span>
                                 : row.updatedAt
                                 ? `Saved ${formatDate(row.updatedAt)}`
                                 : "Auto-save"}
                             </td>
                           </tr>
-                        ))}
+                        )})}
                       </tbody>
                     </table>
                   </div>
@@ -3225,7 +3346,8 @@ export default function Dashboard() {
                           </button>
                         </div>
                       </div>
-                    )})}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -3795,5 +3917,9 @@ export default function Dashboard() {
     </div>
   );
 }
+
+
+
+
 
 

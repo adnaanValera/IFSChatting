@@ -19,7 +19,7 @@ function SessionDurationGate({ children, user }: { children: ReactNode; user: an
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  if (user?.role === "admin" || confirmed) return <>{children}</>;
+  if (user?.role === "admin" || user?.role === "staff" || confirmed) return <>{children}</>;
 
   const save = async () => {
     setSaving(true);

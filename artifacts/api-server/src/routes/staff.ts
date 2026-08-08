@@ -1717,12 +1717,15 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
       .where(eq(usersTable.id, authReq.user.userId))
       .limit(1);
 
-    if (requestUser?.role === "admin" || (requestUser?.role === "staff" && (requestUser.station || "").trim() === "Blantyre")) {
-      res.status(403).json({ error: "Blantyre staff and admin can only view border entry in read-only mode." });
+    const mode = typeof req.body?.mode === "string" ? req.body.mode.trim().toLowerCase() : "arrival";
+    const requestStation = (requestUser?.station || "").trim();
+    const readOnlyStation = requestStation === "Blantyre" || requestStation === "Lilongwe";
+
+    if ((requestUser?.role === "admin" || (requestUser?.role === "staff" && readOnlyStation)) && mode !== "correction") {
+      res.status(403).json({ error: "Blantyre/Lilongwe staff and admin can only view border entry in read-only mode." });
       return;
     }
 
-    const mode = typeof req.body?.mode === "string" ? req.body.mode.trim().toLowerCase() : "arrival";
     const arrivedAtBorder = typeof req.body?.arrivedAtBorder === "string" ? req.body.arrivedAtBorder.trim() : "";
     const sdoChecked = req.body?.sdoChecked === true;
     const releaseOrderChecked = req.body?.releaseOrderChecked === true;
@@ -1750,7 +1753,7 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
     );
     const existingEntry = existingEntryResult.rows[0];
 
-    if (existingEntry?.final_confirmed) {
+    if (existingEntry?.final_confirmed && mode !== "correction") {
       res.status(400).json({ error: "This border entry has already been completed." });
       return;
     }
@@ -1807,13 +1810,39 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
            updated_at = now()`,
         [shipmentId, existingEntry?.arrived_at_border || arrivedAtBorder || null, sdoChecked, releaseOrderChecked, releasedFromBorder, driverPhone, authReq.user.email],
       );
+    } else if (mode === "correction") {
+      if (!arrivedAtBorder) {
+        res.status(400).json({ error: "Enter the arrived at border date first." });
+        return;
+      }
+
+      const finalConfirmed = !!arrivedAtBorder && !!releasedFromBorder && !!driverPhone && (!!sdoChecked || !!releaseOrderChecked);
+      await pool.query(
+        `INSERT INTO border_entries (
+           shipment_id, arrived_at_border, arrival_confirmed, sdo_checked, release_order_checked,
+           released_from_border, driver_phone, final_confirmed, updated_by, updated_at
+         )
+         VALUES ($1, $2, true, $3, $4, $5, $6, $7, $8, now())
+         ON CONFLICT (shipment_id)
+         DO UPDATE SET
+           arrived_at_border = EXCLUDED.arrived_at_border,
+           arrival_confirmed = true,
+           sdo_checked = EXCLUDED.sdo_checked,
+           release_order_checked = EXCLUDED.release_order_checked,
+           released_from_border = EXCLUDED.released_from_border,
+           driver_phone = EXCLUDED.driver_phone,
+           final_confirmed = EXCLUDED.final_confirmed,
+           updated_by = EXCLUDED.updated_by,
+           updated_at = now()`,
+        [shipmentId, arrivedAtBorder, sdoChecked, releaseOrderChecked, releasedFromBorder, driverPhone, finalConfirmed, authReq.user.email],
+      );
     } else {
       res.status(400).json({ error: "Invalid save mode." });
       return;
     }
 
-    const notifyingStation = (requestUser?.station || "").trim();
-    if (notifyingStation && notifyingStation !== "Blantyre") {
+    const notifyingStation = requestStation;
+    if (notifyingStation && !readOnlyStation && mode !== "correction") {
       const [shipmentDetails] = await db
         .select({
           ifsRef: shipmentsTable.ifsRef,
@@ -1830,7 +1859,7 @@ router.patch("/staff/border-entries/:shipmentId", requireAuth, requireStaff, asy
         .where(
           or(
             eq(usersTable.role, "admin"),
-            and(eq(usersTable.role, "staff"), eq(usersTable.station, "Blantyre")),
+            and(eq(usersTable.role, "staff"), or(eq(usersTable.station, "Blantyre"), eq(usersTable.station, "Lilongwe"))),
           ),
         );
 

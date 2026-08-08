@@ -39,7 +39,6 @@ export function ShipmentCard({
       <Text style={[styles.identifier, { color: palette.text }]}>{shipmentIdentifier(shipment)}</Text>
       <Text style={[styles.section, { color: palette.textSoft }]}>{statusSection(shipment)}</Text>
       <View style={styles.grid}>
-        <Info label="IFS Ref" value={shipment.ifsRef} palette={palette} />
         <Info label="MRA Ref" value={shipment.mraRef} palette={palette} />
         <Info label="Consignee" value={shipment.consignee} palette={palette} />
         <Info label="Shipper" value={shipment.shipper} palette={palette} />
