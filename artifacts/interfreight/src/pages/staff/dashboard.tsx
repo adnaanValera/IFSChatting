@@ -604,10 +604,26 @@ export default function Dashboard() {
   const [spreadsheetSavePending, setSpreadsheetSavePending] = useState(false);
   const [spreadsheetOffline, setSpreadsheetOffline] = useState<boolean>(typeof navigator !== "undefined" ? !navigator.onLine : false);
   const [spreadsheetFileMenuOpen, setSpreadsheetFileMenuOpen] = useState(false);
+  const [spreadsheetFrozenColumnCount, setSpreadsheetFrozenColumnCount] = useState(2);
   const spreadsheetImportInputRef = useRef<HTMLInputElement | null>(null);
   const spreadsheetSaveTimerRef = useRef<number | null>(null);
   const spreadsheetPresetAppliedRef = useRef(false);
   const draggedSpreadsheetRowIdsRef = useRef<string[]>([]);
+  const spreadsheetHistoryRef = useRef<Array<{
+    columns: SpreadsheetColumn[];
+    rows: SpreadsheetRow[];
+    merges: SpreadsheetMerge[];
+    cellStyles: Record<string, SpreadsheetCellStyle>;
+    rowHeights: Record<string, number>;
+  }>>([]);
+  const spreadsheetFutureRef = useRef<Array<{
+    columns: SpreadsheetColumn[];
+    rows: SpreadsheetRow[];
+    merges: SpreadsheetMerge[];
+    cellStyles: Record<string, SpreadsheetCellStyle>;
+    rowHeights: Record<string, number>;
+  }>>([]);
+  const spreadsheetSkipHistoryRef = useRef(false);
   const borderSaveTimersRef = useRef<Record<number, number>>({});
   const [stationSaving, setStationSaving] = useState(false);
   const [operationalAlerts, setOperationalAlerts] = useState<{
@@ -643,6 +659,15 @@ export default function Dashboard() {
       void loadSpreadsheet(true);
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!spreadsheetLoaded) return;
+    if (spreadsheetSkipHistoryRef.current) {
+      spreadsheetSkipHistoryRef.current = false;
+      return;
+    }
+    pushSpreadsheetHistory();
+  }, [spreadsheetLoaded, spreadsheetColumns, spreadsheetRows, spreadsheetMerges, spreadsheetCellStyles, spreadsheetRowHeights]);
 
   useEffect(() => {
     if (!spreadsheetLoaded) return;
@@ -851,6 +876,21 @@ export default function Dashboard() {
     });
   };
 
+  const duplicateSpreadsheetRow = (rowId: string) => {
+    setSpreadsheetRows((current) => {
+      const index = current.findIndex((row) => row.id === rowId);
+      if (index < 0) return current;
+      const source = current[index]!;
+      const copy: SpreadsheetRow = {
+        id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        cells: { ...source.cells },
+      };
+      const next = [...current];
+      next.splice(index + 1, 0, copy);
+      return next;
+    });
+  };
+
   const deleteSpreadsheetRow = (rowId: string) => {
     setSpreadsheetRows((current) => {
       const next = current.filter((row) => row.id !== rowId);
@@ -1026,6 +1066,52 @@ export default function Dashboard() {
     cellStyles: spreadsheetCellStyles,
     rowHeights: spreadsheetRowHeights,
   });
+
+  const snapshotSpreadsheetState = () => ({
+    columns: spreadsheetColumns.map((column) => ({ ...column })),
+    rows: spreadsheetRows.map((row) => ({ ...row, cells: { ...row.cells } })),
+    merges: spreadsheetMerges.map((merge) => ({ ...merge })),
+    cellStyles: Object.fromEntries(Object.entries(spreadsheetCellStyles).map(([key, value]) => [key, { ...value }])),
+    rowHeights: { ...spreadsheetRowHeights },
+  });
+
+  const applySpreadsheetSnapshot = (snapshot: ReturnType<typeof snapshotSpreadsheetState>) => {
+    spreadsheetSkipHistoryRef.current = true;
+    setSpreadsheetColumns(snapshot.columns);
+    setSpreadsheetRows(snapshot.rows);
+    setSpreadsheetMerges(snapshot.merges);
+    setSpreadsheetCellStyles(snapshot.cellStyles);
+    setSpreadsheetRowHeights(snapshot.rowHeights);
+  };
+
+  const pushSpreadsheetHistory = () => {
+    if (spreadsheetSkipHistoryRef.current) return;
+    const snapshot = snapshotSpreadsheetState();
+    const last = spreadsheetHistoryRef.current[spreadsheetHistoryRef.current.length - 1];
+    const encoded = JSON.stringify(snapshot);
+    const lastEncoded = last ? JSON.stringify(last) : null;
+    if (encoded === lastEncoded) return;
+    spreadsheetHistoryRef.current = [...spreadsheetHistoryRef.current.slice(-39), snapshot];
+    spreadsheetFutureRef.current = [];
+  };
+
+  const undoSpreadsheetChange = () => {
+    if (spreadsheetHistoryRef.current.length <= 1) return;
+    const current = spreadsheetHistoryRef.current[spreadsheetHistoryRef.current.length - 1];
+    const previous = spreadsheetHistoryRef.current[spreadsheetHistoryRef.current.length - 2];
+    if (!current || !previous) return;
+    spreadsheetFutureRef.current = [current, ...spreadsheetFutureRef.current].slice(0, 40);
+    spreadsheetHistoryRef.current = spreadsheetHistoryRef.current.slice(0, -1);
+    applySpreadsheetSnapshot(previous);
+  };
+
+  const redoSpreadsheetChange = () => {
+    const next = spreadsheetFutureRef.current[0];
+    if (!next) return;
+    spreadsheetFutureRef.current = spreadsheetFutureRef.current.slice(1);
+    spreadsheetHistoryRef.current = [...spreadsheetHistoryRef.current, next].slice(-40);
+    applySpreadsheetSnapshot(next);
+  };
 
   const cacheSpreadsheetLocally = (payload = spreadsheetPayload()) => {
     try {
@@ -4088,6 +4174,22 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-2">
                       <button
                         type="button"
+                        onClick={undoSpreadsheetChange}
+                        disabled={spreadsheetHistoryRef.current.length <= 1}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Undo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={redoSpreadsheetChange}
+                        disabled={spreadsheetFutureRef.current.length === 0}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Redo
+                      </button>
+                      <button
+                        type="button"
                         onClick={applyTrackingMasterFormatting}
                         className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary transition-all hover:border-primary/40 hover:bg-primary/5"
                       >
@@ -4107,6 +4209,22 @@ export default function Dashboard() {
                         className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
                       >
                         Insert Above
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectedSpreadsheetIndex >= 0 && insertSpreadsheetRow(selectedSpreadsheetIndex + 1)}
+                        disabled={selectedSpreadsheetIndex < 0}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Insert Below
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectedSpreadsheetCell && duplicateSpreadsheetRow(selectedSpreadsheetCell.rowId)}
+                        disabled={!selectedSpreadsheetCell}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
+                      >
+                        Duplicate Row
                       </button>
                       <button
                         type="button"
@@ -4322,6 +4440,13 @@ export default function Dashboard() {
                       </button>
                       <button
                         type="button"
+                        onClick={() => setSpreadsheetFrozenColumnCount((current) => current === 1 ? 2 : 1)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary"
+                      >
+                        Freeze {spreadsheetFrozenColumnCount === 1 ? "2" : "1"} Cols
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setSpreadsheetCellStyle((current) => ({ ...current, fontSize: Math.max(9, Math.min(18, (current.fontSize ?? 11) - 1)) }))}
                         disabled={!selectedSpreadsheetCell}
                         className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-secondary disabled:opacity-40"
@@ -4471,6 +4596,8 @@ export default function Dashboard() {
                               cellStyle.fill === "green" ? "bg-emerald-100" :
                               cellStyle.fill === "blue" ? "bg-sky-100" :
                               cellStyle.fill === "navy" ? "bg-[#1F3864]" :
+                              cellStyle.fill === "gray" ? "bg-[#D9E2F3]" :
+                              cellStyle.fill === "red" ? "bg-red-100" :
                               "bg-white";
                             const textAlignClass =
                               cellStyle.align === "center" ? "text-center" :
@@ -4479,19 +4606,22 @@ export default function Dashboard() {
                             const textColorClass = cellStyle.textColor === "white" ? "text-white" : "text-secondary";
                             const selectedByHeader = (spreadsheetSelectionMode === "row" && selectedSpreadsheetCell?.rowId === row.id)
                               || (spreadsheetSelectionMode === "column" && selectedSpreadsheetCell?.columnId === column.id);
+                            const stickyLeft = columnIndex < spreadsheetFrozenColumnCount
+                              ? 64 + spreadsheetColumns.slice(0, columnIndex).reduce((total, current) => total + (parseInt(String(current.width).replace("px", ""), 10) || 120), 0)
+                              : undefined;
                             return (
                               <td
                                 key={`${row.id}-${column.id}`}
                                 colSpan={mergeSpan.colSpan}
                                 rowSpan={mergeSpan.rowSpan}
-                                style={{ width: column.width, minWidth: column.width }}
+                                style={{ width: column.width, minWidth: column.width, left: stickyLeft !== undefined ? `${stickyLeft}px` : undefined }}
                                 onContextMenu={(event) => {
                                   event.preventDefault();
                                   setSelectedSpreadsheetCell({ rowId: row.id, columnId: column.id });
                                   setSpreadsheetSelectionMode("cell");
                                   setSpreadsheetContextMenu({ x: event.clientX, y: event.clientY, rowId: row.id, columnId: column.id });
                                 }}
-                                className={`border border-border px-1.5 py-1.5 ${fillClass} ${(isSelected || selectedByHeader || isCellInRangeSelection(row.id, column.id)) ? "outline outline-2 outline-primary/60" : ""}`}
+                                className={`border border-border px-1.5 py-1.5 ${fillClass} ${columnIndex < spreadsheetFrozenColumnCount ? "sticky z-10" : ""} ${(isSelected || selectedByHeader || isCellInRangeSelection(row.id, column.id)) ? "outline outline-2 outline-primary/60" : ""}`}
                               >
                                 <input
                                   type="text"
@@ -4630,6 +4760,27 @@ export default function Dashboard() {
                         className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
                       >
                         Insert Row Above
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSpreadsheetCell({ rowId: spreadsheetContextMenu.rowId, columnId: spreadsheetContextMenu.columnId });
+                          insertSpreadsheetRow(getSpreadsheetRowIndex(spreadsheetContextMenu.rowId) + 1);
+                          setSpreadsheetContextMenu(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        Insert Row Below
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          duplicateSpreadsheetRow(spreadsheetContextMenu.rowId);
+                          setSpreadsheetContextMenu(null);
+                        }}
+                        className="block w-full px-4 py-2 text-left text-sm text-secondary hover:bg-muted/30"
+                      >
+                        Duplicate Row
                       </button>
                       <button
                         type="button"
